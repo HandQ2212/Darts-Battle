@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/DartGame_Client/DartGame_Client.iml" filepath="$PROJECT_DIR$/DartGame_Client/DartGame_Client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/DartGame_Server/DartGame_Server.iml" filepath="$PROJECT_DIR$/DartGame_Server/DartGame_Server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Darts-Battle.iml" filepath="$PROJECT_DIR$/.idea/Darts-Battle.iml" />
+    </modules>
+  </component>
+</project>
