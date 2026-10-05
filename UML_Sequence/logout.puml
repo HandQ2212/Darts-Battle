@@ -1,0 +1,27 @@
+@startuml
+actor User as "Người dùng"
+participant SH as "SocketHandler (Client)"
+participant C as "Client (Server Thread)"
+
+User ->> SH: logout()
+activate SH
+SH -> SH: set loginUser = null
+SH -> SH: sendData("LOGOUT") qua Socket
+deactivate SH
+
+activate C
+C -> C: receive data "LOGOUT"
+C -> C: onReceiveLogout()
+C -> C: set this.loginUser = null
+C -> C: sendData("LOGOUT;success")
+C -> C: onReceiveGetListOnline()
+C -> C: Gọi ClientManager.getListUseOnline()
+C -> C: Gọi ClientManager.broadcast("GET_LIST_ONLINE;...")
+C -> SH: Dữ liệu "LOGOUT;success" qua Socket
+deactivate C
+
+activate SH
+SH -> SH: listen() / onReceiveLogout()
+SH -> SH: Main.setRoot("login") (Chuyển về trang Đăng nhập)
+deactivate SH
+@enduml

@@ -1,0 +1,19 @@
+.table-view {
+  -fx-background-color: rgba(255, 255, 255, 0.9);
+  -fx-background-radius: 12;
+}
+
+.column-header {
+  -fx-background-color: linear-gradient(to bottom, #ff6b35, #f7931e);
+  -fx-font-weight: bold;
+  -fx-text-fill: white;
+}
+
+.table-row-cell:hover {
+  -fx-background-color: rgba(255, 107, 53, 0.15);
+}
+
+.table-row-cell:selected {
+  -fx-background-color: rgba(255, 107, 53, 0.35);
+  -fx-text-fill: white;
+}

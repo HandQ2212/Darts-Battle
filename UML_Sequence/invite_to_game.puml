@@ -1,0 +1,131 @@
+@startuml
+autonumber
+
+actor A as "Client App (Người mời)"
+participant SH_A as "SocketHandler (Người mời)"
+participant C_A as "Client (Server - Người mời)"
+participant CM as "ClientManager"
+participant RM as "RoomManager"
+participant C_B as "Client (Server - Người được mời)"
+participant SH_B as "SocketHandler (Người được mời)"
+actor B as "Client App (Người được mời)"
+
+A -> SH_A : Gọi inviteToPlay(opponentName)
+activate SH_A
+note over SH_A : opponentName là username của B
+SH_A -> SH_A : Chuẩn bị data: "INVITE_TO_PLAY;userHost;opponentName"
+SH_A -> C_A : Gửi data
+deactivate SH_A
+
+activate C_A
+C_A -> C_A : onReceiveInviteToPlay(received)
+note over C_A : userHost = loginUser của C_A
+
+C_A -> CM : find(opponentName)
+activate CM
+CM --> C_A : Trả về C_B (Client của Người được mời)
+deactivate CM
+note over C_A : Giả định C_B tồn tại và đang ONLINE (joinedRoom == null)
+
+C_A -> RM : createRoom()
+activate RM
+RM --> C_A : Trả về Room mới (roomId)
+deactivate RM
+
+C_A -> C_A : joinedRoom = new Room
+C_A -> RM : addClient(this)
+C_A -> C_A : cCompetitor = C_B
+
+C_A -> CM : sendToAClient(opponentName, msg)
+note over C_A : msg = "INVITE_TO_PLAY;success;userHost;userInvited;roomId"
+
+activate CM
+CM -> C_B : sendData(msg)
+deactivate CM
+
+deactivate C_A
+activate C_B
+
+C_B -> C_B : sendData(msg)
+C_B --> SH_B : Gửi gói tin mời
+deactivate C_B
+
+activate SH_B
+SH_B -> SH_B : listen() nhận INVITE_TO_PLAY
+SH_B -> SH_B : onReceiveInviteToPlay(received)
+note over SH_B : Lưu Host, Invited User, Room ID
+
+SH_B -> B : Hiển thị NotificationDialog
+activate B
+B --> SH_B : Người dùng B chấp nhận/từ chối
+deactivate B
+
+alt Người dùng B chấp nhận
+    SH_B -> SH_B : Chuẩn bị data: "ACCEPT_PLAY;userHost;userInvited;roomId"
+    SH_B -> C_B : Gửi data
+    activate C_B
+    C_B -> C_B : onReceiveAcceptPlay(received)
+    C_B -> RM : find(roomId)
+    activate RM
+    RM --> C_B : Trả về Room
+    deactivate RM
+    C_B -> C_B : joinedRoom = Room
+    C_B -> RM : addClient(this)
+    C_B -> C_B : cCompetitor = C_A
+
+    C_B -> CM : sendToAClient(userHost, msg)
+    note over C_B : msg = "ACCEPT_PLAY;success;..."
+
+    activate CM
+    CM -> C_A : sendData(msg)
+    deactivate CM
+    deactivate C_B
+
+    activate C_A
+    C_A --> SH_A : Gửi gói tin ACCEPT_PLAY
+    deactivate C_A
+
+    activate SH_A
+    SH_A -> SH_A : listen() nhận ACCEPT_PLAY
+    SH_A -> SH_A : onReceiveAcceptPlay(received)
+    SH_A -> SH_A : Lưu competitor, roomIdPresent
+    SH_A -> A : Chuyển sang màn hình "startgame"
+    deactivate SH_A
+
+    SH_B -> SH_B : Lưu roomIdPresent
+    SH_B -> A : Chuyển sang màn hình "startgame"
+else Người dùng B từ chối
+    SH_B -> SH_B : Chuẩn bị data: "NOT_ACCEPT_PLAY;userHost;userInvited;roomId"
+    SH_B -> C_B : Gửi data
+    activate C_B
+    C_B -> C_B : onReceiveNotAcceptPlay(received)
+    C_B -> CM : find(userHost).setJoinedRoom(null)
+    C_B -> CM : find(userInvited).setJoinedRoom(null)
+    C_B -> RM : find(roomId)
+    activate RM
+    RM --> C_B : Trả về Room
+    deactivate RM
+    C_B -> RM : remove(Room)
+
+    C_B -> CM : sendToAClient(userHost, msg)
+    note over C_B : msg = "NOT_ACCEPT_PLAY;success;..."
+
+    activate CM
+    CM -> C_A : sendData(msg)
+    deactivate CM
+    deactivate C_B
+
+    activate C_A
+    C_A --> SH_A : Gửi gói tin NOT_ACCEPT_PLAY
+    deactivate C_A
+
+    activate SH_A
+    SH_A -> SH_A : listen() nhận NOT_ACCEPT_PLAY
+    SH_A -> SH_A : onReceiveNotAcceptPlay(received)
+    SH_A -> A : Hiển thị thông báo từ chối
+    deactivate SH_A
+
+    SH_B -> B : Đóng Dialog
+end
+
+@enduml

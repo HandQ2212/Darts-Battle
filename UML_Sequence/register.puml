@@ -1,0 +1,45 @@
+@startuml
+actor User as "Người dùng"
+participant RC as "RegisterController (Client)"
+participant SH as "SocketHandler (Client)"
+participant C as "Client (Server Thread)"
+participant UC as "UserController (Server)"
+database DB as "Database"
+
+User ->> RC: Nhập Username/Password & Bấm Đăng ký
+RC ->> SH: register(username, password)
+activate SH
+SH -> SH: Chuẩn bị data: "REGISTER;user;pass"
+SH -> C: sendData() qua Socket
+deactivate SH
+
+activate C
+C -> C: receive data "REGISTER;..."
+C -> C: onReceiveRegister()
+C -> UC: register(username, password)
+activate UC
+UC -> DB: SQL: CHECK_USER (SELECT id FROM users WHERE username=?)
+
+alt User chưa tồn tại
+    UC -> DB: SQL: INSERT_USER (INSERT INTO users ...)
+    DB --> UC: Trả về kết quả
+    UC --> C: "success;"
+else User đã tồn tại
+    DB --> UC: Trả về Result Set
+    UC --> C: "failed;msg"
+end
+deactivate UC
+
+C -> C: sendData("REGISTER;result")
+C -> SH: Dữ liệu "REGISTER;result" qua Socket
+deactivate C
+
+activate SH
+SH -> SH: listen() / onReceiveRegister()
+alt Thành công
+    SH -> RC: Main.setRoot("login") (Chuyển về trang Đăng nhập)
+else Thất bại
+    SH -> RC: Hiển thị lỗi (ví dụ: System.out.println)
+end
+deactivate SH
+@enduml

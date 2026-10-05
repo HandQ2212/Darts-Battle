@@ -1,0 +1,164 @@
+@startuml
+' === Theme Solarized Light ===
+skinparam backgroundColor #FDF6E3
+skinparam handwritten false
+
+skinparam class {
+  BackgroundColor #EEE8D5
+  BorderColor #657b83
+  ArrowColor #586e75
+  FontColor #073642
+  FontSize 13
+}
+
+skinparam note {
+  BackgroundColor #EEE8D5
+  BorderColor #93a1a1
+  FontColor #586e75
+}
+
+skinparam package {
+  BackgroundColor #EEE8D5
+  BorderColor #93a1a1
+  FontColor #073642
+}
+
+' === Class Diagram ===
+top to bottom direction
+
+package "Client Application" {
+    class ClientApplication {
+        +Main
+        +StartGameController
+        +SocketHandler
+    }
+
+    class SocketHandler {
+        +Socket s
+        +DataInputStream dis
+        +DataOutputStream dos
+        +String loginUser
+        +Thread listener
+        +String competitor
+        +String roomIdPresent
+        +boolean checkYouAreInvited
+        +connect(String, int): String
+        +listen()
+        +sendData(String)
+        +login(String, String)
+        +register(String, String)
+        +logout()
+        +getListOnline()
+        +inviteToPlay(String)
+        +leaveGame()
+        +getRoomIdPresent(): String
+        +onReceiveLogin(String)
+        +onReceiveOther()
+    }
+
+    class StartGameController {
+        +ListView chatList
+        +TextField chatInput
+        +Pane gamePane
+        +Pane scoreboardPane
+        +Button startButton
+        +Label instructionLabel
+        +TextField angleInput
+        +setupGame()
+        +nextTurn()
+        +calculateScore(double, double): int
+        +endGame(boolean)
+        +handleGameAction()
+        +addMessage(String)
+        +handleSend()
+        +setTurn(String)
+        +updateCompetitorStatus(...)
+    }
+}
+
+package "Server Application" {
+    class ServerApplication {
+        +DartGame_Server
+        +ClientManager
+        +RoomManager
+        +UserController
+    }
+
+    class Client {
+        +Socket s
+        +DataInputStream dis
+        +DataOutputStream dos
+        +Room joinedRoom
+        +String loginUser
+        +Client cCompetitor
+        +Client(Socket)
+        +run()
+        +sendData(String): String
+        +onReceiveLogin(String)
+        +onReceiveOther()
+        +getJoinedRoom(): Room
+    }
+
+    class Room {
+        +String id
+        +Client client1
+        +Client client2
+        +ArrayList clients
+        +boolean gameStarted
+        +String resultClient1
+        +String resultClient2
+        +addClient(Client): boolean
+        +removeClient(Client): boolean
+        +broadcast(String)
+        +find(String): Client
+        +startGame()
+        +userLeaveGame(String)
+    }
+
+    class ClientManager {
+        +ArrayList clients
+        +add(Client): boolean
+        +remove(Client): boolean
+        +getSize(): int
+        +find(String): Client
+        +broadcast(String)
+        +sendToAClient(String, String)
+        +getListUseOnline(): String
+    }
+
+    class RoomManager {
+        +ArrayList rooms
+        +RandomString idGenerator
+        +createRoom(): Room
+        +add(Room): boolean
+        +remove(Room): boolean
+        +find(String): Room
+        +getSize(): int
+    }
+
+    class UserController {
+        +login(String, String): String
+        +register(String, String): String
+        +increaseScore(String): String
+    }
+}
+
+' === Relationships ===
+ClientApplication --> SocketHandler
+ClientApplication --> StartGameController
+StartGameController --> SocketHandler
+SocketHandler --> StartGameController
+
+ServerApplication --> ClientManager
+ServerApplication --> RoomManager
+ServerApplication --> UserController
+
+ClientManager "1" -- "0..*" Client
+RoomManager "1" -- "0..*" Room
+
+Client "1" -- "1" Room
+Client "1" -- "1" Client : competitor
+Client --> UserController
+Room --> Client
+
+@enduml

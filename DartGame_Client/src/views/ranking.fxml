@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:id="rootPane"
+            fx:controller="controllers.RankingController"
+            prefWidth="900" prefHeight="600"
+            stylesheets="@ranking.css">
+
+    <!-- Header Section -->
+    <HBox alignment="CENTER_LEFT" spacing="20"
+          AnchorPane.topAnchor="20"
+          AnchorPane.leftAnchor="20"
+          AnchorPane.rightAnchor="20">
+        
+        <!-- Nút Quay lại -->
+        <Button text="← Quay lại" onAction="#handleBack"
+                prefWidth="120" prefHeight="40"
+                style="-fx-background-color: rgba(255,255,255,0.7);
+                       -fx-background-radius: 20;
+                       -fx-font-size: 14px;
+                       -fx-text-fill: black;
+                       -fx-cursor: hand;
+                       -fx-font-weight: bold;"/>
+        
+        <!-- Spacer -->
+        <Region HBox.hgrow="ALWAYS"/>
+        
+        <!-- Thông tin user -->
+        <VBox alignment="CENTER_RIGHT" spacing="5">
+            <Label fx:id="userRankLabel" 
+                   text="Hạng của bạn: --"
+                   style="-fx-font-size: 14px; -fx-text-fill: black; -fx-font-weight: bold;"/>
+            <Label fx:id="userStatsLabel" 
+                   text="Điểm số: --"
+                   style="-fx-font-size: 12px; -fx-text-fill: #333333;"/>
+        </VBox>
+        
+        <!-- Nút Làm mới -->
+        <Button text="🔄 Làm mới" onAction="#handleRefresh"
+                prefWidth="120" prefHeight="40"
+                style="-fx-background-color: rgba(0,200,0,0.7);
+                       -fx-background-radius: 20;
+                       -fx-font-size: 14px;
+                       -fx-text-fill: white;
+                       -fx-cursor: hand;
+                       -fx-font-weight: bold;"/>
+    </HBox>
+
+    <!-- Title -->
+    <VBox alignment="CENTER" spacing="10"
+          AnchorPane.topAnchor="90"
+          AnchorPane.leftAnchor="0"
+          AnchorPane.rightAnchor="0">
+        <Label text="🏆 BẢNG XẾP HẠNG 🏆"
+               style="-fx-font-size: 28px; -fx-text-fill: #FF6B35; -fx-font-weight: bold;"/>
+        <Label text="Top người chơi xuất sắc nhất"
+               style="-fx-font-size: 14px; -fx-text-fill: #666666;"/>
+    </VBox>
+
+    <!-- Leaderboard Table -->
+    <VBox alignment="CENTER" spacing="10"
+          AnchorPane.topAnchor="180"
+          AnchorPane.leftAnchor="50"
+          AnchorPane.rightAnchor="50"
+          AnchorPane.bottomAnchor="50">
+        
+        <TableView fx:id="leaderboardTable"
+                   style="-fx-background-color: rgba(255,255,255,0.8);
+                          -fx-background-radius: 15;">
+            <columns>
+                <TableColumn fx:id="rankColumn" 
+                            text="🏅 Hạng" 
+                            minWidth="80"
+                            maxWidth="100"
+                            style="-fx-alignment: CENTER;"
+                            resizable="false"/>
+                <TableColumn fx:id="usernameColumn" 
+                            text="👤 Tên người chơi" 
+                            minWidth="200"
+                            style="-fx-alignment: CENTER_LEFT;"/>
+                <TableColumn fx:id="scoreColumn" 
+                            text="⭐ Điểm số" 
+                            minWidth="120"
+                            maxWidth="150"
+                            style="-fx-alignment: CENTER;"
+                            resizable="false"/>
+            </columns>
+            
+            <!-- Placeholder khi không có dữ liệu -->
+            <placeholder>
+                <VBox alignment="CENTER" spacing="10" style="-fx-padding: 20;">
+                    <Label text="📊" style="-fx-font-size: 48px;"/>
+                    <Label text="Chưa có dữ liệu bảng xếp hạng" 
+                           style="-fx-font-size: 16px; -fx-text-fill: #666666;"/>
+                    <Label text="Hãy chơi game để xuất hiện trên bảng xếp hạng!" 
+                           style="-fx-font-size: 12px; -fx-text-fill: #999999;"/>
+                </VBox>
+            </placeholder>
+        </TableView>
+        
+        <!-- Loading indicator (ẩn mặc định) -->
+        <HBox fx:id="loadingBox" alignment="CENTER" spacing="10" 
+              visible="false" managed="false"
+              style="-fx-padding: 10;">
+            <Label text="⏳ Đang tải dữ liệu..." 
+                   style="-fx-font-size: 14px; -fx-text-fill: #666666;"/>
+        </HBox>
+    </VBox>
+
+</AnchorPane>

@@ -1,0 +1,179 @@
+@startuml
+' === Theme Solarized Light ===
+skinparam backgroundColor #FDF6E3
+skinparam handwritten false
+
+skinparam sequence {
+  ArrowColor #586e75
+  ArrowFontColor #586e75
+  ArrowFontSize 13
+  LifeLineBorderColor #657b83
+  LifeLineBackgroundColor #EEE8D5
+  ParticipantBorderColor #93a1a1
+  ParticipantBackgroundColor #EEE8D5
+  ActorBorderColor #93a1a1
+  ActorBackgroundColor #EEE8D5
+  ActorFontColor #073642
+  ParticipantFontColor #073642
+  BoxBackgroundColor #EEE8D5
+  BoxBorderColor #93a1a1
+}
+
+skinparam sequenceParticipant {
+  FontColor #073642
+  FontSize 14
+  BorderColor #657b83
+  BackgroundColor #EEE8D5
+}
+
+skinparam sequenceActor {
+  FontColor #073642
+  FontSize 14
+  BorderColor #657b83
+  BackgroundColor #EEE8D5
+}
+
+' === Participants ===
+participant P1_UI as "Player 1 (UI)"
+participant P1_Handler as "Player 1 (SocketHandler)"
+participant Server as "Server"
+participant P2_Handler as "Player 2 (SocketHandler)"
+participant P2_UI as "Player 2 (UI)"
+
+' === Invitation Flow ===
+Note over P1_UI, P2_UI: P1 invites P2 to play
+
+P1_UI->>P1_Handler: inviteToPlay(opponentName)
+activate P1_Handler
+P1_Handler->>Server: INVITE_TO_PLAY;P1Name;opponentName
+deactivate P1_Handler
+activate Server
+Server-->>P2_Handler: INVITE_TO_PLAY;success;P1Name;opponentName;roomId
+deactivate Server
+activate P2_Handler
+P2_Handler-->>P2_UI: Notify of invitation from P1Name
+deactivate P2_Handler
+
+' === Acceptance Flow ===
+Note over P2_UI, P2_Handler: P2 accepts the invitation
+
+P2_UI->>P2_Handler: acceptPlay(P1Name, roomId)
+activate P2_Handler
+P2_Handler->>Server: ACCEPT_PLAY;P2Name;P1Name;roomId
+deactivate P2_Handler
+activate Server
+Server-->>P1_Handler: ACCEPT_PLAY;success;P2Name;P1Name;roomId
+Server-->>P1_Handler: TURN_THROW;P1Name
+deactivate Server
+activate P1_Handler
+P1_Handler-->>P1_UI: Update UI to show it's P1's turn
+deactivate P1_Handler
+
+Note over P1_UI: It is now P1's turn to throw a dart
+
+' === P1's Turn ===
+alt P1's Turn
+    P1_UI->>P1_UI: startXAxis(), stopXAxis(), etc.
+    P1_UI->>P1_Handler: Send THROW_RESULT to Server
+    activate P1_Handler
+    P1_Handler->>Server: THROW_RESULT;P1Name;P2Name;roomId;scores...
+    deactivate P1_Handler
+    activate Server
+    Server->>Server: calculate new score & check for winner
+
+    alt No winner yet (scoreRemaining > 0)
+        Server-->>P1_Handler: TURN_ROTATE;...
+        deactivate Server
+        activate P1_Handler
+        P1_Handler->>Server: ROTATE_RESULT;...
+        deactivate P1_Handler
+        activate Server
+        Server-->>P2_Handler: TURN_THROW;P2Name;P1Name;roomId;angle;scores...
+        deactivate Server
+        activate P2_Handler
+        P2_Handler-->>P2_UI: Update UI with new dartboard angle and score
+        deactivate P2_Handler
+        Note over P2_UI: It is now P2's turn to throw a dart
+    else P1 wins (scoreRemaining == 0)
+        Server->>Server: updateScore(P1), removeRoom(roomId)
+        Server-->>P1_Handler: END_GAME;...P1Name
+        Server-->>P2_Handler: END_GAME;...P1Name
+        deactivate Server
+        activate P1_Handler
+        P1_Handler-->>P1_UI: Show "You Won!"
+        deactivate P1_Handler
+        activate P2_Handler
+        P2_Handler-->>P2_UI: Show "You Lost!"
+        deactivate P2_Handler
+        Note over P1_UI, P2_UI: Game Over
+    end
+end
+
+' === P2's Turn ===
+alt P2's Turn
+    P2_UI->>P2_UI: startXAxis(), stopXAxis(), etc.
+    P2_UI->>P2_Handler: Send THROW_RESULT to Server
+    activate P2_Handler
+    P2_Handler->>Server: THROW_RESULT;P2Name;P1Name;roomId;scores...
+    deactivate P2_Handler
+    activate Server
+    Server->>Server: calculate new score & check for winner
+
+    alt No winner yet (scoreRemaining > 0)
+        Server-->>P2_Handler: TURN_ROTATE;...
+        deactivate Server
+        activate P2_Handler
+        P2_Handler->>Server: ROTATE_RESULT;...
+        deactivate P2_Handler
+        activate Server
+        Server-->>P1_Handler: TURN_THROW;P1Name;P2Name;roomId;angle;scores...
+        deactivate Server
+        activate P1_Handler
+        P1_Handler-->>P1_UI: Update UI with new dartboard angle and score
+        deactivate P1_Handler
+        Note over P1_UI: It is now P1's turn to throw a dart
+    else P2 wins (scoreRemaining == 0)
+        Server->>Server: updateScore(P2), removeRoom(roomId)
+        Server-->>P1_Handler: END_GAME;...P2Name
+        Server-->>P2_Handler: END_GAME;...P2Name
+        deactivate Server
+        activate P1_Handler
+        P1_Handler-->>P1_UI: Show "You Lost!"
+        deactivate P1_Handler
+        activate P2_Handler
+        P2_Handler-->>P2_UI: Show "You Won!"
+        deactivate P2_Handler
+        Note over P1_UI, P2_UI: Game Over
+    end
+end
+
+' === Chat Flow ===
+P1_UI->>P1_Handler: send chat message
+activate P1_Handler
+P1_Handler->>Server: CHAT_MESSAGE;P1Name;P2Name;roomId;message
+deactivate P1_Handler
+activate Server
+Server-->>P2_Handler: CHAT_MESSAGE;P1Name;P2Name;roomId;message
+deactivate Server
+activate P2_Handler
+P2_Handler-->>P2_UI: Display chat message
+deactivate P2_Handler
+
+' === Leave Game Flow ===
+P1_UI->>P1_Handler: leaveGame()
+activate P1_Handler
+P1_Handler->>Server: LEAVE_TO_GAME;P1Name;P2Name;roomId
+deactivate P1_Handler
+activate Server
+Server->>Server: removeRoom(roomId), clear info
+Server-->>P2_Handler: LEAVE_TO_GAME;success;P1Name;P2Name
+deactivate Server
+activate P1_Handler
+P1_Handler-->>P1_UI: Return to main screen
+deactivate P1_Handler
+activate P2_Handler
+P2_Handler-->>P2_UI: Show "Opponent has left, You Win!"
+deactivate P2_Handler
+
+Note over P1_UI, P2_UI: P1 leaves, P2 wins by default
+@enduml
