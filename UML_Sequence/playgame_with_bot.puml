@@ -1,0 +1,114 @@
+@startuml
+title Sequence Diagram - Chơi Game Với Bot
+
+'================= THEME =================
+!pragma layout smetana
+
+skinparam backgroundColor #FDF6E3
+skinparam handwritten false
+
+skinparam sequence {
+  ArrowColor #586e75
+  ArrowFontColor #586e75
+  ArrowFontSize 13
+  LifeLineBorderColor #657b83
+  LifeLineBackgroundColor #EEE8D5
+  ParticipantBorderColor #93a1a1
+  ParticipantBackgroundColor #EEE8D5
+  ActorBorderColor #93a1a1
+  ActorBackgroundColor #EEE8D5
+  ActorFontColor #073642
+  ParticipantFontColor #073642
+  BoxBackgroundColor #EEE8D5
+  BoxBorderColor #93a1a1
+}
+
+skinparam sequenceParticipant {
+  FontColor #073642
+  FontSize 14
+  BorderColor #657b83
+  BackgroundColor #EEE8D5
+}
+
+skinparam sequenceActor {
+  FontColor #073642
+  FontSize 14
+  BorderColor #657b83
+  BackgroundColor #EEE8D5
+}
+
+'================= PARTICIPANTS =================
+actor "Người dùng" as User
+participant "Client UI" as UI
+participant "Game Controller" as Controller
+participant "Bot" as Bot
+
+'================= FLOW =================
+User -> UI : Bấm nút "Start Game"
+UI -> Controller : startGame()
+
+activate Controller
+Controller -> UI : Hiển thị đường ngắm X
+Controller -> Controller : Reset điểm số, biến trò chơi
+activate UI
+
+loop Lượt chơi của Người dùng (tối đa 3 phi tiêu)
+    User -> UI : Bấm nút "Stop X"
+    UI -> Controller : handleGameAction()
+    Controller -> Controller : stopXAxis()
+    Controller -> UI : Hiển thị đường ngắm Y
+    
+    User -> UI : Bấm nút "THROW!"
+    UI -> Controller : handleGameAction()
+    Controller -> Controller : stopYAxis()
+    Controller -> Controller : throwDart()
+    
+    activate Controller
+    Controller -> Controller : calculateScore(x, y)
+    Controller -> UI : Vẽ phi tiêu và hiển thị điểm
+    Controller -> Controller : Cập nhật điểm số người chơi
+    deactivate Controller
+    
+    Controller -> UI : Hiển thị pop-up điểm
+    
+    Controller -> Controller : nextTurn()
+    alt Nếu không kết thúc lượt
+        Controller -> UI : Cập nhật trạng thái "Dart x/3"
+        Controller -> UI : Hiển thị đường ngắm X
+    end
+end
+
+deactivate UI
+
+alt Kết thúc lượt chơi của Người dùng
+    Controller -> UI : Yêu cầu nhập góc xoay
+    User -> UI : Nhập góc và nhấn Enter
+    UI -> Controller : handleRotateBoard()
+    Controller -> Controller : boardRotation += angle
+    Controller -> UI : Xoay bàn phi tiêu
+
+    Controller -> Controller : simulateComputerTurn()
+    activate Controller
+    Controller -> UI : Hiện overlay "bot turn"
+    UI -> Bot : Yêu cầu mô phỏng lượt ném
+    activate Bot
+    Bot -> Bot : Tính toán điểm ngẫu nhiên
+    deactivate Bot
+
+    Controller -> Controller : Cập nhật điểm số máy
+    Controller -> UI : Cập nhật bảng điểm
+    Controller -> Controller : nextTurn()
+    deactivate Controller
+    Controller -> UI : Quay lại lượt chơi của người dùng
+end
+
+alt Game Kết thúc
+    Controller -> Controller : endGame(playerWon)
+    deactivate Controller
+    Controller -> UI : Hiển thị thông báo "Người thắng"
+    User -> UI : Bấm nút "Start Game"
+    UI -> Controller : startGame()
+end
+
+deactivate Controller
+@enduml
