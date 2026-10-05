@@ -1,6 +1,8 @@
 package protocol.dto;
 
-public class ThrowCoordinateRequest {
+import java.io.Serializable;
+
+public class ThrowCoordinateRequest implements Serializable {
     private String matchId;
     private long turnId;
     private double x;

@@ -1,9 +1,11 @@
 package protocol.dto;
 
+import java.io.Serializable;
+
 import enums.ActorType;
 import enums.HitArea;
 
-public class ThrowResolvedResponse {
+public class ThrowResolvedResponse implements Serializable {
     private String matchId;
     private long turnId;
     private String actorName;
