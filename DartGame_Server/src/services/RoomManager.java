@@ -1,63 +1,55 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package services;
 
-import helper.RandomString;
-import java.util.ArrayList;
+import models.Room;
+import enums.ActorType;
+import enums.MatchMode;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
-/**
- *
- * @author admin
- */
 public class RoomManager {
-    ArrayList<Room> rooms;
-    RandomString idGenerator;
+    private static final RoomManager instance = new RoomManager();
+    private final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, String> userRoomMap = new ConcurrentHashMap<>();
 
-    public RoomManager() {
-        rooms = new ArrayList<>();
-        idGenerator = new RandomString(5);
-    }
+    private RoomManager() {}
+    public static RoomManager getInstance() { return instance; }
 
-    public Room createRoom() {
-        Room room = new Room(idGenerator.nextString());
-        rooms.add(room);
-
+    public Room createPvpRoom(long p1, long p2) {
+        String matchId = UUID.randomUUID().toString();
+        Room room = new Room(matchId, p1, p2, ActorType.HUMAN, MatchMode.PVP);
+        rooms.put(matchId, room);
+        userRoomMap.put(p1, matchId);
+        userRoomMap.put(p2, matchId);
         return room;
     }
 
-    public boolean add(Room r) {
-        if (!rooms.contains(r)) {
-            rooms.add(r);
-            return true;
-        }
-        return true;
+    public Room createPveRoom(long p1) {
+        String matchId = UUID.randomUUID().toString();
+        Room room = new Room(matchId, p1, null, ActorType.BOT, MatchMode.PVE);
+        rooms.put(matchId, room);
+        userRoomMap.put(p1, matchId);
+        return room;
     }
 
-    public boolean remove(Room r) {
-        if (rooms.contains(r)) {
-            rooms.remove(r);
-            return true;
-        }
-        return false;
+    public Room getRoom(String matchId) {
+        return rooms.get(matchId);
     }
 
-    public Room find(String id) {
-        for (Room r : rooms) {
-            if (r.getId().equals(id)) {
-                return r;
-            }
+    public Room findRoomOfUser(long userId) {
+        String matchId = userRoomMap.get(userId);
+        if (matchId != null) {
+            return rooms.get(matchId);
         }
         return null;
     }
 
-    public int getSize() {
-        return rooms.size();
-    }
-
-    public ArrayList<Room> getRooms() {
-        return rooms;
+    public void removeRoom(String matchId) {
+        Room room = rooms.remove(matchId);
+        if (room != null) {
+            userRoomMap.remove(room.getPlayer1Id());
+            if (room.getPlayer2Id() != null) {
+                userRoomMap.remove(room.getPlayer2Id());
+            }
+        }
     }
 }
