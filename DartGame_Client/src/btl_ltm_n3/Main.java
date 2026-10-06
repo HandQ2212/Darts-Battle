@@ -10,12 +10,12 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.stage.Stage;
 import models.User;
+import models.GameViewState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,6 +24,7 @@ public class Main extends Application {
 
     private static Stage primaryStage;
     public static SocketHandler socketHandler;
+    public static GameViewState gameViewState = new GameViewState();
     private static Scene scene;
 
     public static ArrayList<User> listOnlineUser = new ArrayList<>();

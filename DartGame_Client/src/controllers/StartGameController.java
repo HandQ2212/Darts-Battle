@@ -2,6 +2,7 @@ package controllers;
 
 import btl_ltm_n3.Main;
 import static btl_ltm_n3.Main.socketHandler;
+import protocol.dto.ThrowResolvedResponse;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
@@ -398,98 +399,16 @@ public class StartGameController implements Initializable {
         double dartX = lineX.getStartX();
         double dartY = lineY.getStartY();
 
-        // Vẽ phi tiêu
-        Circle dart = new Circle(dartX, dartY, 3, Color.PURPLE);
-        dartboardGroup.getChildren().add(dart);
-        darts.add(dart);
-
         // Ẩn line
         lineX.setVisible(false);
         lineY.setVisible(false);
 
-        // Tính điểm
-        int score = calculateScore(dartX, dartY);
-        currentTurnScores[currentDart] = score;
-
-        // Cập nhật UI hiển thị điểm từng lượt
-        if (isMyTurn) {
-            playerTurnTexts[currentDart].setText(String.valueOf(score));
-        }
-
-        // Cập nhật tạm thời điểm (nếu không bust)
-        if (isMyTurn) {
-            if (playerScore - score >= 0) {
-                playerScore -= score;
-                updateScoreboard();
-            } else {
-                // Bust → lượt này tính 0 điểm
-                showScorePopup(dartX, dartY, 0, "BUST!");
-                // Không trừ điểm, coi như ném hụt
-            }
-        }
-
-        // Show popup điểm
-        showScorePopup(dartX, dartY, score, score > 0 ? score + "!" : "MISS");
-
-        // Sau khi xử lý xong 1 phi tiêu → chuyển sang phi tiêu tiếp theo
-        Timeline delay = new Timeline(new KeyFrame(Duration.seconds(1), e -> nextTurn()));
-        delay.play();
+        // Gửi tọa độ lên server
+        socketHandler.submitThrowCoordinate(dartX, dartY);
     }
 
     
-    private int calculateScore(double x, double y) {
-        double dx = x - CENTER_X;
-        double dy = y - CENTER_Y;
 
-        // Ngược xoay tọa độ về hệ tọa độ gốc của bàn
-        double theta = Math.toRadians(-boardRotation);
-        double rotatedX = dx * Math.cos(theta) - dy * Math.sin(theta);
-        double rotatedY = dx * Math.sin(theta) + dy * Math.cos(theta);
-
-        // Tính khoảng cách từ tâm
-        double distance = Math.sqrt(rotatedX*rotatedX + rotatedY*rotatedY);
-
-        // Kiểm tra bullseye và outer bull (tâm, 25d và 0đ)
-        if (distance <= 12) return 50;
-        if (distance <= 25) return 25;
-        if (distance > RADIUS) return 0;
-
-        // Tính góc (atan2 trả về [-π, π])
-        double angle = Math.atan2(rotatedY, rotatedX);
-        
-        // Chuyển về [0, 2π] và điều chỉnh để khớp với cách vẽ section
-        // Trong createDartSection, section 0 bắt đầu từ góc -Math.PI/2 (12 giờ)
-        angle = angle + Math.PI/2;  // Xoay để 0° ở vị trí 12 giờ
-        if (angle < 0) angle += 2 * Math.PI;  // Đảm bảo angle >= 0
-        
-        
-        // Tính góc của mỗi "miếng điểm số"
-        double sectionAngle = 2 * Math.PI / POINTS.length;
-        // Điều chỉnh để góc nằm giữa section (vì section được vẽ từ -angleStep/2 đến +angleStep/2)
-        angle = (angle + sectionAngle/2) % (2 * Math.PI);
-        
-        int section = (int)(angle / sectionAngle);
-        
-        // Đảm bảo section trong phạm vi hợp lệ
-        if (section < 0) section = 0;
-        if (section >= POINTS.length) section = POINTS.length - 1;
-        
-        // Lấy ra điểm 
-        int baseScore = POINTS[section];
-
-        // Kiểm tra vùng double (vòng ngoài)
-        if (distance >= RADIUS - 20 && distance <= RADIUS) {
-            return baseScore * 2;
-        }
-        // Kiểm tra vùng triple (vòng giữa)
-        else if (distance >= RADIUS/2 && distance <= RADIUS/2 + 20) {
-            return baseScore * 3;
-        }
-        // Vùng single
-        else {
-            return baseScore;
-        }
-    }
    
     private void showScorePopup(double x, double y, int score, String message) {
         Text popup = new Text(x, y - 20, message);
@@ -722,8 +641,7 @@ public class StartGameController implements Initializable {
             instructionLabel.setText("Bàn đã xoay " + angle + "°");
             angleInput.clear();
             
-            String msg = "ROTATE_RESULT;" + socketHandler.loginUser + ";" + socketHandler.competitor +";" +socketHandler.roomIdPresent + ";" + angle;
-            socketHandler.sendData(msg);
+            socketHandler.submitRotation((int) angle);
             
             angleInput.setDisable(true);   // khóa lại
             startButton.setDisable(false); // mở lại nút ném nếu là lượt mình
@@ -760,21 +678,42 @@ public class StartGameController implements Initializable {
         angleInput.setDisable(false); // cho nhập
         startButton.setDisable(true); // tạm khóa nút ném
     }
-    public void updateCompetitorStatus(String competitorName,String roomId,String aigle, String score1,String score2,String score3, String scoreRemaining){
-        currentTurnScores[0] = Integer.parseInt(score1);
-        opponentTurnTexts[0].setText(score1);
-        
-        currentTurnScores[1] = Integer.parseInt(score2);
-        opponentTurnTexts[1].setText(score2);
-        
-        currentTurnScores[2] = Integer.parseInt(score3);
-        opponentTurnTexts[2].setText(score3);
-        
-        opponentScore = Integer.parseInt(scoreRemaining); 
-        opponentScoreText.setText(String.valueOf(opponentScore));
-    
-        boardRotation += Double.parseDouble(aigle);
+    public void applyBoardRotationLocally(int degree) {
+        boardRotation = degree;
         applyBoardRotation(boardRotation);
+    }
+
+    public void updateCompetitorStatus(ThrowResolvedResponse res) {
+        Circle dart = new Circle(res.getX(), res.getY(), 3, Color.PURPLE);
+        dartboardGroup.getChildren().add(dart);
+        darts.add(dart);
+
+        int dartIdx = res.getDartIndex() - 1;
+        boolean isMe = res.getActorName().equals(socketHandler.loginUser);
+        
+        if (isMe) {
+            playerTurnTexts[dartIdx].setText(String.valueOf(res.getDartScore()));
+            playerScore = res.getRemainingScoreAfter();
+        } else {
+            opponentTurnTexts[dartIdx].setText(String.valueOf(res.getDartScore()));
+            opponentScore = res.getRemainingScoreAfter();
+        }
+        
+        updateScoreboard();
+
+        if (res.isBust()) {
+            showScorePopup(res.getX(), res.getY(), 0, "BUST!");
+        } else {
+            showScorePopup(res.getX(), res.getY(), res.getDartScore(), res.getDartScore() > 0 ? res.getDartScore() + "!" : "MISS");
+        }
+        
+        if (!res.isTurnFinished() && !res.isMatchFinished() && isMe) {
+            Timeline delay = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+                instructionLabel.setText("Dart " + (res.getDartIndex() + 1) + "/3");
+                startXAxis();
+            }));
+            delay.play();
+        }
     }
 
 
