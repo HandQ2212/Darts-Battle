@@ -75,7 +75,7 @@ public class HomeController {
 
     public void handleStartGame() {
         try {
-            Main.setRoot("choosemode");
+            Main.setRoot("chooseOpponent");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -83,7 +83,7 @@ public class HomeController {
 
     public void handleClickStartGameWithBot() {
         try {
-            Main.setRoot("startgamewithbot");
+            socketHandler.createBotMatch();
         } catch (Exception e) {
             e.printStackTrace();
         }

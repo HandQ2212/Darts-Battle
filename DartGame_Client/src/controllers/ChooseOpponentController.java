@@ -21,7 +21,7 @@ public class ChooseOpponentController {
     private TableView<User> userTable;
 
     @FXML
-    private TableColumn<User, Integer> colId;
+    private TableColumn<User, Long> colId;
 
     @FXML
     private TableColumn<User, String> colUsername;
@@ -42,9 +42,9 @@ public class ChooseOpponentController {
         );
         rootPane.setBackground(new javafx.scene.layout.Background(bg));
        
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colId.setCellValueFactory(cellData -> new javafx.beans.property.SimpleLongProperty(cellData.getValue().getId()).asObject());
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        colStatus.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getStatus() != null ? cellData.getValue().getStatus().name() : "OFFLINE"));
 
         colStatus.setCellFactory(column -> new TableCell<User, String>() {
             @Override
@@ -56,7 +56,7 @@ public class ChooseOpponentController {
                     setGraphic(null);
                 } else {
                     Text text = new Text(status);
-                    text.setFill(status.equalsIgnoreCase("online") ? Color.GREEN : Color.RED);
+                    text.setFill(status.equalsIgnoreCase("IDLE") || status.equalsIgnoreCase("ONLINE") ? Color.GREEN : Color.RED);
                     setGraphic(text);
                 }
             }
