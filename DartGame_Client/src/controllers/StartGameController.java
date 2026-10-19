@@ -2,6 +2,8 @@ package controllers;
 
 import btl_ltm_n3.Main;
 import static btl_ltm_n3.Main.socketHandler;
+import protocol.Message;
+import protocol.MessageType;
 import protocol.dto.ThrowResolvedResponse;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -316,7 +318,7 @@ public class StartGameController implements Initializable {
                 + currentTurnScores[1] + ";"
                 + currentTurnScores[2] + ";"
                 + playerScore;
-            socketHandler.sendData(msg);
+            socketHandler.sendData(Message.of(MessageType.THROW_COORDINATE, msg));
             // Reset turn
             isMyTurn = false;
             startButton.setDisable(true);
@@ -575,7 +577,7 @@ public class StartGameController implements Initializable {
             
             String data = "CHAT_MESSAGE" + ";" + socketHandler.loginUser + ";" + socketHandler.competitor + ";" + socketHandler.roomIdPresent + ";" + msg;
             // send data
-            socketHandler.sendData(data);
+            socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE, data));
             
             // Tự động tạo tin nhắn random từ đối thủ sau khi bạn gửi
 //            simulateOpponentReply();
