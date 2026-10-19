@@ -299,4 +299,12 @@ public class SocketHandler {
     public void submitThrowCoordinate(double x, double y) {
         sendData(Message.of(MessageType.THROW_COORDINATE, new ThrowCoordinateRequest(roomIdPresent, Main.gameViewState.getTurnId(), x, y)));
     }
+
+    public void getUserRank(String username) {
+        // Can be handled or populated via leaderboard
+    }
+
+    public void getUserStats(String username) {
+        // Can be handled or populated via match history
+    }
 }
