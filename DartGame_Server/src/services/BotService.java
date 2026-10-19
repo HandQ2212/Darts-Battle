@@ -23,7 +23,7 @@ public class BotService {
                     double x = random.nextInt(200) - 100;
                     double y = random.nextInt(200) - 100;
                     ThrowCoordinateRequest req = new ThrowCoordinateRequest(matchId, 0, x, y);
-                    GameService.getInstance().submitThrow(req, -1);
+                    GameService.getInstance().submitThrow(req, -1L);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
