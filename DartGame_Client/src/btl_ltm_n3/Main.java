@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -57,7 +58,7 @@ public class Main extends Application {
 
         // Kết nối Socket
         socketHandler = new SocketHandler();
-        socketHandler.connect("localhost", 99);
+        socketHandler.connect("localhost", 8080);
     }
 
     private void handleExitConfirmation() {
@@ -80,7 +81,7 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/views/" + fxml + ".fxml"));
         Parent root = loader.load();
 
-        if (fxml.equals("chooseOpponent")) {
+        if (fxml.equals("chooseOpponent") || fxml.equals("choosecomponent")) {
             chooseOpponentController = loader.getController();
         }
         if (fxml.equals("startgame")) {
