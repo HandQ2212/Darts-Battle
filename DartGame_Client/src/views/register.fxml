@@ -12,9 +12,10 @@
 
     <VBox alignment="CENTER" spacing="10.0" AnchorPane.topAnchor="30" AnchorPane.leftAnchor="50" AnchorPane.rightAnchor="50">
         <Label text="Đăng ký" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+        <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." wrapText="true" maxWidth="420"/>
         <TextField fx:id="usernameField" promptText="Tên đăng nhập" maxWidth="200"/>
         <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="200"/>
-        <Button text="Đăng ký" onAction="#handleRegister" maxWidth="200"/>
+        <Button fx:id="registerButton" disable="true" text="Đăng ký" onAction="#handleRegister" maxWidth="200"/>
         <Hyperlink text="Quay lại đăng nhập" onAction="#goToLogin"/>
     </VBox>
 </AnchorPane>

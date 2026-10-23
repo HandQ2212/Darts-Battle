@@ -4,26 +4,22 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 
 public class DBConnection {
-    private static final String URL = "jdbc:mysql://localhost:3306/dart_socket_game";
-    private static final String USER = "root";   
-    private static final String PASSWORD = "12345678";  
-
-    private static DBConnection instance;
-    private Connection connection;
-
-    private DBConnection() {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("Connected to Database.");
-            createTables();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private static final DBConnection INSTANCE = new DBConnection();
+    private DBConnection() {}
+    private static String setting(String key, String env, String fallback) {
+        return System.getProperty(key, System.getenv().getOrDefault(env, fallback));
     }
+    public Connection getConnection() throws java.sql.SQLException {
+        return DriverManager.getConnection(setting("darts.db.url", "DARTS_DB_URL",
+                "jdbc:mysql://localhost:3306/dart_socket_game?connectTimeout=5000&socketTimeout=5000"),
+                setting("darts.db.user", "DARTS_DB_USER", "root"),
+                setting("darts.db.password", "DARTS_DB_PASSWORD", ""));
+    }
+    public static DBConnection getInstance() { return INSTANCE; }
+    public void initialize() { createTables(); }
 
     private void createTables() {
-        try {
+        try (Connection connection = getConnection()) {
             String createUsers = "CREATE TABLE IF NOT EXISTS users ("
                     + "id BIGINT AUTO_INCREMENT PRIMARY KEY, "
                     + "username VARCHAR(50) UNIQUE NOT NULL, "
@@ -64,24 +60,25 @@ public class DBConnection {
                     + "FOREIGN KEY (player_id) REFERENCES users(id) ON DELETE SET NULL"
                     + ")";
 
-            java.sql.Statement stmt = connection.createStatement();
-            stmt.execute(createUsers);
-            stmt.execute(createMatches);
-            stmt.execute(createMatchThrows);
+            try (java.sql.Statement stmt = connection.createStatement()) {
+                stmt.execute(createUsers);
+                stmt.execute(createMatches);
+                stmt.execute(createMatchThrows);
+                // Upgrade existing databases too; never delete duplicate historical rows silently.
+                boolean unique=false;
+                java.util.Map<String,java.util.Set<String>> indexColumns=new java.util.HashMap<>();
+                try (java.sql.ResultSet indexes=connection.getMetaData().getIndexInfo(null,null,"match_throws",true,false)) {
+                    while(indexes.next()) {
+                        String name=indexes.getString("INDEX_NAME"), column=indexes.getString("COLUMN_NAME");
+                        if(name!=null && column!=null) indexColumns.computeIfAbsent(name,k->new java.util.HashSet<>()).add(column.toLowerCase(java.util.Locale.ROOT));
+                    }
+                }
+                unique=indexColumns.values().stream().anyMatch(columns->columns.equals(java.util.Set.of("match_id","turn_number","dart_number")));
+                if(!unique) stmt.execute("ALTER TABLE match_throws ADD CONSTRAINT uq_match_dart UNIQUE(match_id,turn_number,dart_number)");
+            }
             System.out.println("Tables checked/created successfully.");
         } catch (Exception e) {
-            System.out.println("Failed to create tables: " + e.getMessage());
+            throw new IllegalStateException("Không khởi tạo được DB; kiểm tra DARTS_DB_URL/USER/PASSWORD", e);
         }
-    }
-
-    public static synchronized DBConnection getInstance() {
-        if (instance == null) {
-            instance = new DBConnection();
-        }
-        return instance;
-    }
-
-    public Connection getConnection() {
-        return connection;
     }
 }

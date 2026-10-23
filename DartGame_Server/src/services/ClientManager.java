@@ -1,58 +1,40 @@
 package services;
-
 import enums.PlayerStatus;
-import protocol.Message;
-import protocol.MessageType;
+import protocol.*;
+import protocol.dto.GameMessages.OnlineUser;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
 
 public class ClientManager {
-    private static final ClientManager instance = new ClientManager();
+    private static final ClientManager INSTANCE = new ClientManager();
     private final ConcurrentHashMap<Long, Client> clients = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, PlayerStatus> statuses = new ConcurrentHashMap<>();
-
     private ClientManager() {}
-    public static ClientManager getInstance() { return instance; }
-
-    public void addClient(Client client) {
-        if (client.getLoggedInUserId() != -1) {
-            clients.put(client.getLoggedInUserId(), client);
-            statuses.put(client.getLoggedInUserId(), PlayerStatus.IDLE);
-            broadcastOnlineList();
-        }
+    public static ClientManager getInstance() { return INSTANCE; }
+    public boolean addClient(Client client) {
+        if (clients.putIfAbsent(client.getLoggedInUserId(), client) != null) return false;
+        statuses.put(client.getLoggedInUserId(), PlayerStatus.IDLE); return true;
     }
-
-    public void removeClient(long userId) {
-        clients.remove(userId);
-        statuses.remove(userId);
-        broadcastOnlineList();
+    public boolean removeClient(Client client) {
+        long id = client.getLoggedInUserId();
+        if (!clients.remove(id, client)) return false;
+        statuses.remove(id); return true;
     }
-
-    public Client getClient(long userId) {
-        return clients.get(userId);
+    public Client getClient(long id) { return clients.get(id); }
+    public Client findByName(String name) {
+        return clients.values().stream().filter(c -> c.getLoggedInUsername().equals(name)).findFirst().orElse(null);
     }
-
-    public void setStatus(long userId, PlayerStatus status) {
-        if (statuses.containsKey(userId)) {
-            statuses.put(userId, status);
-            broadcastOnlineList();
-        }
+    public void setStatus(long id, PlayerStatus status) {
+        statuses.computeIfPresent(id, (key, old) -> status);
     }
-
-    public PlayerStatus getStatus(long userId) {
-        return statuses.get(userId);
+    public PlayerStatus getStatus(long id) { return statuses.get(id); }
+    public void sendToUser(long id, Message m) { Client c = clients.get(id); if (c != null) c.send(m); }
+    public ArrayList<OnlineUser> onlineList() {
+        ArrayList<OnlineUser> result = new ArrayList<>();
+        clients.forEach((id, c) -> result.add(new OnlineUser(id, c.getLoggedInUsername(), statuses.getOrDefault(id, PlayerStatus.IDLE))));
+        result.sort(Comparator.comparing(OnlineUser::username)); return result;
     }
-
-    public void sendToUser(long userId, Message message) {
-        Client client = clients.get(userId);
-        if (client != null) {
-            client.send(message);
-        }
-    }
-
     public void broadcastOnlineList() {
-        // Implementation to build online list and broadcast
+        Message m = Message.of(MessageType.ONLINE_LIST, onlineList()); clients.values().forEach(c -> c.send(m));
     }
 }

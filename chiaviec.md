@@ -1,3 +1,8 @@
+> Triển khai v2: xem [PROTOCOL.md](PROTOCOL.md) và [hướng dẫn desktop/multiplayer](docs/DESKTOP_MULTIPLAYER_SETUP.md).
+> Common bổ sung `protocol/dto/GameMessages.java`, `protocol/WireFilter.java`; Server bổ sung
+> `LobbyService`, `HistoryWriter`, `PasswordHasher`; Client bổ sung `ConnectionSettings`, `Launcher`.
+> Danh sách/phân công bên dưới là tài liệu gốc, cần đọc cùng hợp đồng v2.
+
 1. Mục tiêu bản mới
 Làm game Darts Battle bằng JavaFX, Socket TCP và MySQL, gồm:
 PvP: hai người chơi thật đấu với nhau qua server.

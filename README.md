@@ -1,3 +1,22 @@
+**Kết nối Internet v2.1:** xem [mở app, đăng nhập và chơi qua domain](docs/ONE_CLICK_INTERNET.md).
+Client tự kết nối `game.handq2212.site`; Mac chạy game server và Cloudflare Tunnel nền.
+Đã xác thực Cloudflare và kiểm chứng WSS qua domain bằng TLS được ghim + game PONG ngày 23/10/2026.
+File gửi người chơi nằm riêng tại `dist/Player-Downloads/Windows/` (ZIP portable x64)
+và `dist/Player-Downloads/Mac/` (DMG Apple Silicon). Tạo lại bằng
+`python3 scripts/package-player-downloads.py` sau khi build DMG Mac.
+
+# Darts Battle
+
+**Gameplay và multiplayer v2:** xem [hướng dẫn chạy server Mac, client Windows/macOS và đóng gói desktop](docs/DESKTOP_MULTIPLAYER_SETUP.md).
+
+```sh
+python3 scripts/desktop.py build all
+python3 scripts/desktop.py test
+```
+
+Các client phải build cùng server v2. Cấu hình IP/cổng ngay trên màn đăng nhập; server vẫn dùng MySQL.
+Protocol: [PROTOCOL.md](PROTOCOL.md). Phần dưới là hướng dẫn/ảnh của phiên bản trước.
+
 ## I. GIỚI THIỆU VỀ GAME (INTRODUCTION)
 
 1. Dart game:

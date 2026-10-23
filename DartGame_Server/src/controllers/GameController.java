@@ -1,31 +1,16 @@
 package controllers;
-
-import protocol.Message;
-import protocol.MessageType;
-import protocol.dto.ThrowCoordinateRequest;
-import protocol.dto.ThrowResolvedResponse;
-import services.Client;
-import services.GameService;
-
+import protocol.*;
+import protocol.dto.*;
+import protocol.dto.GameMessages.RotationRequest;
+import services.*;
 public class GameController {
     public void handleMessage(Client client, Message message) {
-        if (message.getType() == MessageType.ROTATION_SUBMIT) {
-            // Assume payload is an Object array [matchId, rotationDegree]
-            Object[] payload = (Object[]) message.getPayload();
-            String matchId = (String) payload[0];
-            int degree = (Integer) payload[1];
-            
-            GameService.getInstance().submitRotation(matchId, client.getLoggedInUserId(), degree);
-            client.send(Message.of(MessageType.ROTATION_APPLIED, degree));
-            
-        } else if (message.getType() == MessageType.THROW_COORDINATE) {
-            ThrowCoordinateRequest req = (ThrowCoordinateRequest) message.getPayload();
-            ThrowResolvedResponse res = GameService.getInstance().submitThrow(req, client.getLoggedInUserId());
-            
-            if (res != null) {
-                // Should broadcast to both players, simplified to send to this client
-                client.send(Message.of(MessageType.THROW_RESOLVED, res));
-            }
+        long id=client.getLoggedInUserId();
+        switch(message.getType()) {
+            case ROTATION_SUBMIT -> GameService.getInstance().submitRotation((RotationRequest)message.getPayload(),id);
+            case THROW_COORDINATE -> GameService.getInstance().submitThrow((ThrowCoordinateRequest)message.getPayload(),id);
+            case LEAVE_MATCH -> GameService.getInstance().leaveMatch((String)message.getPayload(),id,"FORFEIT");
+            default -> throw new IllegalArgumentException("Lệnh game không hợp lệ.");
         }
     }
 }

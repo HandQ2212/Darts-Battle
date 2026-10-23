@@ -1,310 +1,250 @@
 package controllers;
-
 import btl_ltm_n3.Main;
-import enums.MatchMode;
-import enums.PlayerStatus;
 import models.User;
-import protocol.Message;
-import protocol.MessageType;
-import protocol.dto.LoginRequest;
-import protocol.dto.ThrowCoordinateRequest;
-import protocol.dto.ThrowResolvedResponse;
-
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
-import java.util.List;
+import enums.*;
+import protocol.*;
+import protocol.dto.*;
+import protocol.dto.GameMessages.*;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
 import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+import javafx.scene.control.*;
 
 public class SocketHandler {
-    private Socket s;
-    private ObjectInputStream dis;
-    private ObjectOutputStream dos;
-
-    public String loginUser = null; 
-    public long loggedInUserId = -1;
-    private Thread listener = null;
-    
-    public String competitor = "";
-    public String roomIdPresent = null;
-    public boolean checkYouAreInvited = false;
-    
-    public String connect(String addr, int port) {
-        try {
-            s = new Socket(addr, port);
-            dos = new ObjectOutputStream(s.getOutputStream());
-            dis = new ObjectInputStream(s.getInputStream());
-
-            if (listener != null && listener.isAlive()) {
-                listener.interrupt();
-            }
-
-            listener = new Thread(this::listen);
-            listener.start();
-
-            return "success";
-        } catch (Exception ex) {
-             return "failed;" + ex.getMessage();
-        }
+    public String loginUser;
+    public long loggedInUserId=-1;
+    public String competitor="";
+    public String roomIdPresent;
+    public boolean checkYouAreInvited;
+    private volatile Connection current;
+    public String lobbyNotice="";
+    private Alert inviteDialog;
+    private javafx.animation.PauseTransition inviteTimer;
+    private void closeInvite() {
+        if(inviteTimer!=null)inviteTimer.stop();
+        if(inviteDialog!=null){inviteDialog.setOnHidden(null);inviteDialog.close();}
+        inviteDialog=null;inviteTimer=null;
     }
-    
-    private void listen() {
-        boolean running = true;
-        while (running) {
+    private final ExecutorService connector=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"connect");t.setDaemon(true);return t;});
+    private final ScheduledExecutorService heartbeat=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"heartbeat");t.setDaemon(true);return t;});
+    private final java.util.concurrent.atomic.AtomicBoolean connecting = new java.util.concurrent.atomic.AtomicBoolean();
+    private final ConcurrentLinkedQueue<Runnable> pendingConnect = new ConcurrentLinkedQueue<>();
+    private volatile boolean stopped, connectionWanted;
+    private volatile String connectionText = "Đang kết nối máy chủ...";
+    private java.util.function.BiConsumer<Boolean,String> connectionListener;
+    private boolean authPending;
+    private static class Connection {
+        Socket socket; Socket transport; ObjectInputStream in; ObjectOutputStream out;
+        volatile boolean closed;
+        final BlockingQueue<Message> queue=new ArrayBlockingQueue<>(128);
+        Thread writer;
+    }
+    public SocketHandler() {
+        heartbeat.scheduleAtFixedRate(()->{
+            Connection c=current;
+            if(c!=null&&!c.closed) sendData(Message.of(MessageType.PING,null));
+            else if(connectionWanted&&!stopped) ensureConnected(null);
+        },5,5,TimeUnit.SECONDS);
+    }
+    public boolean isConnected() { Connection c=current; return c!=null&&!c.closed; }
+    public void setConnectionListener(java.util.function.BiConsumer<Boolean,String> listener) {
+        connectionListener=listener;
+        if(listener!=null) listener.accept(isConnected()&&!authPending,connectionText);
+    }
+    private void notifyConnection(String text) {
+        connectionText=text;
+        Runnable update=()->{if(connectionListener!=null)connectionListener.accept(isConnected()&&!authPending,text);};
+        if(Platform.isFxApplicationThread())update.run();else Platform.runLater(update);
+    }
+    public void ensureConnected(Runnable afterConnected) {
+        if(stopped)return;
+        connectionWanted=true;
+        if(afterConnected!=null)pendingConnect.add(afterConnected);
+        Connection old=current;
+        if(old!=null&&!old.closed){finishConnect(old);return;}
+        if(!ConnectionSettings.configured()) {
+            pendingConnect.clear();notifyConnection("Bộ cài chưa có địa chỉ máy chủ. Vui lòng liên hệ người tổ chức.");return;
+        }
+        if(!connecting.compareAndSet(false,true))return;
+        notifyConnection("Đang kết nối máy chủ...");
+        connector.execute(()->{
+            Connection c=new Connection();
             try {
-                Message message = (Message) dis.readObject();
-                System.out.println("YOU: ("+ loginUser +") RECEIVED: " + message.getType());
-
-                switch (message.getType()) {
-                    case LOGIN_RESULT:
-                        onReceiveLogin(message);
-                        break;
-                    case REGISTER_RESULT:
-                        onReceiveRegister(message);
-                        break;
-                    case LOGOUT_RESULT:
-                        onReceiveLogout(message);
-                        break;
-                    case ONLINE_LIST:
-                        // Server to implement broadcasting
-                        break;
-                    case INVITE_RECEIVED:
-                        onReceiveInviteToPlay(message);
-                        break;
-                    case INVITE_RESULT:
-                        // onReceiveAcceptPlay / Not Accept
-                        break;
-                    case MATCH_STARTED:
-                        onReceiveMatchStarted(message);
-                        break;
-                    case TURN_PREPARING:
-                        onReceiveTurnPreparing(message);
-                        break;
-                    case ROTATION_APPLIED:
-                        onReceiveRotationApplied(message);
-                        break;
-                    case TURN_STARTED:
-                        onReceiveTurnStarted(message);
-                        break;
-                    case THROW_RESOLVED:
-                        onReceiveThrowResolved(message);
-                        break;
-                    case MATCH_FINISHED:
-                        onReceiveEndGame(message);
-                        break;
-                    case CHAT_MESSAGE:
-                        onReceiveChatMessage(message);
-                        break;
-                    case RANKING_RESULT:
-                        onReceiveGetLeaderboard(message);
-                        break;
-                    case HISTORY_RESULT:
-                        onReceiveGetMatchHistory(message);
-                        break;
-                    case ERROR:
-                        onReceiveError(message);
-                        break;
+                if("websocket".equals(ConnectionSettings.transport())) {
+                    Socket tunnel=network.WebSocketSocket.open(ConnectionSettings.websocketUri(),5000);c.transport=tunnel;
+                    c.socket=network.TransportSecurity.secure(tunnel,ConnectionSettings.host(),ConnectionSettings.port(),5000,ConnectionSettings.tlsContext());
+                }else c.socket=network.TransportSecurity.connect(ConnectionSettings.host(),ConnectionSettings.port(),5000,ConnectionSettings.tlsContext());
+                c.socket.setSoTimeout(10000);c.socket.setTcpNoDelay(true);
+                c.out=new ObjectOutputStream(c.socket.getOutputStream());c.out.flush();
+                c.in=new ObjectInputStream(c.socket.getInputStream());c.in.setObjectInputFilter(WireFilter.create());
+                c.socket.setSoTimeout(35000);
+                synchronized(this){if(stopped){close(c);return;}current=c;}
+                c.writer=new Thread(()->write(c),"server-writer");c.writer.setDaemon(true);c.writer.start();
+                Thread reader=new Thread(()->listen(c),"server-reader");reader.setDaemon(true);reader.start();
+                notifyConnection("Đã kết nối. Mời bạn đăng nhập.");finishConnect(c);
+            } catch(Exception e) {
+                close(c);pendingConnect.clear();
+                String text=e instanceof javax.net.ssl.SSLException || e instanceof java.security.GeneralSecurityException
+                        ? "Không xác minh được máy chủ. Vui lòng liên hệ người tổ chức."
+                        : "Chưa kết nối được máy chủ. Đang tự thử lại...";
+                System.err.println("Connection failed: "+e.getClass().getSimpleName());
+                notifyConnection(text);
+            } finally {connecting.set(false);}
+        });
+    }
+    private void finishConnect(Connection c) {
+        Platform.runLater(()->{if(current==c&&!c.closed){Runnable task;while((task=pendingConnect.poll())!=null)task.run();}});
+    }
+    private void write(Connection c) {
+        try {while(!c.closed){Message m=c.queue.take();c.out.writeObject(m);c.out.reset();c.out.flush();}}
+        catch(Exception e){failed(c);}
+    }
+    private void listen(Connection c) {
+        try {
+            while(!c.closed){
+                Message m=(Message)c.in.readObject();
+                if(m.getType()==MessageType.PONG)continue;
+                Platform.runLater(()->{if(current==c&&!c.closed){try{receive(m);}catch(RuntimeException e){showError("Không xử lý được phản hồi server: "+e.getMessage());}}});
+            }
+        }catch(Exception e){failed(c);}
+    }
+    private synchronized void failed(Connection c) {
+        if(current!=c||c.closed)return;
+        current=null;close(c);
+        Platform.runLater(()->{
+            boolean playing=roomIdPresent!=null;
+            clearSession();
+            try{Main.setRoot("login");}catch(IOException e){e.printStackTrace();}
+            notifyConnection("Đã mất kết nối. Đang tự kết nối lại...");
+            if(playing)showError("Đã mất kết nối. Trận hiện tại kết thúc; hãy đăng nhập lại khi kết nối phục hồi.");
+            ensureConnected(null);
+        });
+    }
+    private void close(Connection c) {
+        c.closed=true;if(c.writer!=null)c.writer.interrupt();
+        try{if(c.transport!=null)c.transport.close();}catch(IOException ignored){}
+        try{if(c.socket!=null)c.socket.close();}catch(IOException ignored){}
+    }
+    public synchronized void disconnect(){Connection c=current;current=null;if(c!=null)close(c);}
+    public void shutdown(){stopped=true;connectionWanted=false;pendingConnect.clear();disconnect();connector.shutdownNow();heartbeat.shutdownNow();}
+    public void sendData(Message m) {
+        Connection c=current;
+        if(c==null||c.closed){Platform.runLater(()->showError("Máy chủ chưa sẵn sàng. Vui lòng chờ kết nối phục hồi."));return;}
+        if(!c.queue.offer(m))failed(c);
+    }
+    @SuppressWarnings("unchecked") private void receive(Message m) {
+        switch(m.getType()) {
+            case LOGIN_RESULT -> {
+                authPending=false;notifyConnection("Đã kết nối. Mời bạn đăng nhập.");
+                AuthResponse a=(AuthResponse)m.getPayload();
+                if(!a.success()) {showError(a.message());break;}
+                loginUser=a.username();loggedInUserId=a.userId();ConnectionSettings.rememberUsername(a.username());
+                try {Main.setRoot("home");} catch(IOException e) {showError(e.getMessage());}
+                getListOnline();
+            }
+            case REGISTER_RESULT -> {
+                authPending=false;notifyConnection("Đã kết nối. Mời bạn đăng nhập.");
+                AuthResponse a=(AuthResponse)m.getPayload();
+                if(a.success()) {try {Main.setRoot("login");} catch(IOException e) {showError(e.getMessage());}
+                    new Alert(Alert.AlertType.INFORMATION,a.message(),ButtonType.OK).show();}
+                else showError(a.message());
+            }
+            case LOGOUT_RESULT -> {clearSession();try {Main.setRoot("login");} catch(IOException e) {showError(e.getMessage());}}
+            case ONLINE_LIST -> {
+                Main.listOnlineUser.clear();
+                for(OnlineUser u:(List<OnlineUser>)m.getPayload()) if(u.id()!=loggedInUserId) {
+                    User view=new User(u.id(),u.username(),"online");view.setStatus(u.status());Main.listOnlineUser.add(view);
                 }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                running = false;    
+                if(Main.chooseOpponentController!=null)Main.chooseOpponentController.updateUserTable(Main.listOnlineUser);
             }
+            case INVITE_RECEIVED -> {
+                closeInvite();
+                InviteResponse invitation=(InviteResponse)m.getPayload();
+                Alert dialog=new Alert(Alert.AlertType.CONFIRMATION,invitation.senderName()+" mời bạn đấu phi tiêu. Chấp nhận?",ButtonType.YES,ButtonType.NO);
+                dialog.setHeaderText("Lời mời chơi (30 giây)");
+                // Nonmodal: processing match/expiry/network messages continues normally.
+                javafx.animation.PauseTransition expiry=new javafx.animation.PauseTransition(javafx.util.Duration.millis(Math.max(1,invitation.expiresAt()-System.currentTimeMillis())));
+                expiry.setOnFinished(e->dialog.close());
+                dialog.setOnHidden(e->{expiry.stop();if(System.currentTimeMillis()<invitation.expiresAt())
+                    sendData(Message.of(dialog.getResult()==ButtonType.YES?MessageType.INVITE_ACCEPT:MessageType.INVITE_REJECT,invitation.id()));});
+                inviteDialog=dialog;inviteTimer=expiry;dialog.show();expiry.play();
+            }
+            case INVITE_RESULT -> {
+                lobbyNotice=(String)m.getPayload();
+                if(Main.chooseOpponentController!=null)Main.chooseOpponentController.showStatus(lobbyNotice);
+                getListOnline();
+            }
+            case MATCH_STARTED -> {
+                closeInvite();
+                MatchSnapshot s=(MatchSnapshot)m.getPayload();
+                if(Objects.equals(roomIdPresent,s.matchId()))break;
+                roomIdPresent=s.matchId();Main.gameViewState.begin(s,loggedInUserId);competitor=Main.gameViewState.getOpponentName();
+                try {Main.setRoot("startgame");Main.startGameController.render(s);}catch(IOException e){showError(e.getMessage());}
+            }
+            case TURN_PREPARING, ROTATION_APPLIED, TURN_STARTED -> {
+                MatchSnapshot s=(MatchSnapshot)m.getPayload();
+                if(Main.gameViewState.apply(s)&&Main.startGameController!=null) {
+                    if(m.getType()==MessageType.ROTATION_APPLIED)Main.startGameController.rotationConfirmed(s);
+                    else Main.startGameController.render(s);
+                }
+            }
+            case THROW_RESOLVED -> {
+                ThrowResolvedResponse res=(ThrowResolvedResponse)m.getPayload();
+                if(Main.gameViewState.apply(res.getSnapshot())&&Main.startGameController!=null)Main.startGameController.showThrow(res);
+            }
+            case MATCH_FINISHED -> {
+                MatchSnapshot s=(MatchSnapshot)m.getPayload();
+                if(!Objects.equals(roomIdPresent,s.matchId()))break;
+                Main.gameViewState.apply(s); roomIdPresent=null;
+                if(Main.startGameController!=null)Main.startGameController.finish(s);
+            }
+            case CHAT_MESSAGE -> {
+                ChatMessage chat=(ChatMessage)m.getPayload();
+                if(Objects.equals(roomIdPresent,chat.matchId())&&Main.startGameController!=null)Main.startGameController.addMessage(chat.senderName()+": "+chat.text());
+            }
+            case RANKING_RESULT -> {
+                Main.leaderboardData=new ArrayList<>((List<String>)m.getPayload());
+                if(Main.rankingController!=null)Main.rankingController.updateLeaderboardTable();
+            }
+            case HISTORY_RESULT -> {
+                List<String> rows=new ArrayList<>();
+                for(String row:(List<String>)m.getPayload()) {String[] p=row.split("\\|",-1);if(p.length>=6)rows.add(loginUser+"|"+p[2]+"|"+p[3]+"|"+p[5]);}
+                if(Main.matchHistoryController!=null)Main.matchHistoryController.updateMatchHistory(rows);
+            }
+            case ERROR -> showError((String)m.getPayload());
+            default -> {}
         }
     }
-    
-    // ------------------------------------------------------------------------
-    // RECEIVE METHODS
-
-    private void onReceiveLogin(Message msg) {
-        String status = (String) msg.getPayload();
-        Platform.runLater(() -> {
-            if ("SUCCESS".equals(status)) {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Đăng nhập thành công");
-                alert.setHeaderText(null);
-                alert.setContentText("Chào mừng " + loginUser + " quay lại!");
-                alert.showAndWait();
-                try { Main.setRoot("home"); } catch (Exception ex) {}
-            } else {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Đăng nhập thất bại");
-                alert.setHeaderText(null);
-                alert.setContentText("Sai thông tin.");
-                alert.showAndWait();
-            }
-        });
+    private void clearSession() {authPending=false;closeInvite();lobbyNotice="";loginUser=null;loggedInUserId=-1;roomIdPresent=null;competitor="";Main.listOnlineUser.clear();Main.gameViewState.reset();}
+    public void showError(String message) {
+        authPending=false;notifyConnection(isConnected()?"Đã kết nối. Mời bạn đăng nhập.":connectionText);
+        if(Main.startGameController!=null)Main.startGameController.commandFailed();
+        new Alert(Alert.AlertType.ERROR,message,ButtonType.OK).show();
     }
-
-    private void onReceiveRegister(Message msg) {
-        // Implement
+    public void login(String username,String password) {
+        if(authPending)return;authPending=true;notifyConnection("Đang đăng nhập...");
+        sendData(Message.of(MessageType.LOGIN_REQUEST,new LoginRequest(username,password)));
     }
-
-    private void onReceiveLogout(Message msg) {
-        String status = (String) msg.getPayload();
-        if ("SUCCESS".equals(status)) {
-            Platform.runLater(() -> {
-                try { Main.setRoot("login"); } catch (Exception ex) {}
-            });
-        }
+    public void register(String username,String password) {
+        if(authPending || !isConnected())return;authPending=true;notifyConnection("Đang đăng ký...");
+        sendData(Message.of(MessageType.REGISTER_REQUEST,new LoginRequest(username,password)));
     }
-
-    private void onReceiveInviteToPlay(Message msg) {
-        // Implement
+    public void logout() {sendData(Message.of(MessageType.LOGOUT_REQUEST,null));}
+    public void getListOnline() {sendData(Message.of(MessageType.ONLINE_LIST,null));}
+    public void inviteToPlay(String opponent) {sendData(Message.of(MessageType.INVITE_REQUEST,opponent));}
+    public void leaveGame() {sendData(Message.of(MessageType.LEAVE_MATCH,roomIdPresent));}
+    public void createBotMatch() {sendData(Message.of(MessageType.CREATE_BOT_MATCH,null));}
+    public void getLeaderboard(int limit) {sendData(Message.of(MessageType.GET_RANKING,limit));}
+    public void getMatchHistory(String username) {sendData(Message.of(MessageType.GET_HISTORY,null));}
+    public void getUserRank(String username) {}
+    public void getUserStats(String username) {}
+    public void submitRotation(int degrees) {
+        sendData(Message.of(MessageType.ROTATION_SUBMIT,new RotationRequest(roomIdPresent,Main.gameViewState.getTurnId(),degrees,UUID.randomUUID().toString())));
     }
-
-    private void onReceiveMatchStarted(Message msg) {
-        roomIdPresent = (String) msg.getPayload();
-        Platform.runLater(() -> {
-            try {
-                // Should init GameViewState here
-                Main.gameViewState.startMatch(roomIdPresent, MatchMode.PVP, loginUser, competitor);
-                Main.setRoot("startgame");
-            } catch (Exception ex) { ex.printStackTrace(); }
-        });
-    }
-
-    private void onReceiveTurnPreparing(Message msg) {
-        long turnId = (Long) msg.getPayload();
-        Platform.runLater(() -> {
-            Main.gameViewState.startTurn(turnId);
-            if (Main.startGameController != null) {
-                Main.startGameController.setTurnRotate(Main.gameViewState.getCurrentActorName());
-            }
-        });
-    }
-
-    private void onReceiveRotationApplied(Message msg) {
-        int degree = (Integer) msg.getPayload();
-        Platform.runLater(() -> {
-            Main.gameViewState.setRotationDegree(degree);
-            if (Main.startGameController != null) {
-                Main.startGameController.applyBoardRotationLocally(degree);
-            }
-        });
-    }
-    
-    private void onReceiveTurnStarted(Message msg) {
-        Platform.runLater(() -> {
-            if (Main.startGameController != null) {
-                Main.startGameController.setTurn(Main.gameViewState.getCurrentActorName());
-            }
-        });
-    }
-
-    private void onReceiveThrowResolved(Message msg) {
-        ThrowResolvedResponse response = (ThrowResolvedResponse) msg.getPayload();
-        Platform.runLater(() -> {
-            Main.gameViewState.applyThrow(response);
-            if (Main.startGameController != null) {
-                Main.startGameController.updateCompetitorStatus(response);
-            }
-        });
-    }
-
-    private void onReceiveEndGame(Message msg) {
-        String winnerId = (String) msg.getPayload();
-        Platform.runLater(() -> {
-            if (Main.startGameController != null) {
-                Main.startGameController.showWinnerDialogEndGame(winnerId);
-            }
-        });
-    }
-
-    private void onReceiveChatMessage(Message msg) {
-        // Implement
-    }
-
-    private void onReceiveGetLeaderboard(Message msg) {
-        // Implement
-    }
-
-    private void onReceiveGetMatchHistory(Message msg) {
-        // Implement
-    }
-
-    private void onReceiveError(Message msg) {
-        String errorMsg = (String) msg.getPayload();
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Lỗi");
-            alert.setHeaderText(null);
-            alert.setContentText(errorMsg);
-            alert.showAndWait();
-        });
-    }
-
-    // ------------------------------------------------------------------------
-    // SEND METHODS
-
-    public void sendData(Message message) {
-        try {
-            System.out.println("Data Client Sended: " + message.getType());
-            dos.writeObject(message);
-            dos.flush();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-    
-    public void login(String username, String password) {
-        this.loginUser = username;
-        sendData(Message.of(MessageType.LOGIN_REQUEST, new LoginRequest(username, password)));
-    }
-
-    public void register(String username, String password) {
-        // Assuming RegisterRequest is same as LoginRequest for now or use Object[]
-        sendData(Message.of(MessageType.REGISTER_REQUEST, new LoginRequest(username, password)));
-    }
-
-    public void logout() {
-        this.loginUser = null;
-        sendData(Message.of(MessageType.LOGOUT_REQUEST, null));
-    }
-
-    public void getListOnline() {
-        sendData(Message.of(MessageType.ONLINE_LIST, null));
-    }
-
-    public void inviteToPlay(String opponentName) {
-        sendData(Message.of(MessageType.INVITE_REQUEST, opponentName));
-    }
-
-    public void leaveGame() {
-        sendData(Message.of(MessageType.LEAVE_MATCH, roomIdPresent));
-    }
-
-    public void getLeaderboard(int limit) {
-        sendData(Message.of(MessageType.GET_RANKING, limit));
-    }
-
-    public void getMatchHistory(String username) {
-        sendData(Message.of(MessageType.GET_HISTORY, username));
-    }
-    
-    public void createBotMatch() {
-        sendData(Message.of(MessageType.CREATE_BOT_MATCH, null));
-    }
-
-    public void submitRotation(int degree) {
-        sendData(Message.of(MessageType.ROTATION_SUBMIT, new Object[]{roomIdPresent, degree}));
-    }
-
-    public void submitThrowCoordinate(double x, double y) {
-        sendData(Message.of(MessageType.THROW_COORDINATE, new ThrowCoordinateRequest(roomIdPresent, Main.gameViewState.getTurnId(), x, y)));
-    }
-
-    public void getUserRank(String username) {
-        // Can be handled or populated via leaderboard
-    }
-
-    public void getUserStats(String username) {
-        // Can be handled or populated via match history
+    public void submitThrowCoordinate(double x,double y) {
+        sendData(Message.of(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(roomIdPresent,Main.gameViewState.getTurnId(),
+                Main.gameViewState.getDartsThrown()+1,UUID.randomUUID().toString(),x,y)));
     }
 }

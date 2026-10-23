@@ -1,20 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.*?>
-
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:id="rootPane"
-            fx:controller="controllers.LoginController"
-            prefWidth="800" prefHeight="600">
-
-    <VBox alignment="CENTER" spacing="10.0" AnchorPane.topAnchor="30" AnchorPane.leftAnchor="50" AnchorPane.rightAnchor="50">
-        <Label text="Đăng nhập" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-        <TextField fx:id="usernameField" promptText="Tên đăng nhập" maxWidth="200"/>
-        <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="200"/>
-        <Button text="Đăng nhập" onAction="#handleLogin" maxWidth="200"/>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:id="rootPane" fx:controller="controllers.LoginController" prefWidth="800" prefHeight="600">
+    <VBox alignment="CENTER" spacing="14" AnchorPane.topAnchor="90" AnchorPane.leftAnchor="60" AnchorPane.rightAnchor="60">
+        <Label text="Darts Battle" style="-fx-font-size: 32px; -fx-font-weight: bold;"/>
+        <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." wrapText="true" maxWidth="420"/>
+        <TextField fx:id="usernameField" promptText="Tên đăng nhập" maxWidth="260"/>
+        <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="260"/>
+        <Button fx:id="loginButton" text="Đăng nhập" onAction="#handleLogin" disable="true" maxWidth="260"/>
         <Hyperlink text="Chưa có tài khoản? Đăng ký" onAction="#goToRegister"/>
+        <Hyperlink text="Thử kết nối lại" onAction="#handleRetry"/>
     </VBox>
 </AnchorPane>

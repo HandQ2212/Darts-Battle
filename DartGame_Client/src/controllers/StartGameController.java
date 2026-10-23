@@ -1,784 +1,156 @@
 package controllers;
-
 import btl_ltm_n3.Main;
-import static btl_ltm_n3.Main.socketHandler;
-import protocol.Message;
-import protocol.MessageType;
-import protocol.dto.ThrowResolvedResponse;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import config.DartboardLayout;
+import enums.*;
+import protocol.*;
+import protocol.dto.*;
+import protocol.dto.GameMessages.*;
+import javafx.animation.*;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.Pane;
+import javafx.scene.Group;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
+import javafx.scene.shape.*;
+import javafx.scene.text.*;
+import javafx.scene.transform.Rotate;
 import javafx.util.Duration;
 
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ResourceBundle;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.Group;
-import javafx.scene.control.ListCell;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
-import javafx.scene.transform.Rotate;
-
-public class StartGameController implements Initializable {
-
-    @FXML
-    private ListView<String> chatList;
-
-    @FXML
-    private TextField chatInput;
-    
-    @FXML
-    private Pane gamePane;
-    
-    @FXML
-    private Pane scoreboardPane;
-    
-    @FXML
-    private Button startButton;
-    
-    @FXML
-    private Label instructionLabel;
-    
-    @FXML
-    private TextField angleInput;
-
-    @FXML
-    private VBox botTurnOverlay;
-    
-    @FXML
-    private Button soundButton;
-
-    private boolean soundOn = true;
-
-    private double boardRotation = 0; // Góc xoay hiện tại
-
-    private Group dartboardGroup = new Group(); // <--- thêm group riêng cho dartboard
-
-    // Game variables
-    private static final double BOARD_SIZE = 400;
-    private static final double CENTER_X = 225; // Center of 450px width
-    private static final double CENTER_Y = BOARD_SIZE / 2;
-    private static final double RADIUS = BOARD_SIZE / 2.5;
-    private static final int[] POINTS = {20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5};
-    
-    private Line lineX, lineY;
-    private Timeline lineXAnimation, lineYAnimation;
-    private boolean started = true;
-    private boolean inXAxis = false;
-    private boolean inYAxis = false;
-    
-    private int playerScore = 301;
-    private int opponentScore = 301;
-    private int currentDart = 0; // Track current dart in turn (0, 1, 2)
-    private int[] currentTurnScores = new int[3]; // Store scores for current turn
-    private boolean isMyTurn = false;
-    private boolean gameOver = false;
-    
-    private List<Circle> darts = new ArrayList<>();
-    
-    private Rectangle scoreBoard;
-    private Text playerScoreText, opponentScoreText;
-    private Text[] playerTurnTexts = new Text[3];
-    private Text[] opponentTurnTexts = new Text[3];
-
-    
-    private boolean effectSoundOn = true;
-    @FXML private Button effectSoundButton;
-    
+/** Rendering and aiming only: all scores, turns and phase come from the server. */
+public class StartGameController {
+    @FXML private ListView<String> chatList;
+    @FXML private TextField chatInput, angleInput;
+    @FXML private Pane gamePane, scoreboardPane;
+    @FXML private Button startButton, rotateButton, soundButton, effectSoundButton;
+    @FXML private Label instructionLabel;
+    @FXML private VBox botTurnOverlay;
     @FXML private BorderPane rootPane;
-     
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-        setupGame();
-        setupButtonEffects();
-        
-        var bgImage = new javafx.scene.image.Image(
-            getClass().getResource("/images/background.jpg").toExternalForm()
-        );
-        var bg = new javafx.scene.layout.BackgroundImage(
-            bgImage,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundPosition.CENTER,
-            new javafx.scene.layout.BackgroundSize(100, 100, true, true, true, false)
-        );
-        rootPane.setBackground(new javafx.scene.layout.Background(bg));
-        
-        // Tối ưu hiển thị ListView (text dài tự xuống dòng, không lag)
-        chatList.setCellFactory(lv -> {
-            Label label = new Label();
-            label.setWrapText(true);
-            label.setMaxWidth(320); // Giới hạn theo width của chat pane
-            label.setStyle("-fx-font-size: 13px; -fx-padding: 5; -fx-text-fill: black;");
-
-            ListCell<String> cell = new ListCell<>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setGraphic(null);
-                    } else {
-                        label.setText(item);
-                        setGraphic(label);
-                    }
-                }
-            };
-
-            // ?Cho phép cell co giãn chiều cao đúng với nội dung
-            cell.setPrefWidth(0);
-            cell.setWrapText(true);
-            return cell;
-        });
-
-        chatList.setFixedCellSize(-1);
-        gamePane.setStyle("-fx-background-color: transparent;");
-        chatList.setStyle("-fx-control-inner-background: transparent; "
-                + "-fx-background-color: transparent; "
-                + "-fx-background-insets: 0;");
-//        label.setStyle("-fx-font-size: 13px; -fx-padding: 5; -fx-text-fill: white;");
-        scoreboardPane.setStyle("-fx-background-color: transparent;");
-        botTurnOverlay.setStyle("-fx-background-color: transparent;");
-    }
-
-    private void setupButtonEffects() {
-        startButton.setOnMouseEntered(e -> {
-            startButton.setStyle(
-                "-fx-background-color: linear-gradient(to bottom, #5CBF60, #4CAF50); " +
-                "-fx-text-fill: white; " +
-                "-fx-font-weight: bold; " +
-                "-fx-font-size: 16px; " +
-                "-fx-border-radius: 8px; " +
-                "-fx-background-radius: 8px; " +
-                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.7), 15, 0, 0, 8); " +
-                "-fx-cursor: hand; " +
-                "-fx-opacity: 1.0; " +
-                "-fx-scale-x: 1.05; " +
-                "-fx-scale-y: 1.05;"
-            );
-        });
-        startButton.setOnMouseExited(e -> {
-            startButton.setStyle(
-                "-fx-background-color: linear-gradient(to bottom, #4CAF50, #45a049); " +
-                "-fx-text-fill: white; " +
-                "-fx-font-weight: bold; " +
-                "-fx-font-size: 16px; " +
-                "-fx-border-radius: 8px; " +
-                "-fx-background-radius: 8px; " +
-                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 5); " +
-                "-fx-cursor: hand; " +
-                "-fx-opacity: 0.95; " +
-                "-fx-scale-x: 1.0; " +
-                "-fx-scale-y: 1.0;"
-            );
-        });
-    }
-
-    private void setupGame() {
-        gamePane.setPrefSize(450, 400);
-
-        // Vẽ dartboard vào group
-        drawDartboard();
-        gamePane.getChildren().add(dartboardGroup);
-
-        createScoreboard();
-
-        // Create moving lines
-        lineX = new Line(0, 0, 0, BOARD_SIZE);
-        lineX.setStroke(Color.ORANGE);
-        lineX.setStrokeWidth(3);
-        lineX.setVisible(false);
-        gamePane.getChildren().add(lineX);
-
-        lineY = new Line(0, 0, 450, 0); // Updated to match pane width
-        lineY.setStroke(Color.ORANGE);
-        lineY.setStrokeWidth(3);
-        lineY.setVisible(false);
-        gamePane.getChildren().add(lineY);
-        
-        instructionLabel.setText("Đang chờ đến lượt của bạn ...");
-        startButton.setDisable(true);
-        
-        if(socketHandler.checkYouAreInvited){
-            startButton.setText("THROW!");
-        }  
-    }
-
-    private void drawDartboard() {
-        double angleStep = Math.PI * 2 / POINTS.length;
-
-        // Clear group trước khi vẽ
-        dartboardGroup.getChildren().clear();
-
-        for (int i = 0; i < POINTS.length; i++) {
-            Color singleColor = (i % 2 == 0) ? Color.BLACK : Color.WHITE;
-            Color otherColor = (i % 2 == 0) ? Color.RED : Color.GREEN;
-
-            Polygon single = createDartSection(i, angleStep, 0, RADIUS, singleColor);
-            single.setUserData(POINTS[i]);
-            dartboardGroup.getChildren().add(single);
-
-            Polygon doubleArea = createDartSection(i, angleStep, RADIUS - 20, RADIUS, otherColor);
-            doubleArea.setUserData(POINTS[i] * 2);
-            dartboardGroup.getChildren().add(doubleArea);
-
-            Polygon tripleArea = createDartSection(i, angleStep, RADIUS/2, RADIUS/2 + 20, otherColor);
-            tripleArea.setUserData(POINTS[i] * 3);
-            dartboardGroup.getChildren().add(tripleArea);
-
-            // Add numbers
-            double angle = angleStep * i - Math.PI / 2;
-            double numberX = CENTER_X + (RADIUS + 30) * Math.cos(angle);
-            double numberY = CENTER_Y + (RADIUS + 30) * Math.sin(angle);
-
-            Text number = new Text(numberX - 10, numberY + 5, String.valueOf(POINTS[i]));
-            number.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-            number.setFill(Color.BLACK);
-            dartboardGroup.getChildren().add(number);
-        }
-
-        Circle outerBull = new Circle(CENTER_X, CENTER_Y, 25, Color.GREEN);
-        outerBull.setUserData(25);
-        dartboardGroup.getChildren().add(outerBull);
-
-        Circle bullsEye = new Circle(CENTER_X, CENTER_Y, 12, Color.RED);
-        bullsEye.setUserData(50);
-        dartboardGroup.getChildren().add(bullsEye);
-    }
-
-    private Polygon createDartSection(int section, double angleStep, double innerRadius, double outerRadius, Color color) {
-        Polygon polygon = new Polygon();
-        
-        double startAngle = angleStep * section - angleStep/2 - Math.PI/2;
-        double endAngle = angleStep * section + angleStep/2 - Math.PI/2;
-        
-        // Create points for the polygon
-        if (innerRadius == 0) {
-            // For center sections, start from center
-            polygon.getPoints().addAll(new Double[]{
-                CENTER_X, CENTER_Y
-            });
-        }
-        
-        // Add outer arc points
-        for (double angle = startAngle; angle <= endAngle; angle += 0.1) {
-            double x = CENTER_X + outerRadius * Math.cos(angle);
-            double y = CENTER_Y + outerRadius * Math.sin(angle);
-            polygon.getPoints().addAll(new Double[]{x, y});
-        }
-        
-        // Add inner arc points (if not center section)
-        if (innerRadius > 0) {
-            for (double angle = endAngle; angle >= startAngle; angle -= 0.1) {
-                double x = CENTER_X + innerRadius * Math.cos(angle);
-                double y = CENTER_Y + innerRadius * Math.sin(angle);
-                polygon.getPoints().addAll(new Double[]{x, y});
-            }
-        }
-        
-        polygon.setFill(color);
-        polygon.setStroke(Color.BLACK);
-        polygon.setStrokeWidth(1);
-        
-        return polygon;
-    }
-    
-    private void nextTurn() {
-        currentDart++;
-
-        if (currentDart < 3) {
-            // Vẫn còn phi tiêu → tiếp tục ném
-            instructionLabel.setText("Dart " + (currentDart + 1) + "/3");
-            startXAxis();
-        } else {
-            currentDart = 0;
-            // Hết lượt → gửi kết quả cho server
-            String msg = "THROW_RESULT;" + socketHandler.loginUser + ";" + socketHandler.competitor + ";" + socketHandler.roomIdPresent + ";"
-                + currentTurnScores[0] + ";"
-                + currentTurnScores[1] + ";"
-                + currentTurnScores[2] + ";"
-                + playerScore;
-            socketHandler.sendData(Message.of(MessageType.THROW_COORDINATE, msg));
-            // Reset turn
-            isMyTurn = false;
-            startButton.setDisable(true);
-            instructionLabel.setText("Đang chờ máy chủ ...");
-        }
-    }
-
-    public void clearTurnScores() {
-        currentTurnScores = new int[3];
-        for (int i = 0; i < 3; i++) {
-            if (isMyTurn) {
-                playerTurnTexts[i].setText("0");
-            } else {
-                opponentTurnTexts[i].setText("0");
-            }
-        }
-    }
-    
-    private void updateScoreboard() {
-        playerScoreText.setText(String.valueOf(playerScore));
-        opponentScoreText.setText(String.valueOf(opponentScore));
-    }
-
-    private void startXAxis() {
-        inXAxis = true;
-        lineX.setVisible(true);
-        lineX.setStartX(0);
-        lineX.setEndX(0);
-        startButton.setText("STOP X");
-        
-        // Animate X line
-        lineXAnimation = new Timeline(
-            new KeyFrame(Duration.millis(50), e -> {
-                double currentX = lineX.getStartX();
-                currentX += 5;
-                if (currentX > 450) currentX = 0; // Updated to match pane width
-                lineX.setStartX(currentX);
-                lineX.setEndX(currentX);
-            })
-        );
-        lineXAnimation.setCycleCount(Timeline.INDEFINITE);
-        lineXAnimation.play();
-    }
-    
-    private void stopXAxis() {
-        inXAxis = false;
-        lineXAnimation.stop();
-        startYAxis();
-    }
-    
-    private void startYAxis() {
-        inYAxis = true;
-        lineY.setVisible(true);
-        lineY.setStartY(0);
-        lineY.setEndY(0);
-        startButton.setText("THROW!");
-        
-        // Animate Y line
-        lineYAnimation = new Timeline(
-            new KeyFrame(Duration.millis(50), e -> {
-                double currentY = lineY.getStartY();
-                currentY += 5;
-                if (currentY > BOARD_SIZE) currentY = 0;
-                lineY.setStartY(currentY);
-                lineY.setEndY(currentY);
-            })
-        );
-        lineYAnimation.setCycleCount(Timeline.INDEFINITE);
-        lineYAnimation.play();
-    }
-    
-    private void stopYAxis() {
-        inYAxis = false;
-        lineYAnimation.stop();
-        throwDart();
-    }
-    
-    private void throwDart() {
-        playEffect("/musics/dart.mp3");
-        double dartX = lineX.getStartX();
-        double dartY = lineY.getStartY();
-
-        // Ẩn line
-        lineX.setVisible(false);
-        lineY.setVisible(false);
-
-        // Gửi tọa độ lên server
-        socketHandler.submitThrowCoordinate(dartX, dartY);
-    }
-
-    
-
-   
-    private void showScorePopup(double x, double y, int score, String message) {
-        Text popup = new Text(x, y - 20, message);
-        popup.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        popup.setFill(score > 0 ? Color.YELLOW : Color.RED);
-        gamePane.getChildren().add(popup);
-        
-        // Remove popup after delay
-        Timeline removePopup = new Timeline(new KeyFrame(Duration.seconds(0.8), e -> 
-            gamePane.getChildren().remove(popup)));
-        removePopup.play();
-    }
-    
-    private void endGame(boolean playerWon) {
-        started = false;
-        gameOver = true;
-        startButton.setText("START GAME");
-        startButton.setStyle(
-            "-fx-background-color: linear-gradient(to bottom, #4CAF50, #45a049); " +
-            "-fx-text-fill: white; " +
-            "-fx-font-weight: bold; " +
-            "-fx-font-size: 16px; " +
-            "-fx-border-radius: 8px; " +
-            "-fx-background-radius: 8px; " +
-            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 5); " +
-            "-fx-cursor: hand; " +
-            "-fx-opacity: 0.95;"
-        );
-        
-        String winner = playerWon ? 
-                (socketHandler.loginUser + " là người chiến thắng !!!")
-                : (socketHandler.competitor + " là người chiến thắng !!!");
-        instructionLabel.setText(winner + " - Click START GAME to play again");
-        
-//        winnerText.setText(playerWon ? "Player là người chiến thắng !!!" : "Computer là người chiến thắng !!!");
-        
-        // Clear darts
-        for (Circle dart : darts) {
-            gamePane.getChildren().remove(dart);
-        }
-        darts.clear();
-    }
-
-    public void handleGameAction() {
-        if (inXAxis) {
-            stopXAxis();
-        } else if (inYAxis) {
-            stopYAxis();
-        }
-    }
-
-    private void createScoreboard() {
-        double boardWidth = 530; // Reduced from 980 to fit in 630px container
-        double boardHeight = 80;
-        double padding = 10;
-        
-        scoreBoard = new Rectangle(padding, padding, boardWidth, boardHeight);
-        scoreBoard.setFill(Color.LIGHTGRAY);
-        scoreBoard.setStroke(Color.BLACK);
-        scoreBoard.setStrokeWidth(2);
-        scoreboardPane.getChildren().add(scoreBoard);
-        
-        // Columns: Tên người chơi/Lượt (150px), 1 (60px), 2 (60px), 3 (60px), Điểm còn lại (120px), Người chiến thắng (160px)
-        Line vLine1 = new Line(padding + 150, padding, padding + 150, padding + boardHeight);
-        Line vLine2 = new Line(padding + 210, padding, padding + 210, padding + boardHeight);
-        Line vLine3 = new Line(padding + 270, padding, padding + 270, padding + boardHeight);
-        Line vLine4 = new Line(padding + 330, padding, padding + 330, padding + boardHeight);
-        
-        Line headerSeperator = new Line(padding, padding + 25, padding + boardWidth, padding + 25); 
-        headerSeperator.setStroke(Color.BLACK);
-        headerSeperator.setStrokeWidth(1.5);
-        
-        // Horizontal line to separate Player1 and Computer rows
-        Line hLine = new Line(padding, padding + boardHeight/2 + 10, padding + boardWidth, padding + boardHeight/2 + 10); 
-        
-        vLine1.setStroke(Color.BLACK);
-        vLine2.setStroke(Color.BLACK);
-        vLine3.setStroke(Color.BLACK);
-        vLine4.setStroke(Color.BLACK);
-        hLine.setStroke(Color.BLACK);
-        
-        scoreboardPane.getChildren().addAll(vLine1, vLine2, vLine3, vLine4,headerSeperator ,hLine);
-        
-        Text headerName = new Text(padding + 30, padding + 15, "Tên người chơi/Lượt");
-        Text header1 = new Text(padding + 180, padding + 15, "1");
-        Text header2 = new Text(padding + 240, padding + 15, "2");
-        Text header3 = new Text(padding + 300, padding + 15, "3");
-        Text headerScore = new Text(padding + 390, padding + 15, "Điểm còn lại");
-        
-        headerName.setFont(Font.font("Arial", FontWeight.BOLD, 10));
-        header1.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-        header2.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-        header3.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-        headerScore.setFont(Font.font("Arial", FontWeight.BOLD, 10));
-        
-        scoreboardPane.getChildren().addAll(headerName, header1, header2, header3, headerScore);
-        
-        // Player rows
-        Text player1Name = new Text(padding + 30, padding + 40, socketHandler.loginUser);
-        Text competitorName = new Text(padding + 30, padding + 70, socketHandler.competitor);
-        
-        player1Name.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-        competitorName.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-        scoreboardPane.getChildren().addAll(player1Name, competitorName);
-        
-        playerScoreText = new Text(padding + 410, padding + 40, "301");
-        playerScoreText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        playerScoreText.setFill(Color.BLACK);
-        scoreboardPane.getChildren().add(playerScoreText);
-        
-        opponentScoreText = new Text(padding + 410, padding + 70, "301");
-        opponentScoreText.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        opponentScoreText.setFill(Color.BLACK);
-        scoreboardPane.getChildren().add(opponentScoreText);
-        
-        for (int i = 0; i < 3; i++) {
-            playerTurnTexts[i] = new Text(padding + 180 + (i * 60), padding + 40, "0");
-            playerTurnTexts[i].setFont(Font.font("Arial", FontWeight.BOLD, 12));
-            playerTurnTexts[i].setFill(Color.BLACK);
-            scoreboardPane.getChildren().add(playerTurnTexts[i]);
-            
-            opponentTurnTexts[i] = new Text(padding + 180 + (i * 60), padding + 70, "0");
-            opponentTurnTexts[i].setFont(Font.font("Arial", FontWeight.BOLD, 12));
-            opponentTurnTexts[i].setFill(Color.BLACK);
-            scoreboardPane.getChildren().add(opponentTurnTexts[i]);
-        }
-    }
-    public void handleBack() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Xác nhận thoát game");
-        alert.setHeaderText("Nếu thoát game, bạn sẽ bị xử thua ván này. Bạn có chắc chắn muốn thoát?");
-        alert.setContentText("Hãy chọn hành động của bạn.");
-
-        ButtonType buttonXacNhan = new ButtonType("Xác nhận");
-        ButtonType buttonHuy = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
-
-        alert.getButtonTypes().setAll(buttonXacNhan, buttonHuy);
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == buttonXacNhan) {
-                try {
-                    socketHandler.leaveGame();
-                    Main.setRoot("home"); // Quay lại màn hình home
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } 
-            // Nếu bấm Hủy thì không làm gì
-        });
-    }
-
-    public void addMessage(String message) {
-        chatList.getItems().add(message);
-
-        // Tự động scroll xuống cuối khi có tin nhắn mới
-        chatList.scrollTo(chatList.getItems().size() - 1);
-    }
-    public void handleSend() {
-        String msg = chatInput.getText().trim();
-        if (!msg.isEmpty()) {
-            chatList.getItems().add("Bạn: " + msg);
-            chatList.scrollTo(chatList.getItems().size() - 1);
-            chatInput.clear();
-            
-            String data = "CHAT_MESSAGE" + ";" + socketHandler.loginUser + ";" + socketHandler.competitor + ";" + socketHandler.roomIdPresent + ";" + msg;
-            // send data
-            socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE, data));
-            
-            // Tự động tạo tin nhắn random từ đối thủ sau khi bạn gửi
-//            simulateOpponentReply();
-        }
-    }
-
-    public void showWinnerDialog(String leaver) {
-        playEffect("/musics/win.mp3");
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Kết thúc trận đấu");
-        alert.setHeaderText(null);
-        alert.setContentText("Người chơi " + leaver + " đã rời khỏi phòng.\nBạn là người chiến thắng!");
-
-        ButtonType leaveBtn = new ButtonType("Rời khỏi phòng", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(leaveBtn);
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == leaveBtn) {
-                try {
-                    // Quay về màn home
-                    Main.setRoot("home");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
-    public void showWinnerDialogEndGame(String winner) {
-        
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Kết thúc trận đấu");
-        alert.setHeaderText(null);
-        if(winner.equals(socketHandler.loginUser)){
-            playEffect("/musics/win.mp3");
-            alert.setContentText("Trận đấu kết thúc, Bạn là người chiến thắng");
-        }
-        else{
-            playEffect("/musics/loose.mp3");
-            alert.setContentText("Trận đấu kết thúc, bạn là người thua cuộc");
-        }
-
-        ButtonType leaveBtn = new ButtonType("Rời khỏi phòng", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(leaveBtn);
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == leaveBtn) {
-                try {
-                    // Quay về màn home
-                    Main.setRoot("home");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
-    public void handleRotateBoard() {
-        if (gameOver) return;
-
+    private static final double CX=225,CY=200;
+    private final Group board=new Group(), marks=new Group();
+    private final Text myScore=new Text(),otherScore=new Text();
+    private final Text[] mine=new Text[3],theirs=new Text[3];
+    private Line lineX,lineY;
+    private Timeline xAnimation,yAnimation;
+    private boolean xRunning,yRunning,pending,disposed,finished,sound=true,effects=true;
+    private long displayedTurn=-1;
+    private final java.util.List<javafx.scene.media.MediaPlayer> players=new java.util.ArrayList<>();
+    private void playEffect(String name) {
+        if(!effects || disposed)return;
         try {
-            double angle = Double.parseDouble(angleInput.getText().trim());
-            boardRotation += angle;
-            applyBoardRotation(boardRotation); // dùng transform với pivot cố định
-            instructionLabel.setText("Bàn đã xoay " + angle + "°");
-            angleInput.clear();
-            
-            socketHandler.submitRotation((int) angle);
-            
-            angleInput.setDisable(true);   // khóa lại
-            startButton.setDisable(false); // mở lại nút ném nếu là lượt mình
-
-            // Với 2 người chơi: chỉ cần check nếu là lượt mình
-            if (!isMyTurn) {
-                instructionLabel.setText("Đang chờ đối thủ xoay bàn và ném...");
-                startButton.setDisable(true); // không cho ném
-            }
-        } catch (NumberFormatException e) {
-            instructionLabel.setText("Nhập số hợp lệ!");
+            javafx.scene.media.MediaPlayer player=new javafx.scene.media.MediaPlayer(new javafx.scene.media.Media(getClass().getResource("/musics/"+name+".mp3").toExternalForm()));
+            players.add(player);
+            Runnable release=()->{players.remove(player);player.dispose();};
+            player.setOnEndOfMedia(release);player.setOnError(release);player.play();
+        } catch(RuntimeException e) {System.err.println("Sound unavailable: "+e.getMessage());}
+    }
+    @FXML public void initialize() {
+        drawBoard();gamePane.getChildren().addAll(board,marks);
+        lineX=new Line(0,0,0,400);lineY=new Line(0,0,450,0);
+        lineX.setStroke(Color.ORANGE);lineY.setStroke(Color.ORANGE);
+        lineX.setStrokeWidth(3);lineY.setStrokeWidth(3);
+        gamePane.getChildren().addAll(lineX,lineY);stopAim();
+        scoreboardPane.getChildren().addAll(new Text(15,25,Main.socketHandler.loginUser),new Text(15,65,Main.socketHandler.competitor));
+        myScore.setX(420);myScore.setY(25);otherScore.setX(420);otherScore.setY(65);
+        myScore.setFont(Font.font(20));otherScore.setFont(Font.font(20));
+        scoreboardPane.getChildren().addAll(myScore,otherScore);
+        for(int i=0;i<3;i++) {mine[i]=new Text(200+i*60,25,"0");theirs[i]=new Text(200+i*60,65,"0");scoreboardPane.getChildren().addAll(mine[i],theirs[i]);}
+        angleInput.setOnAction(e->handleRotateBoard());
+        chatInput.setOnAction(e->handleSend());
+        startButton.setDisable(true);rotateButton.setDisable(true);angleInput.setDisable(true);
+        render(Main.gameViewState.getSnapshot());
+    }
+    private void drawBoard() {
+        for(int i=0;i<20;i++) {
+            board.getChildren().add(section(i,0,DartboardLayout.OUTBOARD_RADIUS,i%2==0?Color.BLACK:Color.WHITE));
+            board.getChildren().add(section(i,DartboardLayout.DOUBLE_INNER_RADIUS,DartboardLayout.DOUBLE_OUTER_RADIUS,i%2==0?Color.RED:Color.GREEN));
+            board.getChildren().add(section(i,DartboardLayout.TRIPLE_INNER_RADIUS,DartboardLayout.TRIPLE_OUTER_RADIUS,i%2==0?Color.RED:Color.GREEN));
+            double a=Math.toRadians(i*18-90);
+            Text text=new Text(CX+185*Math.cos(a)-8,CY+185*Math.sin(a)+5,String.valueOf(DartboardLayout.BOARD_ORDER[i]));
+            text.setFont(Font.font("Arial",FontWeight.BOLD,14));board.getChildren().add(text);
+        }
+        board.getChildren().addAll(new Circle(CX,CY,DartboardLayout.OUTER_BULL_RADIUS,Color.GREEN),new Circle(CX,CY,DartboardLayout.BULLSEYE_RADIUS,Color.RED));
+    }
+    private Polygon section(int sector,double inner,double outer,Color color) {
+        Polygon p=new Polygon();double start=sector*18-99,end=start+18;
+        if(inner==0)p.getPoints().addAll(CX,CY);
+        for(int j=0;j<=18;j++) {double a=Math.toRadians(start+j);p.getPoints().addAll(CX+outer*Math.cos(a),CY+outer*Math.sin(a));}
+        if(inner>0)for(int j=18;j>=0;j--) {double a=Math.toRadians(start+j);p.getPoints().addAll(CX+inner*Math.cos(a),CY+inner*Math.sin(a));}
+        p.setFill(color);p.setStroke(Color.GRAY);p.setStrokeWidth(0.4);return p;
+    }
+    public void render(MatchSnapshot s) {
+        if(disposed || s==null)return;
+        if(displayedTurn!=s.turnId()) {
+            stopAim();pending=false;marks.getChildren().clear();displayedTurn=s.turnId();
+            Text[] row=Main.gameViewState.isMyTurn()?mine:theirs;for(Text t:row)t.setText("0");
+        }
+        board.getTransforms().setAll(new Rotate(s.rotationDegree(),CX,CY));
+        boolean p1=Main.gameViewState.isPlayer1();
+        myScore.setText(String.valueOf(p1?s.player1Score():s.player2Score()));otherScore.setText(String.valueOf(p1?s.player2Score():s.player1Score()));
+        boolean me=Main.gameViewState.isMyTurn() && s.status()!=MatchStatus.FINISHED;
+        boolean rotate=me && s.status()==MatchStatus.WAITING_ROTATION && !pending;
+        rotateButton.setDisable(!rotate);angleInput.setDisable(!rotate);
+        botTurnOverlay.setVisible(s.actorType()==ActorType.BOT && s.status()!=MatchStatus.FINISHED);
+        if(!me || s.status()!=MatchStatus.PLAYING)stopAim();
+        startButton.setDisable(!me || s.status()!=MatchStatus.PLAYING || pending || s.dartsThrown()>=3);
+        if(s.status()==MatchStatus.FINISHED) {instructionLabel.setText("Trận đấu đã kết thúc.");return;}
+        if(!me)instructionLabel.setText("Đang chờ "+(s.actorId()==null?"BOT":s.actorId()==s.player1Id()?s.player1Name():s.player2Name()));
+        else if(s.status()==MatchStatus.WAITING_ROTATION)instructionLabel.setText("Lượt bạn: nhập góc 0–359 rồi bấm Xoay.");
+        else if(pending)instructionLabel.setText("Đang chờ server xác nhận...");
+        else if(s.dartsThrown()<3) {instructionLabel.setText("Phi tiêu "+(s.dartsThrown()+1)+"/3 — dừng X rồi dừng Y.");if(!xRunning&&!yRunning)startX();}
+    }
+    public void showThrow(ThrowResolvedResponse res) {
+        if(disposed)return;pending=false;stopAim();playEffect("dart");
+        marks.getChildren().add(new Circle(CX+res.getX(),CY+res.getY(),4,Color.PURPLE));
+        Text[] row=java.util.Objects.equals(res.getActorId(),Main.socketHandler.loggedInUserId)?mine:theirs;
+        if(res.getDartIndex()>=1&&res.getDartIndex()<=3)row[res.getDartIndex()-1].setText(res.isBust()?"BUST":String.valueOf(res.getDartScore()));
+        render(res.getSnapshot());
+    }
+    @FXML public void handleRotateBoard() {
+        MatchSnapshot s=Main.gameViewState.getSnapshot();
+        if(disposed||pending||!Main.gameViewState.isMyTurn()||s.status()!=MatchStatus.WAITING_ROTATION)return;
+        try {int angle=Integer.parseInt(angleInput.getText().trim());if(angle<0||angle>359)throw new NumberFormatException();
+            pending=true;render(s);Main.socketHandler.submitRotation(angle);
+        } catch(NumberFormatException e) {instructionLabel.setText("Nhập số nguyên từ 0 đến 359.");}
+    }
+    public void rotationConfirmed(MatchSnapshot s) {pending=false;render(s);}
+    private void startX() {
+        xRunning=true;lineX.setVisible(true);lineX.setStartX(0);lineX.setEndX(0);startButton.setText("STOP X");
+        xAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double x=(lineX.getStartX()+4)%450;lineX.setStartX(x);lineX.setEndX(x);}));
+        xAnimation.setCycleCount(Animation.INDEFINITE);xAnimation.play();
+    }
+    @FXML public void handleGameAction() {
+        if(disposed||pending||!Main.gameViewState.isMyTurn())return;
+        if(xRunning) {
+            xRunning=false;xAnimation.stop();yRunning=true;lineY.setVisible(true);lineY.setStartY(0);lineY.setEndY(0);startButton.setText("THROW!");
+            yAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double y=(lineY.getStartY()+4)%400;lineY.setStartY(y);lineY.setEndY(y);}));
+            yAnimation.setCycleCount(Animation.INDEFINITE);yAnimation.play();
+        } else if(yRunning) {
+            double x=lineX.getStartX()-CX,y=lineY.getStartY()-CY;stopAim();pending=true;render(Main.gameViewState.getSnapshot());
+            Main.socketHandler.submitThrowCoordinate(x,y);
         }
     }
-    
-    public void setTurn(String nextPlayer){
-        if(nextPlayer.equals(socketHandler.loginUser)){
-            isMyTurn = true;
-            clearTurnScores();
-            instructionLabel.setText("Đến lượt bạn ném");
-            startButton.setDisable(false);
-            angleInput.setDisable(false);
-//            inXAxis = true;
-            startXAxis();
-        } else{
-            isMyTurn = false;
-            instructionLabel.setText("Đang chờ đối thủ");
-            startButton.setDisable(true);
-            angleInput.setDisable(true);
-        }
+    private void stopAim() {if(xAnimation!=null)xAnimation.stop();if(yAnimation!=null)yAnimation.stop();xRunning=false;yRunning=false;if(lineX!=null)lineX.setVisible(false);if(lineY!=null)lineY.setVisible(false);}
+    public void commandFailed() {if(disposed)return;pending=false;render(Main.gameViewState.getSnapshot());}
+    public void finish(MatchSnapshot s) {
+        if(disposed||finished)return;finished=true;pending=false;stopAim();render(s);
+        boolean won=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
+        playEffect(won?"win":"loose");
+        String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
+        Alert alert=new Alert(Alert.AlertType.INFORMATION,(won?"Bạn thắng! ":"Bạn thua. ")+reason,ButtonType.OK);
+        alert.setHeaderText("Kết thúc trận đấu");alert.setOnHidden(e->goHome());alert.show();
     }
-    
-    public void setTurnRotate(String nextPlayer){
-        instructionLabel.setText("Nhập góc xoay bàn rồi ấn Enter để tiếp tục lượt máy!");
-        angleInput.setDisable(false); // cho nhập
-        startButton.setDisable(true); // tạm khóa nút ném
+    @FXML public void handleBack() {
+        if(finished){goHome();return;}
+        Alert alert=new Alert(Alert.AlertType.CONFIRMATION,"Rời trận sẽ bị xử thua. Tiếp tục?",ButtonType.YES,ButtonType.NO);
+        alert.setOnHidden(e->{if(alert.getResult()==ButtonType.YES){pending=true;stopAim();startButton.setDisable(true);Main.socketHandler.leaveGame();}});alert.show();
     }
-    public void applyBoardRotationLocally(int degree) {
-        boardRotation = degree;
-        applyBoardRotation(boardRotation);
+    private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
+    @FXML public void handleSend() {
+        String text=chatInput.getText().trim();if(text.isEmpty()||text.length()>500||finished)return;
+        Main.socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE,new ChatMessage(Main.socketHandler.roomIdPresent,text,null)));chatInput.clear();
     }
-
-    public void updateCompetitorStatus(ThrowResolvedResponse res) {
-        Circle dart = new Circle(res.getX(), res.getY(), 3, Color.PURPLE);
-        dartboardGroup.getChildren().add(dart);
-        darts.add(dart);
-
-        int dartIdx = res.getDartIndex() - 1;
-        boolean isMe = res.getActorName().equals(socketHandler.loginUser);
-        
-        if (isMe) {
-            playerTurnTexts[dartIdx].setText(String.valueOf(res.getDartScore()));
-            playerScore = res.getRemainingScoreAfter();
-        } else {
-            opponentTurnTexts[dartIdx].setText(String.valueOf(res.getDartScore()));
-            opponentScore = res.getRemainingScoreAfter();
-        }
-        
-        updateScoreboard();
-
-        if (res.isBust()) {
-            showScorePopup(res.getX(), res.getY(), 0, "BUST!");
-        } else {
-            showScorePopup(res.getX(), res.getY(), res.getDartScore(), res.getDartScore() > 0 ? res.getDartScore() + "!" : "MISS");
-        }
-        
-        if (!res.isTurnFinished() && !res.isMatchFinished() && isMe) {
-            Timeline delay = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-                instructionLabel.setText("Dart " + (res.getDartIndex() + 1) + "/3");
-                startXAxis();
-            }));
-            delay.play();
-        }
-    }
-
-
-    // CHAT: 
-    private void simulateOpponentReply() {
-        // Danh sách câu trả lời ngẫu nhiên
-        String[] replies = {
-            "Haha, ném trúng chưa đó?",
-            "Tới lượt tôi nè!",
-            "Wow, bạn giỏi quá!",
-            "Đừng xoay bàn nhiều quá nhé 😆",
-            "Good luck!",
-            "Ồ, điểm đó cao đấy!",
-            "Lần này tôi thắng chắc rồi!",
-            "Ném lệch rồi kìa 😂"
-        };
-
-        // Random 1 câu
-        int randomIndex = (int) (Math.random() * replies.length);
-        String reply = replies[randomIndex];
-
-        // Hiển thị sau 1–2 giây để giống người thật
-        Timeline delay = new Timeline(new KeyFrame(Duration.seconds(1.5), e -> {
-            chatList.getItems().add(socketHandler.competitor + ": " + reply);
-        }));
-        delay.play();
-    }
-    private void applyBoardRotation(double degrees) {
-    // Remove previous Rotate transforms on the group (nếu có)
-        dartboardGroup.getTransforms().removeIf(t -> t instanceof Rotate);
-        // Add a new Rotate transform with explicit pivot at CENTER_X, CENTER_Y
-        dartboardGroup.getTransforms().add(new Rotate(degrees, CENTER_X, CENTER_Y));
-    }
-    
-    
-
-    @FXML
-    private void toggleSound() {
-        soundOn = !soundOn;
-
-        if (soundOn) {
-            soundButton.setText("🔊");
-            Main.playBackgroundMusic(); // bật lại nhạc (nếu đang tắt)
-        } else {
-            soundButton.setText("🔇");
-            Main.stopBackgroundMusic(); // tắt hẳn nhạc
-        }
-    }
-    
-    @FXML
-    private void toggleEffectSound() {
-        effectSoundOn = !effectSoundOn;
-        effectSoundButton.setText(effectSoundOn ? "💥" : "🔇FX");
-    }
-    
-    private void playEffect(String path) {
-        if (!effectSoundOn) return; // nếu tắt hiệu ứng thì không phát
-        try {
-            Media sound = new Media(getClass().getResource(path).toExternalForm());
-            MediaPlayer mediaPlayer = new MediaPlayer(sound);
-            mediaPlayer.play();
-        } catch (Exception e) {
-            System.err.println("Không thể phát âm thanh: " + path);
-        }
-    }
+    public void addMessage(String text) {if(!disposed){chatList.getItems().add(text);if(chatList.getItems().size()>300)chatList.getItems().remove(0);chatList.scrollTo(chatList.getItems().size()-1);}}
+    public void dispose() {disposed=true;stopAim();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"🔊":"🔇");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
+    @FXML private void toggleEffectSound() {effects=!effects;effectSoundButton.setText(effects?"💥":"🔇FX");}
 }

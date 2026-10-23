@@ -12,9 +12,13 @@ public class RegisterController {
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
     @FXML private AnchorPane rootPane;
+    @FXML private javafx.scene.control.Label connectionStatusLabel;
+    @FXML private javafx.scene.control.Button registerButton;
 
     @FXML
     public void initialize() {
+        socketHandler.setConnectionListener((ready,text)->{connectionStatusLabel.setText(text);registerButton.setDisable(!ready);});
+        socketHandler.ensureConnected(null);
         var bgImage = new javafx.scene.image.Image(getClass().getResource("/images/background.jpg").toExternalForm());
         var bg = new javafx.scene.layout.BackgroundImage(
             bgImage,
