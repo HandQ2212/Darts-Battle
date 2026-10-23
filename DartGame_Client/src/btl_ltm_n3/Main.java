@@ -43,9 +43,11 @@ public class Main extends Application {
         primaryStage = stage;
         socketHandler = new SocketHandler();
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/views/login.fxml"));
-        scene = new Scene(loader.load(), 800, 800);
+        scene = new Scene(loader.load(), 1080, 740);
         stage.setScene(scene);
-        stage.setTitle("Darts Game");
+        stage.setTitle("Darts Battle");
+        stage.setMinWidth(1000);
+        stage.setMinHeight(700);
         stage.show();
 
         // Phát nhạc nền
@@ -61,6 +63,7 @@ public class Main extends Application {
 
     private void handleExitConfirmation() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        ui.GameTheme.style(alert);
         alert.setTitle("Xác nhận thoát");
         alert.setHeaderText("Bạn có chắc muốn thoát ứng dụng không?");
         alert.setContentText("Chọn OK để thoát, Cancel để ở lại.");
@@ -99,8 +102,8 @@ public class Main extends Application {
         }
         scene.setRoot(root);
         if (primaryStage != null) {
-            primaryStage.setMinWidth(fxml.equals("startgame") ? 1040 : 800);
-            primaryStage.setMinHeight(fxml.equals("startgame") ? 780 : 650);
+            primaryStage.setMinWidth(fxml.equals("startgame") ? 1040 : 1000);
+            primaryStage.setMinHeight(fxml.equals("startgame") ? 780 : 700);
             primaryStage.sizeToScene();
         }
     }

@@ -54,6 +54,7 @@ def main():
     if not dmg.is_file():
         raise RuntimeError('Build the Mac DMG first: python3 scripts/desktop.py package client --type dmg')
     shutil.copy2(dmg, mac / 'DartsBattle-2.1.0-macOS-AppleSilicon.dmg')
+    shutil.copy2(desktop.ROOT / 'DartGame_Client/src/assets/CREDITS.md', mac / 'ASSET-CREDITS.txt')
     libraries = [desktop.download('org.openjfx', 'javafx-' + module, desktop.FX_VERSION, 'win')
                  for module in ('base', 'graphics', 'controls', 'fxml', 'media')]
     folder, _ = desktop.build('client', desktop.load_release_profile(), client_libraries=libraries)
@@ -63,6 +64,7 @@ def main():
         app = staging / 'DartsBattle'
         app.mkdir()
         shutil.copytree(folder, app / 'app')
+        shutil.copy2(desktop.ROOT / 'DartGame_Client/src/assets/CREDITS.md', app / 'ASSET-CREDITS.txt')
         extracted = staging / 'jre'
         with zipfile.ZipFile(archive) as source:
             source.extractall(extracted)
@@ -87,6 +89,8 @@ def main():
             'Ban portable chua duoc chay thu tren may Windows thuc te.\n', encoding='utf-8')
         (app / 'runtime-source.json').write_text(json.dumps(runtime_metadata, indent=2) + '\n')
         shutil.make_archive(str(windows / 'DartsBattle-2.1.0-Windows-x64'), 'zip', staging, 'DartsBattle')
+        # Keep the ready-to-open folder alongside the ZIP in sync as well.
+        shutil.copytree(app, windows / 'DartsBattle', dirs_exist_ok=True)
     (mac / 'HUONG-DAN.txt').write_text(
         'DARTS BATTLE 2.1 - macOS APPLE SILICON\n\n'
         'Danh cho Mac chip Apple Silicon. Khong dung cho Mac Intel.\n'

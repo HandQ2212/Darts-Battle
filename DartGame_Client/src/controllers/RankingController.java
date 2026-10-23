@@ -41,17 +41,6 @@ public class RankingController {
 
     @FXML
     public void initialize() {
-        // Set background
-        var bgImage = new javafx.scene.image.Image(getClass().getResource("/images/background.jpg").toExternalForm());
-        var bg = new javafx.scene.layout.BackgroundImage(
-            bgImage,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundPosition.CENTER,
-            new javafx.scene.layout.BackgroundSize(100, 100, true, true, true, false)
-        );
-        rootPane.setBackground(new javafx.scene.layout.Background(bg));
-        
         // Setup table columns với cell value factories
         setupTableColumns();
         
@@ -82,13 +71,10 @@ public class RankingController {
         // Cột Điểm số
         scoreColumn.setCellValueFactory(cellData -> 
             new SimpleIntegerProperty(cellData.getValue().score).asObject());
-        scoreColumn.setStyle("-fx-alignment: CENTER; -fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #FF6B35;");
+        scoreColumn.setStyle("-fx-alignment: CENTER; -fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #b56826;");
         
         // Tùy chỉnh style cho table
-        leaderboardTable.setStyle(
-            "-fx-background-color: rgba(255,255,255,0.9);" +
-            "-fx-background-radius: 15;"
-        );
+
     }
     
     /**
@@ -182,19 +168,19 @@ public class RankingController {
                     String style = "";
                     switch (newPlayer.rank) {
                         case 1:
-                            style = "-fx-background-color: rgba(255, 215, 0, 0.3);"; // Vàng
+                            style = "-fx-background-color: #fff0bb;"; // Vàng
                             break;
                         case 2:
-                            style = "-fx-background-color: rgba(192, 192, 192, 0.3);"; // Bạc
+                            style = "-fx-background-color: #f5edd4;"; // Bạc
                             break;
                         case 3:
-                            style = "-fx-background-color: rgba(205, 127, 50, 0.3);"; // Đồng
+                            style = "-fx-background-color: #ffe1bc;"; // Đồng
                             break;
                         default:
                             // Highlight người chơi hiện tại
                             if (Main.socketHandler != null && 
                                 newPlayer.username.equals(Main.socketHandler.loginUser)) {
-                                style = "-fx-background-color: rgba(100, 200, 255, 0.3);"; // Xanh
+                                style = "-fx-background-color: #e3eec4;"; // Xanh
                             }
                     }
                     row.setStyle(style);
@@ -292,6 +278,7 @@ public class RankingController {
     private void showError(String title, String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            ui.GameTheme.style(alert);
             alert.setTitle(title);
             alert.setHeaderText(null);
             alert.setContentText(message);
