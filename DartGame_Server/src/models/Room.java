@@ -4,6 +4,16 @@ import enums.ActorType;
 import enums.MatchMode;
 
 public class Room {
+    public String player1Name;
+    public String player2Name;
+    public long version;
+    public Long winnerId;
+    public ActorType winnerType;
+    public String endReason;
+    public long deadline;
+    public boolean started;
+    // All accesses occur under this room's monitor; retain only this turn's commands.
+    public final java.util.Map<String, Object> requests = new java.util.HashMap<>();
     private String matchId;
     private long player1Id;
     private Long player2Id;

@@ -24,6 +24,7 @@
                    -fx-effect: dropshadow(gaussian, rgba(255,255,255,0.5), 2, 0.3, 0, 0);
                "/>
 
+        <Label fx:id="lobbyStatusLabel" wrapText="true" maxWidth="650"/>
         <!-- Bảng danh sách người chơi -->
         <TableView fx:id="userTable"
                    prefHeight="400" prefWidth="650"
