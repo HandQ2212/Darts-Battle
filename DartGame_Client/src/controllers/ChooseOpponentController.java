@@ -29,6 +29,8 @@ public class ChooseOpponentController {
     @FXML
     private TableColumn<User, String> colStatus;
     @FXML private AnchorPane rootPane;
+    @FXML private javafx.scene.control.Label lobbyStatusLabel;
+    public void showStatus(String text) { if(lobbyStatusLabel!=null)lobbyStatusLabel.setText(text); }
 
     @FXML
     public void initialize() {
@@ -62,8 +64,10 @@ public class ChooseOpponentController {
             }
         });
 
+        showStatus(socketHandler.lobbyNotice);
         // Load lần đầu
         updateUserTable(Main.listOnlineUser);
+        socketHandler.getListOnline();
     }
 
     // Hàm public để update bảng
@@ -91,13 +95,13 @@ public class ChooseOpponentController {
     @FXML
     private void handleConfirm() {
         User selected = userTable.getSelectionModel().getSelectedItem();
-        if (selected != null) {
+        if (selected != null && selected.getStatus() == enums.PlayerStatus.IDLE) {
             System.out.println("Opponent chosen: " + selected.getUsername());
             
             // Gửi lời mời Đối thủ => Server: Check + mời
             socketHandler.inviteToPlay(selected.getUsername());
         } else {
-            System.out.println("No opponent selected!");
+            showStatus("Hãy chọn đối thủ đang ở trạng thái IDLE.");
         }
     }
 }

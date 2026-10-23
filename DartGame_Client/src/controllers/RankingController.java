@@ -98,7 +98,6 @@ public class RankingController {
         if (Main.socketHandler != null) {
             // Hiển thị loading
             showLoading(true);
-            Main.socketHandler.getMatchHistory(Main.socketHandler.loginUser);
             // Lấy top 100 người chơi
             Main.socketHandler.getLeaderboard(100);
             

@@ -4,6 +4,7 @@ import database.DBConnection;
 import protocol.Message;
 import protocol.MessageType;
 import services.Client;
+import services.HistoryWriter;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,6 +15,7 @@ import java.util.List;
 public class RankingController {
 
     public void handleMessage(Client client, Message message) {
+        HistoryWriter.drain(); // Include the match just finished before returning rankings/history.
         if (message.getType() == MessageType.GET_RANKING) {
             List<String> rankings = getRankingPvp();
             client.send(Message.of(MessageType.RANKING_RESULT, rankings));
@@ -30,7 +32,7 @@ public class RankingController {
         // Query to get user and their PvP win counts
         String sql = "SELECT u.username, COUNT(m.id) as wins " +
                      "FROM users u " +
-                     "LEFT JOIN matches m ON u.id = m.winner_id AND m.mode = 'PVP' " +
+                     "LEFT JOIN matches m ON u.id = m.winner_id AND m.mode = 'PVP' AND m.ended_at IS NOT NULL " +
                      "GROUP BY u.id " +
                      "ORDER BY wins DESC, u.username ASC " +
                      "LIMIT 100";
@@ -48,7 +50,7 @@ public class RankingController {
                 rank++;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không tải được dữ liệu từ DB",e);
         }
         return rankings;
     }
@@ -57,7 +59,7 @@ public class RankingController {
         List<String> history = new ArrayList<>();
         String sql = "SELECT m.id, m.mode, " +
                      "CASE WHEN m.player1_id = ? THEN u2.username ELSE u1.username END as opponent_name, " +
-                     "CASE WHEN m.winner_id = ? THEN 'WIN' WHEN m.winner_id IS NULL THEN 'DRAW_OR_BOT' ELSE 'LOSS' END as result, " +
+                     "CASE WHEN m.winner_id = ? THEN 'WIN' WHEN m.winner_type = 'BOT' THEN 'LOSS' ELSE 'LOSS' END as result, " +
                      "m.end_reason, m.ended_at " +
                      "FROM matches m " +
                      "LEFT JOIN users u1 ON m.player1_id = u1.id " +
@@ -88,7 +90,7 @@ public class RankingController {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không tải được dữ liệu từ DB",e);
         }
         return history;
     }

@@ -80,7 +80,7 @@
                     <HBox spacing="5" alignment="CENTER">
                         <Label text="Nhập góc xoay:"/>
                         <TextField fx:id="angleInput" prefWidth="80"/>
-                        <Button text="Xoay" onAction="#handleRotateBoard"/>
+                        <Button fx:id="rotateButton" text="Xoay" onAction="#handleRotateBoard"/>
                     </HBox>
                     <Label fx:id="instructionLabel" text="Click START GAME to begin 301 Dart Game" 
                            style="-fx-font-size: 14px; -fx-font-weight: bold;" alignment="CENTER_LEFT"/>
