@@ -1,78 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
 <?import javafx.geometry.*?>
-
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:id="rootPane"
-            fx:controller="controllers.MatchHistoryController"
-            prefWidth="900" prefHeight="600"
-            stylesheets="@match_history.css">
-
-    <VBox alignment="CENTER" spacing="20"
-          AnchorPane.topAnchor="50"
-          AnchorPane.leftAnchor="50"
-          AnchorPane.rightAnchor="50">
-
-        <Label text="Match History"
-               style="
-                   -fx-font-size: 28px;
-                   -fx-text-fill: black;
-                   -fx-font-weight: bold;
-               "/>
-
-        <TableView fx:id="historyTable"
-                   prefHeight="400"
-                   style="-fx-background-color: rgba(255,255,255,0.6);
-                          -fx-background-radius: 12;
-                          -fx-border-color: rgba(0,0,0,0.2);
-                          -fx-border-radius: 12;"
-        >
-            <columns>
-                <TableColumn fx:id="usernameCol" text="You"/>
-                <TableColumn fx:id="opponentCol" text="Opponent"/>
-                <TableColumn fx:id="resultCol" text="Result"/>
-                <TableColumn fx:id="timeCol" text="Time"/>
-            </columns>
-        </TableView>
-
-        <HBox alignment="CENTER" spacing="25">
-
-            <Button text="Reload"
-                    onAction="#onReloadClick"
-                    style="
-                        -fx-background-color: rgba(255,255,255,0.7);
-                        -fx-text-fill: black;
-                        -fx-font-size: 14px;
-                        -fx-font-weight: bold;
-                        -fx-background-radius: 10;
-                        -fx-padding: 8 20;
-                    "/>
-
-            <Button text="Back"
-                    onAction="#handleBack"
-                    style="
-                        -fx-background-color: rgba(244, 67, 54, 0.8);
-                        -fx-text-fill: white;
-                        -fx-font-size: 14px;
-                        -fx-font-weight: bold;
-                        -fx-background-radius: 10;
-                        -fx-padding: 8 25;
-                    "/>
-        </HBox>
-
-        <!-- Loading box -->
-        <HBox fx:id="loadingBox"
-              alignment="CENTER"
-              spacing="10"
-              visible="false"
-              managed="false">
-            <Label text="Loading..."
-                   style="-fx-font-size: 16px; -fx-text-fill: black;"/>
-        </HBox>
-
-    </VBox>
-
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.MatchHistoryController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+ <VBox spacing="18" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+  <HBox alignment="CENTER_LEFT"><Button text="← Sảnh chính" onAction="#handleBack" styleClass="ghost"/><Region HBox.hgrow="ALWAYS"/><Label text="DARTS / BATTLE" styleClass="brand" wrapText="true"/></HBox><Region styleClass="divider"/>
+  <HBox alignment="CENTER_LEFT"><VBox spacing="7" HBox.hgrow="ALWAYS"><Label text="HÀNH TRÌNH CỦA BẠN" styleClass="eyebrow" wrapText="true"/><Label text="Lịch sử thi đấu." styleClass="title" wrapText="true"/><Label text="Mỗi trận đấu là một bước tiến." styleClass="muted" wrapText="true"/></VBox><Button text="Làm mới" onAction="#onReloadClick"/></HBox>
+  <TableView fx:id="historyTable" VBox.vgrow="ALWAYS"><columns><TableColumn fx:id="usernameCol" text="BẠN" prefWidth="220"/><TableColumn fx:id="opponentCol" text="ĐỐI THỦ" prefWidth="220"/><TableColumn fx:id="resultCol" text="KẾT QUẢ" prefWidth="140"/><TableColumn fx:id="timeCol" text="THỜI GIAN" prefWidth="280"/></columns><placeholder><VBox alignment="CENTER" spacing="10"><Label text="Trận đầu tiên đang chờ bạn" styleClass="section-title" wrapText="true"/><Label text="Các trận đã hoàn thành sẽ được hiển thị tại đây." styleClass="muted" wrapText="true"/></VBox></placeholder></TableView>
+  <HBox fx:id="loadingBox" visible="false" managed="false" alignment="CENTER" spacing="10"><ProgressIndicator prefWidth="20" prefHeight="20"/><Label text="Đang tải lịch sử..." styleClass="muted" wrapText="true"/></HBox>
+ </VBox>
 </AnchorPane>

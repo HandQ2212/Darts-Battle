@@ -19,15 +19,6 @@ public class RegisterController {
     public void initialize() {
         socketHandler.setConnectionListener((ready,text)->{connectionStatusLabel.setText(text);registerButton.setDisable(!ready);});
         socketHandler.ensureConnected(null);
-        var bgImage = new javafx.scene.image.Image(getClass().getResource("/images/background.jpg").toExternalForm());
-        var bg = new javafx.scene.layout.BackgroundImage(
-            bgImage,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundPosition.CENTER,
-            new javafx.scene.layout.BackgroundSize(100, 100, true, true, true, false)
-        );
-        rootPane.setBackground(new javafx.scene.layout.Background(bg));
     }
 
     public void handleRegister() {

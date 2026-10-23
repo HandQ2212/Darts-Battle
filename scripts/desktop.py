@@ -236,8 +236,10 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', str(classes) + os.pathsep + str(libs / '*'), '-d', classes, ROOT / 'tests/ClientUiSmokeTest.java'])
-    run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', classes, 'ClientUiSmokeTest'])
+    cases = ('ClientUiSmokeTest', 'DartThrowEffectsTest')
+    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', str(classes) + os.pathsep + str(libs / '*'), '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
+    for case in cases:
+        run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', classes, case])
 
 
 def probe(endpoint=None, certificate=None):

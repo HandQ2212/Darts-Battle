@@ -8,7 +8,6 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import models.User;
 
@@ -34,16 +33,8 @@ public class ChooseOpponentController {
 
     @FXML
     public void initialize() {
-        var bgImage = new javafx.scene.image.Image(getClass().getResource("/images/background.jpg").toExternalForm());
-        var bg = new javafx.scene.layout.BackgroundImage(
-            bgImage,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-            javafx.scene.layout.BackgroundPosition.CENTER,
-            new javafx.scene.layout.BackgroundSize(100, 100, true, true, true, false)
-        );
-        rootPane.setBackground(new javafx.scene.layout.Background(bg));
        
+        userTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         colId.setCellValueFactory(cellData -> new javafx.beans.property.SimpleLongProperty(cellData.getValue().getId()).asObject());
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colStatus.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getStatus() != null ? cellData.getValue().getStatus().name() : "OFFLINE"));
@@ -57,8 +48,9 @@ public class ChooseOpponentController {
                     setText(null);
                     setGraphic(null);
                 } else {
-                    Text text = new Text(status);
-                    text.setFill(status.equalsIgnoreCase("IDLE") || status.equalsIgnoreCase("ONLINE") ? Color.GREEN : Color.RED);
+                    boolean ready = status.equalsIgnoreCase("IDLE") || status.equalsIgnoreCase("ONLINE");
+                    Text text = new Text(ready ? "●  Sẵn sàng" : "●  Đang bận");
+                    text.getStyleClass().add(ready ? "online-status" : "busy-status");
                     setGraphic(text);
                 }
             }

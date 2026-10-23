@@ -22,13 +22,19 @@ public class StartGameController {
     @FXML private TextField chatInput, angleInput;
     @FXML private Pane gamePane, scoreboardPane;
     @FXML private Button startButton, rotateButton, soundButton, effectSoundButton;
-    @FXML private Label instructionLabel;
+    @FXML private Label instructionLabel, phaseLabel, turnLabel, lastThrowLabel, lastThrowScoreLabel;
     @FXML private VBox botTurnOverlay;
     @FXML private BorderPane rootPane;
     private static final double CX=225,CY=200;
     private final Group board=new Group(), marks=new Group();
+    private ui.DartThrowEffects dartEffects;
+    private javafx.scene.media.AudioClip dartImpact;
     private final Text myScore=new Text(),otherScore=new Text();
     private final Text[] mine=new Text[3],theirs=new Text[3];
+    private VBox myCard, otherCard;
+    private final Label myTurnTag=new Label(), otherTurnTag=new Label();
+    private static final javafx.css.PseudoClass ACTIVE=javafx.css.PseudoClass.getPseudoClass("active");
+    private static final javafx.css.PseudoClass BUST=javafx.css.PseudoClass.getPseudoClass("bust");
     private Line lineX,lineY;
     private Timeline xAnimation,yAnimation;
     private boolean xRunning,yRunning,pending,disposed,finished,sound=true,effects=true;
@@ -45,48 +51,99 @@ public class StartGameController {
     }
     @FXML public void initialize() {
         drawBoard();gamePane.getChildren().addAll(board,marks);
+        dartEffects=new ui.DartThrowEffects(marks,this::playDartImpact);
+        try {dartImpact=new javafx.scene.media.AudioClip(getClass().getResource("/musics/dart.mp3").toExternalForm());dartImpact.setVolume(0.8);}
+        catch(RuntimeException e) {System.err.println("Impact audio unavailable: "+e.getMessage());}
         lineX=new Line(0,0,0,400);lineY=new Line(0,0,450,0);
-        lineX.setStroke(Color.ORANGE);lineY.setStroke(Color.ORANGE);
-        lineX.setStrokeWidth(3);lineY.setStrokeWidth(3);
-        gamePane.getChildren().addAll(lineX,lineY);stopAim();
-        scoreboardPane.getChildren().addAll(new Text(15,25,Main.socketHandler.loginUser),new Text(15,65,Main.socketHandler.competitor));
-        myScore.setX(420);myScore.setY(25);otherScore.setX(420);otherScore.setY(65);
-        myScore.setFont(Font.font(20));otherScore.setFont(Font.font(20));
-        scoreboardPane.getChildren().addAll(myScore,otherScore);
-        for(int i=0;i<3;i++) {mine[i]=new Text(200+i*60,25,"0");theirs[i]=new Text(200+i*60,65,"0");scoreboardPane.getChildren().addAll(mine[i],theirs[i]);}
+        lineX.setStroke(Color.web("#e76e12"));lineY.setStroke(Color.web("#e76e12"));
+        lineX.setStrokeWidth(2);lineY.setStrokeWidth(2);
+        lineX.setMouseTransparent(true);lineY.setMouseTransparent(true);
+        gamePane.getChildren().addAll(lineX,lineY);marks.toFront();stopAim();
+        myCard=playerCard(Main.socketHandler.loginUser,"BẠN",myScore,mine,myTurnTag);
+        otherCard=playerCard(Main.socketHandler.competitor,"ĐỐI THỦ",otherScore,theirs,otherTurnTag);
+        otherCard.getStyleClass().add("opponent-card");
+        Label versus=new Label("VS");versus.getStyleClass().add("versus");
+        ((HBox)scoreboardPane).setAlignment(javafx.geometry.Pos.CENTER);
+        scoreboardPane.getChildren().addAll(myCard,versus,otherCard);
+        chatList.setCellFactory(list->new ListCell<>() {
+            private final Label message=new Label();
+            {message.setWrapText(true);message.maxWidthProperty().bind(list.widthProperty().subtract(36));}
+            @Override protected void updateItem(String item,boolean empty) {
+                super.updateItem(item,empty);setText(null);message.setText(empty?null:item);setGraphic(empty?null:message);
+            }
+        });
         angleInput.setOnAction(e->handleRotateBoard());
         chatInput.setOnAction(e->handleSend());
         startButton.setDisable(true);rotateButton.setDisable(true);angleInput.setDisable(true);
         render(Main.gameViewState.getSnapshot());
     }
-    private void drawBoard() {
-        for(int i=0;i<20;i++) {
-            board.getChildren().add(section(i,0,DartboardLayout.OUTBOARD_RADIUS,i%2==0?Color.BLACK:Color.WHITE));
-            board.getChildren().add(section(i,DartboardLayout.DOUBLE_INNER_RADIUS,DartboardLayout.DOUBLE_OUTER_RADIUS,i%2==0?Color.RED:Color.GREEN));
-            board.getChildren().add(section(i,DartboardLayout.TRIPLE_INNER_RADIUS,DartboardLayout.TRIPLE_OUTER_RADIUS,i%2==0?Color.RED:Color.GREEN));
-            double a=Math.toRadians(i*18-90);
-            Text text=new Text(CX+185*Math.cos(a)-8,CY+185*Math.sin(a)+5,String.valueOf(DartboardLayout.BOARD_ORDER[i]));
-            text.setFont(Font.font("Arial",FontWeight.BOLD,14));board.getChildren().add(text);
+    private VBox playerCard(String name,String caption,Text score,Text[] darts,Label tag) {
+        Label player=new Label(name==null?caption:name);player.getStyleClass().add("player-name");
+        player.setMaxWidth(160);tag.getStyleClass().add("turn-tag");
+        Region spacer=new Region();HBox.setHgrow(spacer,Priority.ALWAYS);
+        HBox header=new HBox(8,player,spacer,tag);header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        score.getStyleClass().add("score-value");
+        Label remaining=new Label(caption+" / CÒN LẠI");remaining.getStyleClass().add("score-caption");
+        VBox value=new VBox(0,score,remaining);HBox chips=new HBox(5);chips.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+        for(int i=0;i<3;i++) {
+            darts[i]=new Text("–");darts[i].getStyleClass().add("dart-value");
+            StackPane chip=new StackPane(darts[i]);chip.getStyleClass().add("dart-chip");
+            final Text dart=darts[i];dart.textProperty().addListener((o,old,text)->chip.pseudoClassStateChanged(BUST,"BUST".equals(text)));
+            chips.getChildren().add(chip);
         }
-        board.getChildren().addAll(new Circle(CX,CY,DartboardLayout.OUTER_BULL_RADIUS,Color.GREEN),new Circle(CX,CY,DartboardLayout.BULLSEYE_RADIUS,Color.RED));
+        Region gap=new Region();HBox.setHgrow(gap,Priority.ALWAYS);
+        HBox detail=new HBox(6,value,gap,chips);detail.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        VBox card=new VBox(4,header,detail);card.getStyleClass().add("score-card");
+        card.setMinWidth(0);card.setPrefWidth(300);card.setMaxWidth(Double.MAX_VALUE);HBox.setHgrow(card,Priority.ALWAYS);
+        return card;
+    }
+    private void drawBoard() {
+        Circle rim=new Circle(CX,CY,198,new javafx.scene.paint.RadialGradient(0,0,0.4,0.35,0.7,true,javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0,Color.web("#e5ad50")),new javafx.scene.paint.Stop(1,Color.web("#bb7a34"))));
+        rim.setStroke(new javafx.scene.paint.LinearGradient(0,0,1,1,true,javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0,Color.web("#ffe5a0")),new javafx.scene.paint.Stop(0.5,Color.web("#c17b31")),new javafx.scene.paint.Stop(1,Color.web("#9d5d2b"))));
+        rim.setStrokeWidth(3);board.getChildren().add(rim);
+        for(int i=0;i<20;i++) {
+            board.getChildren().add(section(i,0,DartboardLayout.OUTBOARD_RADIUS,i%2==0?Color.web("#ffe29b"):Color.web("#fff2be")));
+            board.getChildren().add(section(i,DartboardLayout.DOUBLE_INNER_RADIUS,DartboardLayout.DOUBLE_OUTER_RADIUS,i%2==0?Color.web("#ff9956"):Color.web("#70b85b")));
+            board.getChildren().add(section(i,DartboardLayout.TRIPLE_INNER_RADIUS,DartboardLayout.TRIPLE_OUTER_RADIUS,i%2==0?Color.web("#ff9956"):Color.web("#70b85b")));
+            double a=Math.toRadians(i*18-90);
+            Text text=new Text(String.valueOf(DartboardLayout.BOARD_ORDER[i]));text.getStyleClass().add("board-number");
+            text.setFont(Font.font("Lilita One",17));text.setFill(Color.web("#75451e"));
+            text.setX(CX+181*Math.cos(a)-text.getLayoutBounds().getWidth()/2);text.setY(CY+181*Math.sin(a)+5);board.getChildren().add(text);
+        }
+        board.getChildren().addAll(new Circle(CX,CY,DartboardLayout.OUTER_BULL_RADIUS,Color.web("#70b85b")),new Circle(CX,CY,DartboardLayout.BULLSEYE_RADIUS,Color.web("#ff9956")));
+        javafx.scene.canvas.Canvas fibers=new javafx.scene.canvas.Canvas(320,320);
+        fibers.setLayoutX(CX-160);fibers.setLayoutY(CY-160);fibers.setClip(new Circle(160,160,160));
+        javafx.scene.canvas.GraphicsContext ink=fibers.getGraphicsContext2D();
+        java.util.Random random=new java.util.Random(301);
+        ink.setStroke(Color.color(0.85,0.94,1,0.09));ink.setLineWidth(0.6);
+        for(int i=0;i<1400;i++){double x=random.nextDouble()*320,y=random.nextDouble()*320;ink.strokeLine(x,y,x+1,y+2+random.nextDouble()*3);}
+        board.getChildren().add(fibers);
     }
     private Polygon section(int sector,double inner,double outer,Color color) {
         Polygon p=new Polygon();double start=sector*18-99,end=start+18;
         if(inner==0)p.getPoints().addAll(CX,CY);
         for(int j=0;j<=18;j++) {double a=Math.toRadians(start+j);p.getPoints().addAll(CX+outer*Math.cos(a),CY+outer*Math.sin(a));}
         if(inner>0)for(int j=18;j>=0;j--) {double a=Math.toRadians(start+j);p.getPoints().addAll(CX+inner*Math.cos(a),CY+inner*Math.sin(a));}
-        p.setFill(color);p.setStroke(Color.GRAY);p.setStrokeWidth(0.4);return p;
+        p.setFill(color);p.setStroke(Color.web("#c69f59"));p.setStrokeWidth(0.4);return p;
     }
     public void render(MatchSnapshot s) {
         if(disposed || s==null)return;
         if(displayedTurn!=s.turnId()) {
-            stopAim();pending=false;marks.getChildren().clear();displayedTurn=s.turnId();
-            Text[] row=Main.gameViewState.isMyTurn()?mine:theirs;for(Text t:row)t.setText("0");
+            stopAim();pending=false;dartEffects.beginTurn();displayedTurn=s.turnId();
+            Text[] row=Main.gameViewState.isMyTurn()?mine:theirs;for(Text t:row)t.setText("–");
         }
         board.getTransforms().setAll(new Rotate(s.rotationDegree(),CX,CY));
         boolean p1=Main.gameViewState.isPlayer1();
         myScore.setText(String.valueOf(p1?s.player1Score():s.player2Score()));otherScore.setText(String.valueOf(p1?s.player2Score():s.player1Score()));
         boolean me=Main.gameViewState.isMyTurn() && s.status()!=MatchStatus.FINISHED;
+        boolean active=s.status()!=MatchStatus.FINISHED;
+        myCard.pseudoClassStateChanged(ACTIVE,me);otherCard.pseudoClassStateChanged(ACTIVE,active&&!me);
+        myTurnTag.setText(me?"LƯỢT BẠN":"");otherTurnTag.setText(active&&!me?"ĐẾN LƯỢT":"");
+        turnLabel.setText(!active?"Trận đấu kết thúc":me?"Đến lượt bạn.":"Lượt của đối thủ.");
+        phaseLabel.setText(!active?"HOÀN THÀNH":!me?"CHỜ ĐỐI THỦ":s.status()==MatchStatus.WAITING_ROTATION?"01 / XOAY BẢNG":pending?"ĐANG XÁC NHẬN":"02 / NGẮM & NÉM");
+        if(!me || s.status()!=MatchStatus.PLAYING || pending)startButton.setText(pending?"Đang gửi...":"Chờ lượt");
         boolean rotate=me && s.status()==MatchStatus.WAITING_ROTATION && !pending;
         rotateButton.setDisable(!rotate);angleInput.setDisable(!rotate);
         botTurnOverlay.setVisible(s.actorType()==ActorType.BOT && s.status()!=MatchStatus.FINISHED);
@@ -99,8 +156,13 @@ public class StartGameController {
         else if(s.dartsThrown()<3) {instructionLabel.setText("Phi tiêu "+(s.dartsThrown()+1)+"/3 — dừng X rồi dừng Y.");if(!xRunning&&!yRunning)startX();}
     }
     public void showThrow(ThrowResolvedResponse res) {
-        if(disposed)return;pending=false;stopAim();playEffect("dart");
-        marks.getChildren().add(new Circle(CX+res.getX(),CY+res.getY(),4,Color.PURPLE));
+        if(disposed)return;pending=false;stopAim();
+        boolean own=java.util.Objects.equals(res.getActorId(),Main.socketHandler.loggedInUserId);
+        dartEffects.throwDart(CX+res.getX(),CY+res.getY(),own,res.getDartScore(),res.isBust());
+        lastThrowScoreLabel.setText(String.valueOf(res.getDartScore()));
+        lastThrowScoreLabel.pseudoClassStateChanged(BUST,res.isBust());
+        lastThrowLabel.setText((own?"Bạn":"Đối thủ")+" · "+res.getDartScore()+" điểm"+(res.isBust()?" · BUST, không trừ điểm":""));
+        lastThrowLabel.pseudoClassStateChanged(BUST,res.isBust());
         Text[] row=java.util.Objects.equals(res.getActorId(),Main.socketHandler.loggedInUserId)?mine:theirs;
         if(res.getDartIndex()>=1&&res.getDartIndex()<=3)row[res.getDartIndex()-1].setText(res.isBust()?"BUST":String.valueOf(res.getDartScore()));
         render(res.getSnapshot());
@@ -114,14 +176,14 @@ public class StartGameController {
     }
     public void rotationConfirmed(MatchSnapshot s) {pending=false;render(s);}
     private void startX() {
-        xRunning=true;lineX.setVisible(true);lineX.setStartX(0);lineX.setEndX(0);startButton.setText("STOP X");
+        xRunning=true;lineX.setVisible(true);lineX.setStartX(0);lineX.setEndX(0);startButton.setText("Dừng X");
         xAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double x=(lineX.getStartX()+4)%450;lineX.setStartX(x);lineX.setEndX(x);}));
         xAnimation.setCycleCount(Animation.INDEFINITE);xAnimation.play();
     }
     @FXML public void handleGameAction() {
         if(disposed||pending||!Main.gameViewState.isMyTurn())return;
         if(xRunning) {
-            xRunning=false;xAnimation.stop();yRunning=true;lineY.setVisible(true);lineY.setStartY(0);lineY.setEndY(0);startButton.setText("THROW!");
+            xRunning=false;xAnimation.stop();yRunning=true;lineY.setVisible(true);lineY.setStartY(0);lineY.setEndY(0);startButton.setText("Dừng Y · Ném");
             yAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double y=(lineY.getStartY()+4)%400;lineY.setStartY(y);lineY.setEndY(y);}));
             yAnimation.setCycleCount(Animation.INDEFINITE);yAnimation.play();
         } else if(yRunning) {
@@ -137,11 +199,12 @@ public class StartGameController {
         playEffect(won?"win":"loose");
         String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
         Alert alert=new Alert(Alert.AlertType.INFORMATION,(won?"Bạn thắng! ":"Bạn thua. ")+reason,ButtonType.OK);
-        alert.setHeaderText("Kết thúc trận đấu");alert.setOnHidden(e->goHome());alert.show();
+        ui.GameTheme.style(alert);alert.setHeaderText("Kết thúc trận đấu");alert.setOnHidden(e->goHome());alert.show();
     }
     @FXML public void handleBack() {
         if(finished){goHome();return;}
         Alert alert=new Alert(Alert.AlertType.CONFIRMATION,"Rời trận sẽ bị xử thua. Tiếp tục?",ButtonType.YES,ButtonType.NO);
+        ui.GameTheme.style(alert);
         alert.setOnHidden(e->{if(alert.getResult()==ButtonType.YES){pending=true;stopAim();startButton.setDisable(true);Main.socketHandler.leaveGame();}});alert.show();
     }
     private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
@@ -150,7 +213,12 @@ public class StartGameController {
         Main.socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE,new ChatMessage(Main.socketHandler.roomIdPresent,text,null)));chatInput.clear();
     }
     public void addMessage(String text) {if(!disposed){chatList.getItems().add(text);if(chatList.getItems().size()>300)chatList.getItems().remove(0);chatList.scrollTo(chatList.getItems().size()-1);}}
-    public void dispose() {disposed=true;stopAim();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
-    @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"🔊":"🔇");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
-    @FXML private void toggleEffectSound() {effects=!effects;effectSoundButton.setText(effects?"💥":"🔇FX");}
+    private void playDartImpact() {
+        if(disposed||!effects)return;
+        try {if(dartImpact!=null)dartImpact.play();else playEffect("dart");}
+        catch(RuntimeException e) {System.err.println("Impact audio unavailable: "+e.getMessage());}
+    }
+    public void dispose() {disposed=true;stopAim();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"Nhạc: bật":"Nhạc: tắt");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
+    @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
 }

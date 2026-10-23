@@ -28,19 +28,6 @@ public class MatchHistoryController {
     @FXML
     public void initialize() {
 
-        // Load background
-        var bgImage = new javafx.scene.image.Image(
-                getClass().getResource("/images/background.jpg").toExternalForm()
-        );
-        var bg = new javafx.scene.layout.BackgroundImage(
-                bgImage,
-                javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-                javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-                javafx.scene.layout.BackgroundPosition.CENTER,
-                new javafx.scene.layout.BackgroundSize(100,100,true,true,true,false)
-        );
-        rootPane.setBackground(new javafx.scene.layout.Background(bg));
-
         setupColumns();
 
         // Đăng ký controller này vào Main

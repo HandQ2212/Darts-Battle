@@ -8,7 +8,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import java.util.Optional;
 import javafx.scene.control.Button;
@@ -32,32 +31,35 @@ public class HomeController {
 
         // Đổi icon tương ứng trạng thái
         isMusicPlaying = !isMusicPlaying;
-        btnToggleMusic.setText(isMusicPlaying ? "🎵" : "🔇");
+        btnToggleMusic.setText(isMusicPlaying ? "Nhạc: bật" : "Nhạc: tắt");
     }
     @FXML
     public void initialize() {
-        // Đặt background bằng hình ảnh
-        Image bgImage = new Image(getClass().getResource("/images/background.jpg").toExternalForm());
-        BackgroundImage bg = new BackgroundImage(
-                bgImage,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundPosition.CENTER,
-                new BackgroundSize(100, 100, true, true, true, false)
-        );
-        rootPane.setBackground(new Background(bg));
-
-        // Tạm hiển thị tên người dùng (sẽ thay bằng dữ liệu thực tế)
         setUsername(socketHandler.loginUser);
     }
 
     public void setUsername(String username) {
-        usernameLabel.setText("👤 " + username);
+        usernameLabel.setText(username);
+    }
+
+    @FXML public void handleCredits() {
+        Alert credits=new Alert(Alert.AlertType.INFORMATION);
+        ui.GameTheme.style(credits);
+        credits.setTitle("Nguồn hình ảnh");credits.setHeaderText("Hình ảnh và font chữ");
+        credits.setContentText("Nền rừng: Cartoon Forest 2D Backgrounds — CraftPix.net\n"
+            +"https://opengameart.org/content/cartoon-forest-2d-backgrounds\n"
+            +"Giấy phép: OGA-BY 3.0 — https://static.opengameart.org/OGA-BY-3.0.txt\n"
+            +"Ảnh gốc không sửa; chỉ co giãn/cắt khung khi hiển thị.\n\n"
+            +"Font Lilita One — Juan Montoreano, SIL OFL 1.1 (Google Fonts).\n"
+            +"Icon Crosshair Pack — Kenney.nl, CC0.\n\n"
+            +"Không sử dụng ảnh tạo bằng AI. Giấy phép được đóng kèm client.");
+        credits.show();
     }
 
     public void handleLogout() {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            ui.GameTheme.style(alert);
             alert.setTitle("Xác nhận đăng xuất");
             alert.setHeaderText("Bạn có chắc chắn muốn đăng xuất?");
             alert.setContentText("Nhấn OK để đăng xuất, hoặc Cancel để quay lại.");

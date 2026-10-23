@@ -1,21 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
 <?import javafx.geometry.*?>
-
-<AnchorPane xmlns="http://javafx.com/javafx"
-            fx:id="rootPane"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="controllers.RegisterController"
-            prefWidth="800" prefHeight="600">
-
-    <VBox alignment="CENTER" spacing="10.0" AnchorPane.topAnchor="30" AnchorPane.leftAnchor="50" AnchorPane.rightAnchor="50">
-        <Label text="Đăng ký" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-        <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." wrapText="true" maxWidth="420"/>
-        <TextField fx:id="usernameField" promptText="Tên đăng nhập" maxWidth="200"/>
-        <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="200"/>
-        <Button fx:id="registerButton" disable="true" text="Đăng ký" onAction="#handleRegister" maxWidth="200"/>
-        <Hyperlink text="Quay lại đăng nhập" onAction="#goToLogin"/>
-    </VBox>
+<?import javafx.scene.image.*?>
+<?import ui.MenuArtwork?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.RegisterController"
+ prefWidth="1080" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+ <HBox AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+<VBox styleClass="auth-hero" spacing="10" prefWidth="550" minWidth="450" HBox.hgrow="ALWAYS">
+ <HBox alignment="CENTER_LEFT" spacing="12"><ImageView fitWidth="26" fitHeight="26"><image><Image url="@../assets/icons/crosshair.png"/></image></ImageView><Label text="DARTS BATTLE" styleClass="brand"/></HBox>
+ <Region prefHeight="14"/>
+ <VBox spacing="-32"><Label text="DARTS" styleClass="game-logo"/><Label text="BATTLE" styleClass="game-logo, game-logo-accent"/></VBox>
+ <Label text="NGẮM CHUẨN. NÉM DỨT KHOÁT." styleClass="eyebrow"/>
+ <MenuArtwork minHeight="200" prefHeight="280" VBox.vgrow="ALWAYS"/>
+ <Label text="301 ĐIỂM  /  3 PHI TIÊU  /  VỀ ĐÚNG 0" styleClass="eyebrow"/>
+</VBox>
+ <VBox alignment="CENTER_LEFT" spacing="12" prefWidth="480" minWidth="410" styleClass="auth-form">
+   <Label text="VÀO SÂN" styleClass="eyebrow" wrapText="true"/>
+   <Label text="Sẵn sàng thách đấu?" styleClass="title" wrapText="true"/>
+   <Label text="Tạo tài khoản để bắt đầu hành trình." styleClass="muted" wrapText="true"/>
+   <Region prefHeight="12"/>
+   <Label text="Tên đăng nhập" wrapText="true"/>
+   <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập" maxWidth="380"/>
+   <Label text="Mật khẩu" wrapText="true"/>
+   <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu" maxWidth="380"/>
+   <Region prefHeight="4"/>
+   <Button fx:id="registerButton" text="Tạo tài khoản" onAction="#handleRegister" disable="true" maxWidth="380" styleClass="primary"/>
+   <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." maxWidth="380" styleClass="status-box" wrapText="true"/>
+   <Hyperlink text="Đã có tài khoản? Đăng nhập" onAction="#goToLogin"/>
+ </VBox>
+ </HBox>
 </AnchorPane>

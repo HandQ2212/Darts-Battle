@@ -15,10 +15,6 @@ public class LoginController {
         Main.socketHandler.setConnectionListener((ready,text)->{connectionStatusLabel.setText(text);loginButton.setDisable(!ready);});
         Main.socketHandler.ensureConnected(null);
         usernameField.setOnAction(e->handleLogin());passwordField.setOnAction(e->handleLogin());
-        var image=new javafx.scene.image.Image(getClass().getResource("/images/background.jpg").toExternalForm());
-        rootPane.setBackground(new javafx.scene.layout.Background(new javafx.scene.layout.BackgroundImage(image,
-                javafx.scene.layout.BackgroundRepeat.NO_REPEAT,javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-                javafx.scene.layout.BackgroundPosition.CENTER,new javafx.scene.layout.BackgroundSize(100,100,true,true,true,false))));
     }
     @FXML public void handleLogin() {
         if(loginButton.isDisabled())return;
