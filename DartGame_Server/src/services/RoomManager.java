@@ -14,7 +14,9 @@ public class RoomManager {
     private RoomManager() {}
     public static RoomManager getInstance() { return instance; }
 
-    public Room createPvpRoom(long p1, long p2) {
+    public synchronized Room createPvpRoom(long p1, long p2) {
+        if (p1 == p2 || p2 <= 0 || findRoomOfUser(p2) != null) throw new IllegalArgumentException("Đối thủ đang bận hoặc không hợp lệ.");
+        if (p1 <= 0 || findRoomOfUser(p1) != null) throw new IllegalArgumentException("Người chơi đang bận.");
         String matchId = UUID.randomUUID().toString();
         Room room = new Room(matchId, p1, p2, ActorType.HUMAN, MatchMode.PVP);
         rooms.put(matchId, room);
@@ -23,7 +25,8 @@ public class RoomManager {
         return room;
     }
 
-    public Room createPveRoom(long p1) {
+    public synchronized Room createPveRoom(long p1) {
+        if (p1 <= 0 || findRoomOfUser(p1) != null) throw new IllegalArgumentException("Người chơi đang bận.");
         String matchId = UUID.randomUUID().toString();
         Room room = new Room(matchId, p1, null, ActorType.BOT, MatchMode.PVE);
         rooms.put(matchId, room);
@@ -32,8 +35,10 @@ public class RoomManager {
     }
 
     public Room getRoom(String matchId) {
-        return rooms.get(matchId);
+        return matchId == null ? null : rooms.get(matchId);
     }
+
+    public java.util.List<Room> allRooms() { return new java.util.ArrayList<>(rooms.values()); }
 
     public Room findRoomOfUser(long userId) {
         String matchId = userRoomMap.get(userId);
@@ -43,12 +48,12 @@ public class RoomManager {
         return null;
     }
 
-    public void removeRoom(String matchId) {
+    public synchronized void removeRoom(String matchId) {
         Room room = rooms.remove(matchId);
         if (room != null) {
-            userRoomMap.remove(room.getPlayer1Id());
+            userRoomMap.remove(room.getPlayer1Id(), matchId);
             if (room.getPlayer2Id() != null) {
-                userRoomMap.remove(room.getPlayer2Id());
+                userRoomMap.remove(room.getPlayer2Id(), matchId);
             }
         }
     }
