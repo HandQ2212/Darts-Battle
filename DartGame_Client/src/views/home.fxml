@@ -1,57 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.*?>
-
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:id="rootPane"
-            fx:controller="controllers.HomeController"
-            prefWidth="900" prefHeight="600">
-
-    <!-- Label tên người dùng -->
-    <Label fx:id="usernameLabel"
-           text="Username"
-           style="-fx-font-size: 16px; -fx-text-fill: black; -fx-font-weight: bold;"
-           AnchorPane.topAnchor="20"
-           AnchorPane.rightAnchor="30"/>
-        <Button fx:id="btnToggleMusic"
-        text="🎵"
-        onAction="#handleToggleMusic"
-        prefWidth="100" prefHeight="40"
-        style="-fx-background-color: rgba(255,255,255,0.5);
-               -fx-background-radius: 20;
-               -fx-font-size: 14px;
-               -fx-text-fill: black;
-               -fx-cursor: hand;"
-        AnchorPane.topAnchor="20"
-        AnchorPane.leftAnchor="20"/>
-
-    <!-- Tiêu đề -->
-    <VBox alignment="CENTER" spacing="15"
-          AnchorPane.topAnchor="120"
-          AnchorPane.leftAnchor="0"
-          AnchorPane.rightAnchor="0">
-        <Label text="Chào mừng bạn đến với Game Phi Tiêu "
-               style="-fx-font-size: 24px; -fx-text-fill: black; -fx-font-weight: bold;"/>
-    </VBox>
-
-    <!-- Các nút chức năng -->
-    <VBox alignment="CENTER" spacing="12"
-          AnchorPane.topAnchor="220"
-          AnchorPane.leftAnchor="0"
-          AnchorPane.rightAnchor="0">
-        <Button text="Bắt đầu game" onAction="#handleStartGame"
-                maxWidth="200" style="-fx-font-size: 14px; -fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black;"/>
-        <Button text="Chơi với Bot" onAction="#handleClickStartGameWithBot"
-                maxWidth="200" style="-fx-font-size: 14px; -fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black;"/>
-        <Button text="Lịch sử đấu" onAction="#handleClickMatchHistory"
-                maxWidth="200" style="-fx-font-size: 14px; -fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black;"/>
-        <Button text="Bảng xếp hạng" onAction="#handleRanking"
-                maxWidth="200" style="-fx-font-size: 14px; -fx-background-color: rgba(255,255,255,0.7); -fx-text-fill: black;"/>
-        <Button text="Đăng xuất" onAction="#handleLogout"
-                maxWidth="200" style="-fx-font-size: 14px; -fx-background-color: rgba(255,0,0,0.7); -fx-text-fill: white;"/>
-    </VBox>
-
+<?import javafx.scene.image.*?>
+<?import ui.MenuArtwork?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.HomeController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root, menu-screen">
+ <VBox spacing="18" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+  <HBox alignment="CENTER_LEFT" spacing="12"><ImageView fitWidth="26" fitHeight="26"><image><Image url="@../assets/icons/crosshair.png"/></image></ImageView><Label text="DARTS BATTLE" styleClass="brand"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="usernameLabel" text="Người chơi" styleClass="badge"/><Button fx:id="btnToggleMusic" text="Nhạc: bật" onAction="#handleToggleMusic" styleClass="ghost"/><Button text="Đăng xuất" onAction="#handleLogout" styleClass="ghost"/></HBox>
+  <Region styleClass="divider"/>
+  <HBox spacing="24" VBox.vgrow="ALWAYS">
+   <VBox spacing="12" prefWidth="390" minWidth="350">
+    <Label text="PHI TIÊU VUI NHỘN" styleClass="eyebrow"/>
+    <VBox spacing="-32"><Label text="DARTS" styleClass="game-logo"/><Label text="BATTLE" styleClass="game-logo, game-logo-accent"/></VBox>
+    <Label text="Cùng thử tài ngắm bắn nào!" styleClass="section-title"/>
+    <Region prefHeight="6"/>
+    <Button text="▶   CHƠI VỚI BẠN BÈ" onAction="#handleStartGame" styleClass="menu-play, menu-online" maxWidth="Infinity"/>
+    <Button text="▶   CHƠI VỚI BOT" onAction="#handleClickStartGameWithBot" styleClass="menu-play, menu-bot" maxWidth="Infinity"/>
+    <Label text="Mời bạn bè cùng chơi hoặc luyện tay với bot." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
+    <Region VBox.vgrow="ALWAYS"/>
+    <HBox spacing="8"><Button text="Bảng xếp hạng" onAction="#handleRanking" HBox.hgrow="ALWAYS" maxWidth="Infinity"/><Button text="Lịch sử đấu" onAction="#handleClickMatchHistory" HBox.hgrow="ALWAYS" maxWidth="Infinity"/></HBox>
+   </VBox>
+   <StackPane HBox.hgrow="ALWAYS" styleClass="menu-art"><MenuArtwork/><Label text="SẴN SÀNG CHƠI CHƯA?" styleClass="badge" StackPane.alignment="TOP_CENTER" translateY="18"/></StackPane>
+  </HBox>
+  <HBox alignment="CENTER_LEFT" spacing="20" styleClass="menu-foot"><Label text="301" styleClass="brand"/><Label text="ĐIỂM XUẤT PHÁT" styleClass="eyebrow"/><Region HBox.hgrow="ALWAYS"/><Label text="3 PHI TIÊU / LƯỢT" styleClass="muted"/><Label text="VỀ ĐÚNG 0 ĐỂ THẮNG" styleClass="eyebrow"/><Hyperlink text="Nguồn ảnh" onAction="#handleCredits"/></HBox>
+ </VBox>
 </AnchorPane>
