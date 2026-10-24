@@ -7,6 +7,15 @@ import enums.HitArea;
 
 public class ThrowResolvedResponse implements Serializable {
     private String matchId;
+    private Long actorId;
+    private String requestId;
+    private GameMessages.MatchSnapshot snapshot;
+    public Long getActorId() { return actorId; }
+    public void setActorId(Long id) { actorId = id; }
+    public String getRequestId() { return requestId; }
+    public void setRequestId(String id) { requestId = id; }
+    public GameMessages.MatchSnapshot getSnapshot() { return snapshot; }
+    public void setSnapshot(GameMessages.MatchSnapshot value) { snapshot = value; }
     private long turnId;
     private String actorName;
     private ActorType actorType;
