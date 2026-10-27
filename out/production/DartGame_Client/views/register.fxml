@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            fx:id="rootPane"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="controllers.RegisterController"
+            prefWidth="800" prefHeight="600">
+
+    <VBox alignment="CENTER" spacing="10.0" AnchorPane.topAnchor="30" AnchorPane.leftAnchor="50" AnchorPane.rightAnchor="50">
+        <Label text="Đăng ký" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+        <TextField fx:id="usernameField" promptText="Tên đăng nhập" maxWidth="200"/>
+        <PasswordField fx:id="passwordField" promptText="Mật khẩu" maxWidth="200"/>
+        <Button text="Đăng ký" onAction="#handleRegister" maxWidth="200"/>
+        <Hyperlink text="Quay lại đăng nhập" onAction="#goToLogin"/>
+    </VBox>
+</AnchorPane>

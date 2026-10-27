@@ -1,3 +1,7 @@
+> Cập nhật v2: hợp đồng wire và triển khai hiện tại được mô tả ở [PROTOCOL.md](PROTOCOL.md)
+> và [hướng dẫn multiplayer](docs/DESKTOP_MULTIPLAYER_SETUP.md). Các khai báo dưới đây
+> là phân công/thiết kế cũ; giao thức thực tế hiện dùng ObjectStream với snapshot có version.
+
 # Hợp đồng class — Darts Battle
 
 Tài liệu này là hợp đồng triển khai giữa bốn thành viên. Mỗi class có một người sở hữu. Thành viên khác chỉ gọi hàm công khai đã nêu; không tự sửa class, message hoặc dữ liệu công khai của phần người khác.
