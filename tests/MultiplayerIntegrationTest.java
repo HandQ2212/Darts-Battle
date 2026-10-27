@@ -72,11 +72,10 @@ public class MultiplayerIntegrationTest {
         check(s.matchId().equals(other.matchId())&&s.actorId()==a.userId&&s.player1Score()==301,"shared initial snapshot");
         a.take(MessageType.TURN_PREPARING);b.take(MessageType.TURN_PREPARING);return s;
     }
-    static MatchSnapshot rotate(Peer a,Peer b,MatchSnapshot s,int angle) throws Exception {
-        a.send(MessageType.ROTATION_SUBMIT,new RotationRequest(s.matchId(),s.turnId(),angle,UUID.randomUUID().toString()));
+    static MatchSnapshot awaitRotation(Peer a,Peer b,MatchSnapshot s) throws Exception {
         MatchSnapshot applied=a.snapshot(MessageType.ROTATION_APPLIED);a.take(MessageType.TURN_STARTED);
-        if(b!=null){b.take(MessageType.ROTATION_APPLIED);b.take(MessageType.TURN_STARTED);}
-        check(applied.rotationDegree()==angle&&applied.status()==MatchStatus.PLAYING,"server rotation");return applied;
+        if(b!=null){check(applied.equals(b.snapshot(MessageType.ROTATION_APPLIED)),"both peers share automatic rotation");b.take(MessageType.TURN_STARTED);}
+        check(applied.rotationDegree()==s.rotationDegree()&&applied.rotationDegree()>=0&&applied.rotationDegree()<360&&applied.status()==MatchStatus.PLAYING,"server automatically chooses and applies rotation");return applied;
     }
     static ThrowResolvedResponse hit(Peer a,Peer b,MatchSnapshot s,double x,double y) throws Exception {
         ThrowCoordinateRequest req=new ThrowCoordinateRequest(s.matchId(),s.turnId(),s.dartsThrown()+1,UUID.randomUUID().toString(),x,y);
@@ -99,7 +98,7 @@ public class MultiplayerIntegrationTest {
     }
     public static void main(String[] args) throws Exception {
         System.setProperty("darts.db.url","jdbc:h2:mem:darts;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");
-        System.setProperty("darts.db.user","sa");System.setProperty("darts.db.password","");System.setProperty("darts.botDelayMillis","25");
+        System.setProperty("darts.db.user","sa");System.setProperty("darts.db.password","");System.setProperty("darts.botDelayMillis","25");System.setProperty("darts.rotationDelayMillis","25");
         DBConnection.getInstance().initialize();DBConnection.getInstance().initialize();
         if(Boolean.getBoolean("darts.test.websocket")) {
             pinned=TransportSecurity.pinnedContext(Files.newInputStream(Path.of(System.getenv("DARTS_TEST_TLS_CERT"))));
@@ -117,7 +116,19 @@ public class MultiplayerIntegrationTest {
             check(ClientManager.getInstance().getClient(a.userId)!=null,"duplicate login does not replace original");
             Peer wrong=new Peer();wrong.send(MessageType.LOGIN_REQUEST,new LoginRequest("Alice","badpass"));check(!((AuthResponse)wrong.take(MessageType.LOGIN_RESULT).getPayload()).success(),"wrong password rejected");
             a.send(MessageType.ONLINE_LIST,null);List<?> online=(List<?>)a.take(MessageType.ONLINE_LIST,m->((List<?>)m.getPayload()).size()==4).getPayload();check(online.size()==4,"online list over TCP");
-            MatchSnapshot ab=match(a,b),cd=match(c,d);ab=rotate(a,b,ab,0);cd=rotate(c,d,cd,90);
+            System.setProperty("darts.rotationDelayMillis","800");
+            MatchSnapshot preparing=match(a,b);
+            a.send(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(preparing.matchId(),preparing.turnId(),1,"during-spin",0,0));a.take(MessageType.ERROR);
+            a.send(MessageType.ROTATION_SUBMIT,new RotationRequest(preparing.matchId(),preparing.turnId(),45,"manual-spin"));a.take(MessageType.ERROR);
+            check(RoomManager.getInstance().getRoom(preparing.matchId()).getGameState().getDartsThrown()==0,"rotation gates early throws and rejects manual input");
+            awaitRotation(a,b,preparing);
+            a.send(MessageType.LEAVE_MATCH,preparing.matchId());a.take(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);
+            MatchSnapshot cancelled=match(a,b);
+            a.send(MessageType.LEAVE_MATCH,cancelled.matchId());a.take(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);
+            Thread.sleep(900);
+            check(RoomManager.getInstance().getRoom(cancelled.matchId())==null,"leaving during rotation cannot restart a match");
+            System.setProperty("darts.rotationDelayMillis","25");
+            MatchSnapshot ab=match(a,b),cd=match(c,d);ab=awaitRotation(a,b,ab);cd=awaitRotation(c,d,cd);
             a.send(MessageType.CREATE_BOT_MATCH,null);a.take(MessageType.ERROR);check(RoomManager.getInstance().allRooms().size()==2,"one room per user");
             c.send(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(ab.matchId(),ab.turnId(),1,"outsider",0,0));c.take(MessageType.ERROR);
             b.send(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(ab.matchId(),ab.turnId(),1,"wrongturn",0,0));b.take(MessageType.ERROR);
@@ -132,7 +143,7 @@ public class MultiplayerIntegrationTest {
             a.send(MessageType.THROW_COORDINATE,original);ThrowResolvedResponse replay=(ThrowResolvedResponse)a.take(MessageType.THROW_RESOLVED).getPayload();
             check(replay.getSnapshot().equals(first.getSnapshot())&&RoomManager.getInstance().getRoom(ab.matchId()).getGameState().getDartsThrown()==1,"retry idempotent");
             a.send(MessageType.ROTATION_SUBMIT,new RotationRequest(ab.matchId(),ab.turnId(),45,"mid-turn"));a.take(MessageType.ERROR);
-            check(RoomManager.getInstance().getRoom(ab.matchId()).getGameState().getRotationDegree()==0,"mid-turn rotation rejected");
+            check(RoomManager.getInstance().getRoom(ab.matchId()).getGameState().getRotationDegree()==ab.rotationDegree(),"mid-turn rotation rejected");
             long bThrows=b.seen.stream().filter(m->m.getType()==MessageType.THROW_RESOLVED).count();
             a.send(MessageType.PING,null);a.take(MessageType.PONG);
             check(bThrows==1,"no duplicate opponent throw events");
@@ -150,7 +161,7 @@ public class MultiplayerIntegrationTest {
             check(disconnected.winnerId()==d.userId&&disconnected.endReason().equals("DISCONNECT"),"disconnect awards opponent");
             eventually(()->ClientManager.getInstance().getClient(c.userId)==null,"disconnect unregisters socket");
             // Bot completes all three throws and returns control.
-            a.send(MessageType.CREATE_BOT_MATCH,null);MatchSnapshot bot=a.snapshot(MessageType.MATCH_STARTED);a.take(MessageType.TURN_PREPARING);bot=rotate(a,null,bot,0);
+            a.send(MessageType.CREATE_BOT_MATCH,null);MatchSnapshot bot=a.snapshot(MessageType.MATCH_STARTED);a.take(MessageType.TURN_PREPARING);bot=awaitRotation(a,null,bot);
             for(int i=0;i<3;i++)bot=hit(a,null,bot,300,300).getSnapshot();
             a.take(MessageType.TURN_PREPARING);a.take(MessageType.ROTATION_APPLIED);a.take(MessageType.TURN_STARTED);
             for(int i=0;i<3;i++){ThrowResolvedResponse br=(ThrowResolvedResponse)a.take(MessageType.THROW_RESOLVED).getPayload();check(br.getActorType()==ActorType.BOT&&br.getActorId()==null,"bot actor and throw "+i);}
@@ -159,14 +170,14 @@ public class MultiplayerIntegrationTest {
             // Natural win: six bulls = 300, then single 1. Alternate opponent misses.
             MatchSnapshot win=match(a,b);
             for(int round=0;round<2;round++) {
-                win=rotate(a,b,win,0);for(int i=0;i<3;i++)win=hit(a,b,win,0,0).getSnapshot();
-                win=a.snapshot(MessageType.TURN_PREPARING);b.take(MessageType.TURN_PREPARING);win=rotate(b,a,win,0);
+                win=awaitRotation(a,b,win);for(int i=0;i<3;i++)win=hit(a,b,win,0,0).getSnapshot();
+                win=a.snapshot(MessageType.TURN_PREPARING);b.take(MessageType.TURN_PREPARING);win=awaitRotation(b,a,win);
                 for(int i=0;i<3;i++)win=hit(b,a,win,300,300).getSnapshot();
                 win=a.snapshot(MessageType.TURN_PREPARING);b.take(MessageType.TURN_PREPARING);
             }
-            win=rotate(a,b,win,0);
+            win=awaitRotation(a,b,win);
             ThrowResolvedResponse bust=hit(a,b,win,0,0);check(bust.isBust()&&bust.getRemainingScoreAfter()==1&&!bust.isTurnFinished(),"custom bust rule retained");
-            double angle=Math.toRadians(-72);ThrowResolvedResponse winning=hit(a,b,bust.getSnapshot(),50*Math.cos(angle),50*Math.sin(angle));
+            double angle=Math.toRadians(-72+win.rotationDegree());ThrowResolvedResponse winning=hit(a,b,bust.getSnapshot(),50*Math.cos(angle),50*Math.sin(angle));
             check(winning.isMatchFinished()&&winning.getRemainingScoreAfter()==0,"exact zero wins");
             MatchSnapshot victory=a.snapshot(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);check(victory.winnerId()==a.userId,"winner ID broadcast");
             // Turn expiry and logout clean up too.
@@ -182,7 +193,7 @@ public class MultiplayerIntegrationTest {
             System.setProperty("darts.inviteTimeoutMillis","30");a.send(MessageType.INVITE_REQUEST,b.username);b.take(MessageType.INVITE_RECEIVED);Thread.sleep(60);LobbyService.getInstance().expire();
             a.take(MessageType.INVITE_RESULT);b.take(MessageType.INVITE_RESULT);check(ClientManager.getInstance().getStatus(a.userId)==PlayerStatus.IDLE,"expired invitation releases users");System.clearProperty("darts.inviteTimeoutMillis");
             Peer e=new Peer();e.registerLogin("Erin");
-            MatchSnapshot concurrentAB=rotate(a,b,match(a,b),0),concurrentDE=rotate(d,e,match(d,e),0);
+            MatchSnapshot concurrentAB=awaitRotation(a,b,match(a,b)),concurrentDE=awaitRotation(d,e,match(d,e));
             ExecutorService concurrent=Executors.newFixedThreadPool(2);
             try {
                 Future<?> one=concurrent.submit(()->{try{MatchSnapshot s=concurrentAB;for(int i=0;i<3;i++)s=hit(a,b,s,0,0).getSnapshot();}catch(Exception ex){throw new RuntimeException(ex);}});

@@ -148,3 +148,30 @@
 .result-label { -fx-text-fill: #6d7c32; -fx-font-size: 12px; }
 .result-label:bust { -fx-text-fill: #ae422a; }
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.16); }
+
+/* Notifications stay inside the game window in every window mode. */
+.notification-card {
+    -fx-background-color: linear-gradient(to bottom right, #fff9e7, #fff0c7);
+    -fx-background-radius: 20; -fx-border-radius: 20;
+    -fx-border-color: #b98c4e; -fx-border-width: 2 2 4 2; -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(44,45,16,0.25), 22, 0.12, 0, 8);
+}
+.notice-badge { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5b8138; }
+/* Lilita One lacks Vietnamese glyphs; use one consistent font for notification text. */
+.notice-title { -fx-font-family: 'System'; -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #704723; }
+.notice-body { -fx-font-size: 13px; -fx-text-fill: #805f39; -fx-line-spacing: 3; }
+.notice-error { -fx-border-color: #c66f4e; }
+.notice-error .notice-badge { -fx-text-fill: #b84c30; }
+.notice-success { -fx-border-color: #76a14b; }
+.notice-close { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0 4; -fx-font-size: 22px; }
+.notification-scrim { -fx-background-color: rgba(23,42,18,0.66); -fx-padding: 28; }
+.notification-modal { -fx-padding: 30; -fx-spacing: 18; }
+.notification-modal .notice-title { -fx-font-size: 34px; }
+.notice-victory { -fx-border-color: #e3a029; -fx-background-color: linear-gradient(to bottom right, #fff8d6, #ffe3a0); }
+.notice-victory .notice-badge { -fx-text-fill: #b87814; -fx-font-size: 16px; }
+.notice-secondary { -fx-background-color: #eee4c5; -fx-border-color: #c6b38b; }
+.notice-countdown { -fx-font-size: 12px; -fx-text-fill: #7b6c3c; }
+.notice-scroll, .notice-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
+.notice-scroll { -fx-border-color: transparent; }
+.notice-invite .progress-bar { -fx-accent: #86ad49; }
+.form-error { -fx-background-color: #ffe7d9; -fx-background-radius: 10; -fx-padding: 10 12; -fx-border-color: #e1ad8e; -fx-border-radius: 10; -fx-text-fill: #a1462a; -fx-font-size: 12px; }

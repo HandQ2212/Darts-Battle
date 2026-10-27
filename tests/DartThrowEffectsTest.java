@@ -47,7 +47,7 @@ public class DartThrowEffectsTest {
             try {
                 socket=new ClientUiSmokeTest.FakeSocket();Main.socketHandler=socket;
                 socket.loginUser="Alice";socket.loggedInUserId=1;socket.competitor="Bobby";
-                Main.gameViewState.begin(ClientUiSmokeTest.snap(1,1,0,MatchStatus.WAITING_ROTATION,1L),1);
+                Main.gameViewState.begin(ClientUiSmokeTest.snap(1,1,0,MatchStatus.PLAYING,1L),1);
                 FXMLLoader loader=new FXMLLoader(Main.class.getResource("/views/startgame.fxml"));root=loader.load();controller=loader.getController();
                 layer=new Group();((Pane)root.lookup("#gamePane")).getChildren().add(layer);
                 effects=new DartThrowEffects(layer,()->impacts++);effects.beginTurn();

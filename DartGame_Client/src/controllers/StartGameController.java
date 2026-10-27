@@ -13,21 +13,22 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.*;
 import javafx.scene.text.*;
-import javafx.scene.transform.Rotate;
 import javafx.util.Duration;
 
 /** Rendering and aiming only: all scores, turns and phase come from the server. */
 public class StartGameController {
     @FXML private ListView<String> chatList;
-    @FXML private TextField chatInput, angleInput;
+    @FXML private TextField chatInput;
     @FXML private Pane gamePane, scoreboardPane;
-    @FXML private Button startButton, rotateButton, soundButton, effectSoundButton;
+    @FXML private Button soundButton, effectSoundButton;
+    @FXML private Label aimStatusLabel;
     @FXML private Label instructionLabel, phaseLabel, turnLabel, lastThrowLabel, lastThrowScoreLabel;
     @FXML private VBox botTurnOverlay;
     @FXML private BorderPane rootPane;
     private static final double CX=225,CY=200;
     private final Group board=new Group(), marks=new Group();
     private ui.DartThrowEffects dartEffects;
+    private ui.BoardRotationEffect rotationEffect;
     private javafx.scene.media.AudioClip dartImpact;
     private final Text myScore=new Text(),otherScore=new Text();
     private final Text[] mine=new Text[3],theirs=new Text[3];
@@ -51,6 +52,7 @@ public class StartGameController {
     }
     @FXML public void initialize() {
         drawBoard();gamePane.getChildren().addAll(board,marks);
+        rotationEffect=new ui.BoardRotationEffect(board,CX,CY);
         dartEffects=new ui.DartThrowEffects(marks,this::playDartImpact);
         try {dartImpact=new javafx.scene.media.AudioClip(getClass().getResource("/musics/dart.mp3").toExternalForm());dartImpact.setVolume(0.8);}
         catch(RuntimeException e) {System.err.println("Impact audio unavailable: "+e.getMessage());}
@@ -59,6 +61,12 @@ public class StartGameController {
         lineX.setStrokeWidth(2);lineY.setStrokeWidth(2);
         lineX.setMouseTransparent(true);lineY.setMouseTransparent(true);
         gamePane.getChildren().addAll(lineX,lineY);marks.toFront();stopAim();
+        gamePane.setPickOnBounds(true);
+        gamePane.setOnMouseClicked(event->{
+            if(event.getButton()==javafx.scene.input.MouseButton.PRIMARY) {
+                handleGameAction();event.consume();
+            }
+        });
         myCard=playerCard(Main.socketHandler.loginUser,"BẠN",myScore,mine,myTurnTag);
         otherCard=playerCard(Main.socketHandler.competitor,"ĐỐI THỦ",otherScore,theirs,otherTurnTag);
         otherCard.getStyleClass().add("opponent-card");
@@ -72,9 +80,8 @@ public class StartGameController {
                 super.updateItem(item,empty);setText(null);message.setText(empty?null:item);setGraphic(empty?null:message);
             }
         });
-        angleInput.setOnAction(e->handleRotateBoard());
         chatInput.setOnAction(e->handleSend());
-        startButton.setDisable(true);rotateButton.setDisable(true);angleInput.setDisable(true);
+        aimStatusLabel.setDisable(true);
         render(Main.gameViewState.getSnapshot());
     }
     private VBox playerCard(String name,String caption,Text score,Text[] darts,Label tag) {
@@ -131,10 +138,16 @@ public class StartGameController {
     public void render(MatchSnapshot s) {
         if(disposed || s==null)return;
         if(displayedTurn!=s.turnId()) {
+            rotationEffect.cancel();
             stopAim();pending=false;dartEffects.beginTurn();displayedTurn=s.turnId();
             Text[] row=Main.gameViewState.isMyTurn()?mine:theirs;for(Text t:row)t.setText("–");
+            if(s.status()==MatchStatus.WAITING_ROTATION)rotationEffect.play(s.rotationDegree(),()->{
+                if(!disposed && displayedTurn==s.turnId())render(Main.gameViewState.getSnapshot());
+            });
         }
-        board.getTransforms().setAll(new Rotate(s.rotationDegree(),CX,CY));
+        if(s.status()==MatchStatus.FINISHED)rotationEffect.cancel();
+        rotationEffect.setAngle(s.rotationDegree());
+        boolean rotating=rotationEffect.isRunning() || s.status()==MatchStatus.WAITING_ROTATION;
         boolean p1=Main.gameViewState.isPlayer1();
         myScore.setText(String.valueOf(p1?s.player1Score():s.player2Score()));otherScore.setText(String.valueOf(p1?s.player2Score():s.player1Score()));
         boolean me=Main.gameViewState.isMyTurn() && s.status()!=MatchStatus.FINISHED;
@@ -142,18 +155,17 @@ public class StartGameController {
         myCard.pseudoClassStateChanged(ACTIVE,me);otherCard.pseudoClassStateChanged(ACTIVE,active&&!me);
         myTurnTag.setText(me?"LƯỢT BẠN":"");otherTurnTag.setText(active&&!me?"ĐẾN LƯỢT":"");
         turnLabel.setText(!active?"Trận đấu kết thúc":me?"Đến lượt bạn.":"Lượt của đối thủ.");
-        phaseLabel.setText(!active?"HOÀN THÀNH":!me?"CHỜ ĐỐI THỦ":s.status()==MatchStatus.WAITING_ROTATION?"01 / XOAY BẢNG":pending?"ĐANG XÁC NHẬN":"02 / NGẮM & NÉM");
-        if(!me || s.status()!=MatchStatus.PLAYING || pending)startButton.setText(pending?"Đang gửi...":"Chờ lượt");
-        boolean rotate=me && s.status()==MatchStatus.WAITING_ROTATION && !pending;
-        rotateButton.setDisable(!rotate);angleInput.setDisable(!rotate);
-        botTurnOverlay.setVisible(s.actorType()==ActorType.BOT && s.status()!=MatchStatus.FINISHED);
-        if(!me || s.status()!=MatchStatus.PLAYING)stopAim();
-        startButton.setDisable(!me || s.status()!=MatchStatus.PLAYING || pending || s.dartsThrown()>=3);
+        phaseLabel.setText(!active?"HOÀN THÀNH":rotating?"01 / TỰ ĐỘNG XOAY BẢNG":!me?"CHỜ ĐỐI THỦ":pending?"ĐANG XÁC NHẬN":"02 / NGẮM & NÉM");
+        if(!me || rotating || s.status()!=MatchStatus.PLAYING || pending)aimStatusLabel.setText(rotating?"Đang xoay...":pending?"Đang gửi...":"Chờ lượt");
+        botTurnOverlay.setVisible(!rotating && s.actorType()==ActorType.BOT && s.status()!=MatchStatus.FINISHED);
+        if(!me || rotating || s.status()!=MatchStatus.PLAYING)stopAim();
+        aimStatusLabel.setDisable(!me || rotating || s.status()!=MatchStatus.PLAYING || pending || s.dartsThrown()>=3);
+        gamePane.setCursor(aimStatusLabel.isDisabled()?javafx.scene.Cursor.DEFAULT:javafx.scene.Cursor.CROSSHAIR);
         if(s.status()==MatchStatus.FINISHED) {instructionLabel.setText("Trận đấu đã kết thúc.");return;}
-        if(!me)instructionLabel.setText("Đang chờ "+(s.actorId()==null?"BOT":s.actorId()==s.player1Id()?s.player1Name():s.player2Name()));
-        else if(s.status()==MatchStatus.WAITING_ROTATION)instructionLabel.setText("Lượt bạn: nhập góc 0–359 rồi bấm Xoay.");
+        if(rotating)instructionLabel.setText("Bảng đang tự động xoay — chờ bảng dừng để ném.");
+        else if(!me)instructionLabel.setText("Đang chờ "+(s.actorId()==null?"BOT":s.actorId()==s.player1Id()?s.player1Name():s.player2Name()));
         else if(pending)instructionLabel.setText("Đang chờ server xác nhận...");
-        else if(s.dartsThrown()<3) {instructionLabel.setText("Phi tiêu "+(s.dartsThrown()+1)+"/3 — dừng X rồi dừng Y.");if(!xRunning&&!yRunning)startX();}
+        else if(s.dartsThrown()<3) {instructionLabel.setText("Phi tiêu "+(s.dartsThrown()+1)+"/3 — click bảng để chốt X, rồi click lần nữa để ném.");if(!xRunning&&!yRunning)startX();}
     }
     public void showThrow(ThrowResolvedResponse res) {
         if(disposed)return;pending=false;stopAim();
@@ -167,23 +179,17 @@ public class StartGameController {
         if(res.getDartIndex()>=1&&res.getDartIndex()<=3)row[res.getDartIndex()-1].setText(res.isBust()?"BUST":String.valueOf(res.getDartScore()));
         render(res.getSnapshot());
     }
-    @FXML public void handleRotateBoard() {
-        MatchSnapshot s=Main.gameViewState.getSnapshot();
-        if(disposed||pending||!Main.gameViewState.isMyTurn()||s.status()!=MatchStatus.WAITING_ROTATION)return;
-        try {int angle=Integer.parseInt(angleInput.getText().trim());if(angle<0||angle>359)throw new NumberFormatException();
-            pending=true;render(s);Main.socketHandler.submitRotation(angle);
-        } catch(NumberFormatException e) {instructionLabel.setText("Nhập số nguyên từ 0 đến 359.");}
-    }
     public void rotationConfirmed(MatchSnapshot s) {pending=false;render(s);}
     private void startX() {
-        xRunning=true;lineX.setVisible(true);lineX.setStartX(0);lineX.setEndX(0);startButton.setText("Dừng X");
+        xRunning=true;lineX.setVisible(true);lineX.setStartX(0);lineX.setEndX(0);aimStatusLabel.setText("Click để chốt X");
         xAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double x=(lineX.getStartX()+4)%450;lineX.setStartX(x);lineX.setEndX(x);}));
         xAnimation.setCycleCount(Animation.INDEFINITE);xAnimation.play();
     }
     @FXML public void handleGameAction() {
-        if(disposed||pending||!Main.gameViewState.isMyTurn())return;
+        if(disposed||pending||rotationEffect.isRunning()||!Main.gameViewState.isMyTurn()
+                || Main.gameViewState.getSnapshot().status()!=MatchStatus.PLAYING)return;
         if(xRunning) {
-            xRunning=false;xAnimation.stop();yRunning=true;lineY.setVisible(true);lineY.setStartY(0);lineY.setEndY(0);startButton.setText("Dừng Y · Ném");
+            xRunning=false;xAnimation.stop();yRunning=true;lineY.setVisible(true);lineY.setStartY(0);lineY.setEndY(0);aimStatusLabel.setText("Click để ném");
             yAnimation=new Timeline(new KeyFrame(Duration.millis(25),e->{double y=(lineY.getStartY()+4)%400;lineY.setStartY(y);lineY.setEndY(y);}));
             yAnimation.setCycleCount(Animation.INDEFINITE);yAnimation.play();
         } else if(yRunning) {
@@ -198,14 +204,14 @@ public class StartGameController {
         boolean won=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
         playEffect(won?"win":"loose");
         String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
-        Alert alert=new Alert(Alert.AlertType.INFORMATION,(won?"Bạn thắng! ":"Bạn thua. ")+reason,ButtonType.OK);
-        ui.GameTheme.style(alert);alert.setHeaderText("Kết thúc trận đấu");alert.setOnHidden(e->goHome());alert.show();
+        Main.notifications().result(won,reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name(),this::goHome);
     }
     @FXML public void handleBack() {
         if(finished){goHome();return;}
-        Alert alert=new Alert(Alert.AlertType.CONFIRMATION,"Rời trận sẽ bị xử thua. Tiếp tục?",ButtonType.YES,ButtonType.NO);
-        ui.GameTheme.style(alert);
-        alert.setOnHidden(e->{if(alert.getResult()==ButtonType.YES){pending=true;stopAim();startButton.setDisable(true);Main.socketHandler.leaveGame();}});alert.show();
+        Main.notifications().confirm("Rời trận đấu?","Rời lúc này sẽ bị xử thua. Bạn vẫn muốn về sảnh?","Rời trận",()->{
+            if(disposed||finished)return;
+            pending=true;stopAim();aimStatusLabel.setDisable(true);Main.socketHandler.leaveGame();
+        });
     }
     private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
     @FXML public void handleSend() {
@@ -218,7 +224,7 @@ public class StartGameController {
         try {if(dartImpact!=null)dartImpact.play();else playEffect("dart");}
         catch(RuntimeException e) {System.err.println("Impact audio unavailable: "+e.getMessage());}
     }
-    public void dispose() {disposed=true;stopAim();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    public void dispose() {disposed=true;stopAim();rotationEffect.cancel();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
     @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"Nhạc: bật":"Nhạc: tắt");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
     @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
 }

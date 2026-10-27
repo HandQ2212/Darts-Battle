@@ -4,6 +4,12 @@
 
 # Hợp đồng class — Darts Battle
 
+> Cập nhật xoay tự động: đầu mỗi lượt, GameService chọn góc và giữ WAITING_ROTATION
+> trong 2800 ms rồi phát ROTATION_APPLIED/TURN_STARTED. Client dùng BoardRotationEffect
+> để phóng, xoay nhiều vòng và thu bảng; không còn nhập góc hay ROTATION_SUBMIT.
+> BotService chỉ sinh tọa độ ném sau khi server mở lượt. Những mô tả nhập góc bên dưới
+> là thiết kế trước đây và được thay thế bởi luồng này; xem PROTOCOL.md.
+
 Tài liệu này là hợp đồng triển khai giữa bốn thành viên. Mỗi class có một người sở hữu. Thành viên khác chỉ gọi hàm công khai đã nêu; không tự sửa class, message hoặc dữ liệu công khai của phần người khác.
 
 Common và schema database được cả nhóm cùng chốt trong tuần 1. Sau đó Người 1 quản lý code Common, Người 4 quản lý file SQL của trận. Mọi thay đổi phải cập nhật `PROTOCOL.md` trước khi sửa code.

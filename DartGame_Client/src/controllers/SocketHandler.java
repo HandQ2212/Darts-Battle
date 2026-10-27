@@ -10,7 +10,6 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 import javafx.application.Platform;
-import javafx.scene.control.*;
 
 public class SocketHandler {
     public String loginUser;
@@ -20,12 +19,10 @@ public class SocketHandler {
     public boolean checkYouAreInvited;
     private volatile Connection current;
     public String lobbyNotice="";
-    private Alert inviteDialog;
-    private javafx.animation.PauseTransition inviteTimer;
+    private ui.Notifications.Notice inviteDialog;
     private void closeInvite() {
-        if(inviteTimer!=null)inviteTimer.stop();
-        if(inviteDialog!=null){inviteDialog.setOnHidden(null);inviteDialog.close();}
-        inviteDialog=null;inviteTimer=null;
+        if(inviteDialog!=null)inviteDialog.close();
+        inviteDialog=null;
     }
     private final ExecutorService connector=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"connect");t.setDaemon(true);return t;});
     private final ScheduledExecutorService heartbeat=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"heartbeat");t.setDaemon(true);return t;});
@@ -148,7 +145,7 @@ public class SocketHandler {
                 authPending=false;notifyConnection("Đã kết nối. Mời bạn đăng nhập.");
                 AuthResponse a=(AuthResponse)m.getPayload();
                 if(a.success()) {try {Main.setRoot("login");} catch(IOException e) {showError(e.getMessage());}
-                    new Alert(Alert.AlertType.INFORMATION,a.message(),ButtonType.OK).show();}
+                    Main.notifications().toast("Sẵn sàng vào sân",a.message(),"success");}
                 else showError(a.message());
             }
             case LOGOUT_RESULT -> {clearSession();try {Main.setRoot("login");} catch(IOException e) {showError(e.getMessage());}}
@@ -162,18 +159,14 @@ public class SocketHandler {
             case INVITE_RECEIVED -> {
                 closeInvite();
                 InviteResponse invitation=(InviteResponse)m.getPayload();
-                Alert dialog=new Alert(Alert.AlertType.CONFIRMATION,invitation.senderName()+" mời bạn đấu phi tiêu. Chấp nhận?",ButtonType.YES,ButtonType.NO);
-                dialog.setHeaderText("Lời mời chơi (30 giây)");
-                // Nonmodal: processing match/expiry/network messages continues normally.
-                javafx.animation.PauseTransition expiry=new javafx.animation.PauseTransition(javafx.util.Duration.millis(Math.max(1,invitation.expiresAt()-System.currentTimeMillis())));
-                expiry.setOnFinished(e->dialog.close());
-                dialog.setOnHidden(e->{expiry.stop();if(System.currentTimeMillis()<invitation.expiresAt())
-                    sendData(Message.of(dialog.getResult()==ButtonType.YES?MessageType.INVITE_ACCEPT:MessageType.INVITE_REJECT,invitation.id()));});
-                inviteDialog=dialog;inviteTimer=expiry;dialog.show();expiry.play();
+                inviteDialog=Main.notifications().invite(invitation.senderName(),invitation.expiresAt(),accepted->
+                    sendData(Message.of(accepted?MessageType.INVITE_ACCEPT:MessageType.INVITE_REJECT,invitation.id())));
             }
             case INVITE_RESULT -> {
+                closeInvite();
                 lobbyNotice=(String)m.getPayload();
                 if(Main.chooseOpponentController!=null)Main.chooseOpponentController.showStatus(lobbyNotice);
+                Main.notifications().toast("Lời mời đấu",lobbyNotice,"info");
                 getListOnline();
             }
             case MATCH_STARTED -> {
@@ -221,7 +214,7 @@ public class SocketHandler {
     public void showError(String message) {
         authPending=false;notifyConnection(isConnected()?"Đã kết nối. Mời bạn đăng nhập.":connectionText);
         if(Main.startGameController!=null)Main.startGameController.commandFailed();
-        new Alert(Alert.AlertType.ERROR,message,ButtonType.OK).show();
+        Main.notifications().error(message);
     }
     public void login(String username,String password) {
         if(authPending)return;authPending=true;notifyConnection("Đang đăng nhập...");
@@ -240,9 +233,6 @@ public class SocketHandler {
     public void getMatchHistory(String username) {sendData(Message.of(MessageType.GET_HISTORY,null));}
     public void getUserRank(String username) {}
     public void getUserStats(String username) {}
-    public void submitRotation(int degrees) {
-        sendData(Message.of(MessageType.ROTATION_SUBMIT,new RotationRequest(roomIdPresent,Main.gameViewState.getTurnId(),degrees,UUID.randomUUID().toString())));
-    }
     public void submitThrowCoordinate(double x,double y) {
         sendData(Message.of(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(roomIdPresent,Main.gameViewState.getTurnId(),
                 Main.gameViewState.getDartsThrown()+1,UUID.randomUUID().toString(),x,y)));

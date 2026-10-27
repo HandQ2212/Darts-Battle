@@ -9,16 +9,15 @@ public final class BotService {
     public static BotService getInstance() { return INSTANCE; }
     public void playTurn(String matchId,long turnId) {
         cancel(matchId); List<ScheduledFuture<?>> list=new ArrayList<>(); tasks.put(matchId,list);
-        int angle=ThreadLocalRandom.current().nextInt(360);
         long delay=Long.getLong("darts.botDelayMillis",700L);
-        for(int i=0;i<=3;i++) {
+        for(int i=1;i<=3;i++) {
             final int dart=i;
             list.add(timer.schedule(()->{
-                try { GameService.getInstance().playBotStep(matchId,turnId,dart,angle,
+                try { GameService.getInstance().playBotStep(matchId,turnId,dart,
                         ThreadLocalRandom.current().nextDouble(-140,140),ThreadLocalRandom.current().nextDouble(-140,140)); }
                 catch(RuntimeException e) { System.err.println("Bot failed: "+e.getMessage()); }
                 if(dart==3) tasks.remove(matchId,list);
-            },delay*(i+1),TimeUnit.MILLISECONDS));
+            },delay*i,TimeUnit.MILLISECONDS));
         }
     }
     public void cancel(String matchId) { List<ScheduledFuture<?>> list=tasks.remove(matchId); if(list!=null) list.forEach(f->f.cancel(false)); }
