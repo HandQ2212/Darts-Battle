@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -40,10 +41,13 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         primaryStage = stage;
+        socketHandler = new SocketHandler();
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/views/login.fxml"));
-        scene = new Scene(loader.load(), 800, 800);
+        scene = new Scene(loader.load(), 1080, 740);
         stage.setScene(scene);
-        stage.setTitle("Darts Game");
+        stage.setTitle("Darts Battle");
+        stage.setMinWidth(1000);
+        stage.setMinHeight(700);
         stage.show();
 
         // Phát nhạc nền
@@ -55,20 +59,18 @@ public class Main extends Application {
             handleExitConfirmation();
         });
 
-        // Kết nối Socket
-        socketHandler = new SocketHandler();
-        socketHandler.connect("localhost", 99);
     }
 
     private void handleExitConfirmation() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        ui.GameTheme.style(alert);
         alert.setTitle("Xác nhận thoát");
         alert.setHeaderText("Bạn có chắc muốn thoát ứng dụng không?");
         alert.setContentText("Chọn OK để thoát, Cancel để ở lại.");
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                socketHandler.logout();
+                socketHandler.shutdown();
                 stopBackgroundMusic(); // 🧩 Dừng nhạc khi thoát
                 Platform.exit();
                 System.exit(0);
@@ -77,10 +79,16 @@ public class Main extends Application {
     }
 
     public static void setRoot(String fxml) throws IOException {
+        socketHandler.setConnectionListener(null);
+        if (startGameController != null) startGameController.dispose();
+        startGameController = null;
+        chooseOpponentController = null;
+        rankingController = null;
+        matchHistoryController = null;
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/views/" + fxml + ".fxml"));
         Parent root = loader.load();
 
-        if (fxml.equals("chooseOpponent")) {
+        if (fxml.equals("chooseOpponent") || fxml.equals("choosecomponent")) {
             chooseOpponentController = loader.getController();
         }
         if (fxml.equals("startgame")) {
@@ -93,6 +101,11 @@ public class Main extends Application {
             matchHistoryController = loader.getController();
         }
         scene.setRoot(root);
+        if (primaryStage != null) {
+            primaryStage.setMinWidth(fxml.equals("startgame") ? 1040 : 1000);
+            primaryStage.setMinHeight(fxml.equals("startgame") ? 780 : 700);
+            primaryStage.sizeToScene();
+        }
     }
 
     // ======================================================

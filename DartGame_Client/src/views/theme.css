@@ -1,0 +1,150 @@
+@font-face { font-family: 'Lilita One'; src: url('../assets/fonts/LilitaOne-Regular.ttf'); }
+.root {
+    -fx-font-family: 'System'; -fx-font-size: 13px;
+    -fx-base: #fff1ce; -fx-background: #73a65a; -fx-control-inner-background: #fff7dc;
+    -fx-accent: #ff8909; -fx-focus-color: #ff8909; -fx-faint-focus-color: rgba(184,243,107,0.10);
+    -fx-text-background-color: #633d24;
+}
+.app-root { -fx-background-color: linear-gradient(to bottom right, #c6dca0, #73a65a 54%, #588b47); }
+.text { -fx-font-smoothing-type: gray; }
+.label, .check-box { -fx-text-fill: #633d24; }
+.page { -fx-padding: 26 32 28 32; }
+.brand { -fx-font-family: 'Lilita One'; -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #fff3cd; }
+.eyebrow { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #ff8909; }
+.muted { -fx-text-fill: #846c46; }
+.small { -fx-font-size: 11px; }
+.title { -fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #fff3cf; }
+.section-title { -fx-font-size: 16px; -fx-font-weight: bold; }
+.page-header { -fx-padding: 0 0 22 0; }
+.divider { -fx-background-color: #dbc492; -fx-pref-height: 1; -fx-max-height: 1; }
+.card { -fx-background-color: linear-gradient(to bottom right, #fff5d8, #fff7dc); -fx-background-radius: 18; -fx-border-color: #b18449; -fx-border-radius: 18; -fx-padding: 24; }
+.button { -fx-background-color: #ffdb9e; -fx-text-fill: #694021; -fx-background-radius: 16; -fx-padding: 11 18; -fx-font-weight: bold; -fx-cursor: hand; -fx-border-color: #c58d48; -fx-border-radius: 16; }
+.button:hover { -fx-background-color: #ffeabc; -fx-border-color: #a46b2d; }
+.button:focused { -fx-border-color: #ffb230; -fx-border-width: 1; }
+.button:pressed { -fx-translate-y: 1; }
+.button:disabled { -fx-opacity: 0.43; }
+.primary { -fx-background-color: linear-gradient(to bottom, #ffa31b, #ff8506); -fx-text-fill: #fff9e6; -fx-border-color: #b96522; -fx-effect: dropshadow(gaussian, rgba(98,55,15,0.18), 12, 0, 0, 2); }
+.primary:hover { -fx-background-color: #ffb547; -fx-border-color: #ffc76b; }
+.primary:disabled { -fx-background-color: #e2d4b4; -fx-border-color: #bca77b; -fx-text-fill: #8a7652; -fx-opacity: 1; -fx-effect: null; }
+.secondary { -fx-background-color: #589347; -fx-border-color: #376b2e; -fx-text-fill: #fff9df; }
+.secondary:hover { -fx-background-color: #6ca857; -fx-border-color: #b8d986; }
+.ghost { -fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #f8edcb; }
+.ghost:hover { -fx-background-color: #7b9e53; -fx-border-color: #436c33; -fx-text-fill: white; }
+.danger { -fx-text-fill: #aa3d25; -fx-background-color: #ffe0bd; -fx-border-color: #cc8a60; }
+.hyperlink { -fx-text-fill: #ff8909; -fx-border-color: transparent; -fx-padding: 5 0; -fx-cursor: hand; }
+.hyperlink:hover { -fx-underline: true; }
+.text-field, .password-field { -fx-background-color: #fff9e9; -fx-text-fill: #653c21; -fx-prompt-text-fill: #a58d65; -fx-border-color: #c9a567; -fx-border-radius: 16; -fx-background-radius: 16; -fx-padding: 12 14; -fx-highlight-fill: #e8b56c; -fx-highlight-text-fill: white; }
+.text-field:focused, .password-field:focused { -fx-border-color: #ff8909; -fx-background-color: #fffdf3; }
+.status-box { -fx-background-color: #e5efc2; -fx-background-radius: 16; -fx-border-color: #adbf77; -fx-border-radius: 16; -fx-padding: 11 14; -fx-text-fill: #446b32; -fx-font-size: 12px; }
+.badge { -fx-background-color: #fff0c6; -fx-background-radius: 8; -fx-padding: 7 11; -fx-border-color: #c49c5f; -fx-border-radius: 8; -fx-text-fill: #72512c; -fx-font-size: 11px; -fx-font-weight: bold; }
+.auth-hero { -fx-background-color: linear-gradient(to bottom right, #689b4e, #91b96d 65%, #355f34); -fx-padding: 30 34; }
+.auth-form { -fx-padding: 38; -fx-background-color: #fff4d4; -fx-border-color: transparent transparent transparent #b2874d; }
+.auth-form .text-field, .auth-form .password-field, .auth-form .primary { -fx-pref-height: 46; }
+.game-logo { -fx-font-family: 'Lilita One'; -fx-font-size: 66px; -fx-font-weight: bold; -fx-text-fill: #fff3cf; -fx-line-spacing: -10; }
+.game-logo-accent { -fx-text-fill: #ff8909; }
+.hero-title { -fx-font-size: 28px; -fx-font-weight: bold; }
+.menu-title { -fx-font-family: 'Lilita One'; -fx-font-size: 32px; -fx-font-weight: bold; }
+.menu-screen { -fx-background-color: linear-gradient(to bottom right, #538647, #84a958 70%); }
+.menu-play { -fx-font-size: 17px; -fx-min-height: 58; -fx-alignment: CENTER_LEFT; -fx-padding: 12 22; }
+.menu-online { -fx-background-color: linear-gradient(to right, #ff8909, #97d961); -fx-text-fill: #12251e; -fx-border-color: #d9ffb5; }
+.menu-online:hover { -fx-background-color: #d1ff98; }
+.menu-bot { -fx-background-color: #173348; -fx-text-fill: #fff3d2; -fx-border-color: #2c652e; }
+.menu-bot:hover { -fx-background-color: #6fa953; }
+.menu-foot { -fx-background-color: rgba(255,243,206,0.94); -fx-border-color: #9c7844 transparent transparent transparent; -fx-padding: 17 24; }
+.menu-art { -fx-border-color: #a4773e; -fx-border-radius: 18; -fx-background-color: #77a75c; }
+.feature-card { -fx-padding: 20; }
+.table-view { -fx-background-color: #fff8e4; -fx-background-radius: 16; -fx-border-color: #c99d5e; -fx-border-radius: 16; -fx-padding: 1; -fx-fixed-cell-size: 48; -fx-table-cell-border-color: transparent; -fx-selection-bar: #dfedb9; -fx-selection-bar-non-focused: #e7edca; }
+.table-view .column-header-background { -fx-background-color: #ffd99b; }
+.table-view .column-header, .table-view .filler { -fx-background-color: transparent; -fx-size: 42; -fx-border-width: 0; }
+.table-view .column-header .label { -fx-text-fill: #855a30; -fx-font-size: 11px; -fx-font-weight: bold; -fx-alignment: CENTER_LEFT; -fx-padding: 0 14; }
+.table-row-cell { -fx-background-color: #fff7df; -fx-border-color: transparent transparent #ebddba transparent; }
+.table-row-cell:odd { -fx-background-color: #fff0ce; }
+.table-row-cell:selected { -fx-background-color: #dfedb9; }
+.table-row-cell:empty { -fx-background-color: #fff8e4; -fx-border-color: transparent; }
+.table-cell { -fx-text-fill: #704a29; -fx-alignment: CENTER_LEFT; -fx-padding: 0 14; -fx-border-color: transparent; }
+.table-cell:selected { -fx-text-fill: #45642d; }
+.table-view .placeholder .label { -fx-text-fill: #8b754f; }
+.scroll-bar { -fx-background-color: transparent; }
+.scroll-bar .track { -fx-background-color: transparent; }
+.scroll-bar .thumb { -fx-background-color: #cab079; -fx-background-radius: 16; }
+.scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-background-color: transparent; -fx-padding: 3; }
+.online-status { -fx-fill: #ff8909; }
+.busy-status { -fx-fill: #a85b2c; }
+.game-page { -fx-padding: 14 20 18 20; }
+.game-header { -fx-padding: 0 0 12 0; }
+.game-main { -fx-spacing: 16; }
+.score-card { -fx-background-color: linear-gradient(to bottom, #fff0bf, #ffe0a2); -fx-background-radius: 16; -fx-border-color: #bf914c; -fx-border-width: 1 1 3 1; -fx-border-radius: 16; -fx-padding: 11 15; -fx-spacing: 4; }
+.score-card:active { -fx-background-color: linear-gradient(to bottom right, #fff8da, #ffe9a9); -fx-border-color: #6d9b42; -fx-border-width: 1 1 3 1; -fx-effect: dropshadow(gaussian, rgba(82,120,39,0.18), 10, 0, 0, 0); }
+.opponent-card { -fx-background-color: linear-gradient(to bottom, #fff0d7, #ffdeb2); -fx-border-color: #c5915a; }
+.opponent-card:active { -fx-background-color: linear-gradient(to bottom, #ffe6bc, #ffcf8d); -fx-border-color: #df8a38; }
+.player-name { -fx-font-size: 13px; -fx-font-weight: bold; -fx-max-width: 160; }
+.turn-tag { -fx-text-fill: #ff8909; -fx-font-size: 10px; -fx-font-weight: bold; }
+.opponent-card .turn-tag { -fx-text-fill: #a65b23; }
+.score-value { -fx-font-family: 'Lilita One'; -fx-fill: #75421f; -fx-font-size: 48px; -fx-font-weight: bold; }
+.opponent-card .score-value { -fx-fill: #9b5528; }
+.score-caption { -fx-text-fill: #9b7950; -fx-font-size: 10px; }
+.versus { -fx-font-family: 'Lilita One'; -fx-font-size: 27px; -fx-text-fill: #fff1c4; -fx-min-width: 36; -fx-max-width: 36; -fx-alignment: CENTER; }
+.dart-chip { -fx-background-color: #fffbeb; -fx-border-color: #d0ab66; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 5 7; -fx-min-width: 38; -fx-max-height: 32; -fx-min-height: 32; -fx-alignment: CENTER; }
+.dart-value { -fx-fill: #825127; -fx-font-size: 15px; -fx-font-weight: bold; }
+.dart-chip:bust { -fx-background-color: #ffe0c8; -fx-border-color: #c46b4c; }
+.dart-chip:bust .dart-value { -fx-fill: #a3412a; }
+.arena { -fx-background-color: #78a357; -fx-background-radius: 16; -fx-border-color: #a0763d; -fx-border-radius: 16; -fx-padding: 6 0; }
+.board-surface { -fx-background-color: transparent; }
+.board-number { -fx-font-family: 'Lilita One'; -fx-fill: #6c4120; -fx-font-size: 17px; -fx-font-weight: bold; }
+.game-controls { -fx-background-color: linear-gradient(to bottom, #fff1c8, #ffdeb0); -fx-border-color: #b58a4a; -fx-border-radius: 16; -fx-background-radius: 16; -fx-padding: 11 14; -fx-spacing: 8; }
+.aim-button { -fx-pref-width: 154; -fx-min-height: 45; -fx-font-size: 14px; }
+.phase-badge { -fx-text-fill: #ff8909; -fx-font-weight: bold; -fx-font-size: 11px; }
+.instruction { -fx-font-size: 12px; -fx-text-fill: #785c37; }
+.side-card { -fx-padding: 16; -fx-spacing: 9; }
+.turn-title { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #527b31; }
+.result-label { -fx-text-fill: #ff8909; -fx-font-size: 12px; -fx-font-weight: bold; }
+.result-label:bust { -fx-text-fill: #b54d30; }
+.rule-text { -fx-font-size: 12px; -fx-text-fill: #866b42; -fx-line-spacing: 3; }
+.chat-panel { -fx-background-color: #fff7df; -fx-background-radius: 16; -fx-border-color: #b18c53; -fx-border-radius: 16; -fx-padding: 14; }
+.chat-list { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 6 0; -fx-background-insets: 0; }
+.chat-list .virtual-flow, .chat-list .viewport { -fx-background-color: transparent; }
+.chat-list .list-cell { -fx-background-color: transparent; -fx-text-fill: #775b35; -fx-padding: 9 2; -fx-font-size: 12px; }
+.bot-overlay { -fx-background-color: rgba(38,82,34,0.20); -fx-background-radius: 16; }
+.bot-overlay .label { -fx-text-fill: #e9f7ff; -fx-font-size: 17px; -fx-font-weight: bold; }
+.progress-indicator { -fx-progress-color: #ff8909; }
+.dialog-pane { -fx-background-color: #fff0ce; }
+.dialog-pane > .content.label { -fx-text-fill: #765331; }
+.dialog-pane:header .header-panel { -fx-background-color: #ffdb9b; }
+
+/* Casual forest skin: downloaded 2D scenery, cream panels and chunky orange buttons. */
+.app-root { -fx-background-image: url('../assets/art/forest-background.png'); -fx-background-size: cover; -fx-background-position: center; }
+.card, .chat-panel, .game-controls { -fx-effect: dropshadow(gaussian, rgba(52,58,22,0.14), 6, 0, 0, 3); }
+.brand { -fx-text-fill: #fff8db; -fx-effect: dropshadow(gaussian, #674523, 2, 1, 1, 2); }
+.title { -fx-text-fill: #6a4327; }
+.eyebrow { -fx-text-fill: #a6662a; }
+.game-logo { -fx-text-fill: #fff5ca; -fx-effect: dropshadow(gaussian, #79411d, 2, 1, 2, 3); }
+.game-logo-accent { -fx-text-fill: #ffa217; }
+.auth-hero { -fx-background-color: transparent; }
+.auth-hero .eyebrow { -fx-text-fill: #fff2b8; -fx-effect: dropshadow(gaussian, #3d542b, 2, 1, 1, 1); }
+.auth-form { -fx-background-color: rgba(255,245,217,0.96); -fx-border-color: #a58049; -fx-border-width: 0 0 0 3; }
+.menu-screen { -fx-background-color: #75a95d; }
+.menu-online { -fx-background-color: linear-gradient(to bottom, #ffa722, #ff8705); -fx-text-fill: white; -fx-border-color: #a65b20; -fx-border-width: 2 2 4 2; }
+.menu-online:hover { -fx-background-color: #ffb637; }
+.menu-bot { -fx-background-color: linear-gradient(to bottom, #7db64e, #619a3d); -fx-text-fill: #fffbe6; -fx-border-color: #3f7032; -fx-border-width: 2 2 4 2; }
+.menu-bot:hover { -fx-background-color: #8bc65b; }
+.menu-title { -fx-text-fill: #6b4224; }
+.menu-art { -fx-background-color: transparent; -fx-border-color: transparent; }
+.menu-play { -fx-font-size: 19px; }
+.menu-screen .section-title, .menu-screen .muted { -fx-text-fill: #fff6d9; -fx-effect: dropshadow(gaussian, #405729, 2, 1, 1, 1); }
+.menu-foot { -fx-background-radius: 18; -fx-border-radius: 18; -fx-border-color: #b89051; -fx-border-width: 2; }
+.menu-foot .brand { -fx-text-fill: #8c5227; -fx-effect: null; }
+.menu-foot .muted { -fx-text-fill: #87643a; -fx-effect: null; }
+.primary { -fx-border-width: 1 1 3 1; }
+.ghost { -fx-background-color: rgba(79,111,42,0.65); -fx-text-fill: #fff4cf; -fx-border-color: #a5b471; }
+.ghost:hover { -fx-background-color: #759746; }
+.text-field, .password-field { -fx-background-radius: 10; -fx-border-radius: 10; }
+.score-card { -fx-border-width: 2 2 4 2; -fx-padding: 10 14; }
+.score-card:active { -fx-border-width: 2 2 4 2; }
+.turn-tag { -fx-text-fill: #4d812d; }
+.phase-badge { -fx-text-fill: #538036; }
+.dart-value { -fx-font-size: 15px; }
+.last-throw-score { -fx-font-family: 'Lilita One'; -fx-font-size: 43px; -fx-text-fill: #f0870b; }
+.last-throw-score:bust { -fx-text-fill: #b64a31; }
+.result-label { -fx-text-fill: #6d7c32; -fx-font-size: 12px; }
+.result-label:bust { -fx-text-fill: #ae422a; }
+.bot-overlay { -fx-background-color: rgba(38,82,34,0.16); }
