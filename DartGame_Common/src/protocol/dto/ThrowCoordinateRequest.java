@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 public class ThrowCoordinateRequest implements Serializable {
     private String matchId;
+    private String requestId;
+    private int dartIndex;
     private long turnId;
     private double x;
     private double y;
@@ -16,6 +18,14 @@ public class ThrowCoordinateRequest implements Serializable {
         this.x = x;
         this.y = y;
     }
+
+    public ThrowCoordinateRequest(String matchId, long turnId, int dartIndex, String requestId, double x, double y) {
+        this(matchId, turnId, x, y);
+        this.dartIndex = dartIndex;
+        this.requestId = requestId;
+    }
+    public int getDartIndex() { return dartIndex; }
+    public String getRequestId() { return requestId; }
 
     public String getMatchId() {
         return matchId;

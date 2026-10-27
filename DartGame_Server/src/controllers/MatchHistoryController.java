@@ -25,7 +25,7 @@ public class MatchHistoryController {
             stmt.setString(5, player2Type);
             stmt.executeUpdate();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không lưu được lịch sử trận đấu", e);
         }
     }
 
@@ -51,8 +51,19 @@ public class MatchHistoryController {
             stmt.setInt(10, result.getDartScore());
             stmt.setInt(11, result.getRemainingScoreAfter());
             stmt.executeUpdate();
+        } catch (java.sql.SQLIntegrityConstraintViolationException duplicate) {
+            // A retried write may already have committed. Only accept the exact stored throw.
+            try (Connection conn = DBConnection.getInstance().getConnection();
+                 PreparedStatement existing = conn.prepareStatement("SELECT x,y,dart_score,remaining_score_after FROM match_throws WHERE match_id=? AND turn_number=? AND dart_number=?")) {
+                existing.setString(1,result.getMatchId()); existing.setLong(2,result.getTurnId()); existing.setInt(3,result.getDartIndex());
+                try (ResultSet row=existing.executeQuery()) {
+                    if(row.next() && row.getDouble(1)==result.getX() && row.getDouble(2)==result.getY()
+                            && row.getInt(3)==result.getDartScore() && row.getInt(4)==result.getRemainingScoreAfter()) return;
+                }
+            } catch (Exception check) { throw new IllegalStateException("Không kiểm tra được phi tiêu đã lưu",check); }
+            throw new IllegalStateException("Dữ liệu phi tiêu xung đột hoặc khóa ngoại không hợp lệ",duplicate);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không lưu được lịch sử trận đấu", e);
         }
     }
 
@@ -71,7 +82,7 @@ public class MatchHistoryController {
             stmt.setString(4, matchId);
             stmt.executeUpdate();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không lưu được lịch sử trận đấu", e);
         }
     }
 }
