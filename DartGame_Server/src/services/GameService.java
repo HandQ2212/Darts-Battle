@@ -6,13 +6,17 @@ import protocol.*;
 import protocol.dto.*;
 import protocol.dto.GameMessages.*;
 import java.util.*;
+import java.util.concurrent.*;
+import config.TurnRotation;
 
 /** Every transition is atomic under its room monitor. Network writes only enqueue. */
 public class GameService {
     private static final GameService INSTANCE=new GameService();
     private final DartboardScorer scorer=new DartboardScorer();
     private final MatchHistoryController history=new MatchHistoryController();
-    private record AppliedRotation(long actor, RotationRequest request, MatchSnapshot snapshot) {}
+    private final ScheduledExecutorService rotations=Executors.newSingleThreadScheduledExecutor(task->{
+        Thread thread=new Thread(task,"automatic-rotation");thread.setDaemon(true);return thread;
+    });
     private GameService() {}
     public static GameService getInstance() { return INSTANCE; }
     public void startMatch(Room r) {
@@ -22,33 +26,36 @@ public class GameService {
             history.createMatch(r.getMatchId(),r.getMode().name(),r.getPlayer1Id(),r.getPlayer2Id(),r.getPlayer2Type().name());
             r.started=true;
             GameState s=r.getGameState(); s.setCurrentPlayerId(r.getPlayer1Id()); s.setCurrentActorType(ActorType.HUMAN);
-            s.setStatus(MatchStatus.WAITING_ROTATION); r.version++; resetDeadline(r);
+            prepareRotation(r);
             ClientManager.getInstance().setStatus(r.getPlayer1Id(),PlayerStatus.IN_MATCH);
             if(r.getPlayer2Id()!=null) ClientManager.getInstance().setStatus(r.getPlayer2Id(),PlayerStatus.IN_MATCH);
             broadcast(r,Message.of(MessageType.MATCH_STARTED,snapshot(r)));
             broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));
+            scheduleRotation(r);
         }
     }
     public void submitRotation(RotationRequest req,long userId) {
-        if(req==null) throw invalid("Thiếu góc xoay.");
-        Room r=room(req.matchId());
-        synchronized(r) {
-            member(r,userId); requestId(req.requestId());
-            Object prior=r.requests.get(req.requestId());
-            if(prior instanceof AppliedRotation old && old.actor()==userId && old.request().equals(req)) {
-                ClientManager.getInstance().sendToUser(userId,Message.of(MessageType.ROTATION_APPLIED,old.snapshot())); return;
-            }
-            if(prior!=null) throw invalid("RequestId đã được sử dụng.");
-            actor(r,userId,req.turnId(),MatchStatus.WAITING_ROTATION);
-            if(req.degrees()<0 || req.degrees()>359) throw invalid("Góc xoay phải là số nguyên từ 0 đến 359.");
-            applyRotation(r,req.degrees());
-            remember(r,req.requestId(),new AppliedRotation(userId,req,snapshot(r)));
-        }
+        throw invalid("Bảng tự động xoay ở đầu mỗi lượt; không cần nhập góc.");
     }
-    private void applyRotation(Room r,int degree) {
-        GameState s=r.getGameState(); s.setRotationDegree(degree); s.setStatus(MatchStatus.PLAYING); r.version++;
-        broadcast(r,Message.of(MessageType.ROTATION_APPLIED,snapshot(r)));
-        broadcast(r,Message.of(MessageType.TURN_STARTED,snapshot(r)));
+    private long rotationDelay() { return Math.max(0,Long.getLong("darts.rotationDelayMillis",TurnRotation.DURATION_MILLIS)); }
+    private void prepareRotation(Room r) {
+        GameState s=r.getGameState();
+        s.setRotationDegree(ThreadLocalRandom.current().nextInt(360));
+        s.setStatus(MatchStatus.WAITING_ROTATION);r.version++;resetDeadline(r);
+        r.deadline+=rotationDelay();
+    }
+    private void scheduleRotation(Room r) {
+        long turn=r.getGameState().getTurnId();
+        rotations.schedule(()->{
+            synchronized(r) {
+                if(RoomManager.getInstance().getRoom(r.getMatchId())!=r || r.getGameState().getTurnId()!=turn
+                        || r.getGameState().getStatus()!=MatchStatus.WAITING_ROTATION)return;
+                r.getGameState().setStatus(MatchStatus.PLAYING);r.version++;resetDeadline(r);
+                broadcast(r,Message.of(MessageType.ROTATION_APPLIED,snapshot(r)));
+                broadcast(r,Message.of(MessageType.TURN_STARTED,snapshot(r)));
+                if(r.getGameState().getCurrentActorType()==ActorType.BOT)BotService.getInstance().playTurn(r.getMatchId(),turn);
+            }
+        },rotationDelay(),TimeUnit.MILLISECONDS);
     }
     public ThrowResolvedResponse submitThrow(ThrowCoordinateRequest req,Long userId) {
         if(req==null || userId==null) throw invalid("Lệnh ném không hợp lệ.");
@@ -103,16 +110,14 @@ public class GameService {
         GameState s=r.getGameState(); boolean wasP1=Objects.equals(s.getCurrentPlayerId(),r.getPlayer1Id());
         s.setCurrentPlayerId(wasP1?r.getPlayer2Id():Long.valueOf(r.getPlayer1Id()));
         s.setCurrentActorType(wasP1?r.getPlayer2Type():ActorType.HUMAN);
-        s.setTurnId(s.getTurnId()+1); s.setDartsThrown(0); s.setStatus(MatchStatus.WAITING_ROTATION);
-        r.version++; resetDeadline(r); broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));
-        if(s.getCurrentActorType()==ActorType.BOT) BotService.getInstance().playTurn(r.getMatchId(),s.getTurnId());
+        s.setTurnId(s.getTurnId()+1); s.setDartsThrown(0);prepareRotation(r);
+        broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));scheduleRotation(r);
     }
-    public void playBotStep(String matchId,long turnId,int dartIndex,int degree,double x,double y) {
+    public void playBotStep(String matchId,long turnId,int dartIndex,double x,double y) {
         Room r=RoomManager.getInstance().getRoom(matchId); if(r==null) return;
         synchronized(r) {
             GameState s=r.getGameState();
             if(s.getTurnId()!=turnId || s.getCurrentActorType()!=ActorType.BOT || s.getStatus()==MatchStatus.FINISHED) return;
-            if(dartIndex==0) { if(s.getStatus()==MatchStatus.WAITING_ROTATION) applyRotation(r,degree); return; }
             if(s.getStatus()!=MatchStatus.PLAYING || dartIndex!=s.getDartsThrown()+1) return;
             resolveThrow(r,new ThrowCoordinateRequest(matchId,turnId,dartIndex,"bot-"+turnId+"-"+dartIndex,x,y),null);
         }

@@ -26,9 +26,7 @@
    <VBox styleClass="game-controls">
     <HBox alignment="CENTER_LEFT" spacing="10">
      <Label fx:id="phaseLabel" text="CHUẨN BỊ LƯỢT NÉM" styleClass="phase-badge" HBox.hgrow="ALWAYS" maxWidth="Infinity" wrapText="true"/>
-     <TextField fx:id="angleInput" promptText="0–359°" prefWidth="88" maxWidth="88"/>
-     <Button fx:id="rotateButton" text="Xoay bảng" onAction="#handleRotateBoard"/>
-     <Button fx:id="startButton" text="Chờ lượt" onAction="#handleGameAction" styleClass="primary, aim-button"/>
+     <Label fx:id="aimStatusLabel" text="Chờ lượt" styleClass="phase-badge" wrapText="true"/>
     </HBox>
     <Label fx:id="instructionLabel" text="Đang chuẩn bị trận đấu..." styleClass="instruction" maxWidth="Infinity" minHeight="30" wrapText="true"/>
    </VBox>
@@ -42,7 +40,7 @@
    </VBox>
    <VBox styleClass="card, side-card" spacing="8" minHeight="-Infinity">
     <Label text="LUẬT ĐẤU / 301" styleClass="eyebrow" wrapText="true"/>
-    <Label fx:id="rulesLabel" minHeight="-Infinity" text="01   Xoay bảng từ 0 đến 359°.&#10;02   Dừng X, rồi dừng Y để ném.&#10;03   Mỗi lượt có 3 phi tiêu." styleClass="rule-text" wrapText="true"/>
+    <Label fx:id="rulesLabel" minHeight="-Infinity" text="01   Bảng tự động xoay đầu lượt.&#10;02   Click bảng: chốt X, rồi click để ném.&#10;03   Mỗi lượt có 3 phi tiêu." styleClass="rule-text" wrapText="true"/>
     <Region styleClass="divider"/>
     <Label fx:id="bustRuleLabel" minHeight="-Infinity" text="Về đúng 0 để thắng. Ném vượt điểm còn lại sẽ BUST: không trừ điểm, vẫn mất một phi tiêu." styleClass="rule-text" wrapText="true"/>
    </VBox>
