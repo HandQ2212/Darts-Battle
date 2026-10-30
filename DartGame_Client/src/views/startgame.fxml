@@ -44,11 +44,41 @@
     <Region styleClass="divider"/>
     <Label fx:id="bustRuleLabel" minHeight="-Infinity" text="Về đúng 0 để thắng. Ném vượt điểm còn lại sẽ BUST: không trừ điểm, vẫn mất một phi tiêu." styleClass="rule-text" wrapText="true"/>
    </VBox>
-   <BorderPane styleClass="chat-panel" VBox.vgrow="ALWAYS" minHeight="160" prefHeight="240">
-    <top><HBox spacing="8" alignment="CENTER_LEFT"><Label text="Trò chuyện" styleClass="section-title" wrapText="true"/><Region HBox.hgrow="ALWAYS"/><Label text="TRONG TRẬN" styleClass="eyebrow" wrapText="true"/></HBox></top>
-    <center><ListView fx:id="chatList" styleClass="chat-list"><placeholder><Label text="Gửi một lời chào đối thủ." styleClass="muted, small" wrapText="true"/></placeholder></ListView></center>
-    <bottom><HBox spacing="8" alignment="CENTER"><TextField fx:id="chatInput" promptText="Nhập tin nhắn..." HBox.hgrow="ALWAYS"/><Button text="Gửi" onAction="#handleSend" styleClass="primary"/></HBox></bottom>
-   </BorderPane>
+   <TabPane fx:id="communicationTabs" styleClass="communication-tabs" VBox.vgrow="ALWAYS" minHeight="200" prefHeight="270" tabClosingPolicy="UNAVAILABLE">
+    <tabs>
+     <Tab text="Trò chuyện">
+      <BorderPane styleClass="chat-panel">
+       <top><HBox spacing="8" alignment="CENTER_LEFT"><Label text="Trò chuyện" styleClass="section-title" wrapText="true"/><Region HBox.hgrow="ALWAYS"/><Label text="TRONG TRẬN" styleClass="eyebrow" wrapText="true"/></HBox></top>
+       <center><ListView fx:id="chatList" styleClass="chat-list"><placeholder><Label text="Gửi một lời chào đối thủ." styleClass="muted, small" wrapText="true"/></placeholder></ListView></center>
+       <bottom><HBox spacing="8" alignment="CENTER"><TextField fx:id="chatInput" promptText="Nhập tin nhắn..." HBox.hgrow="ALWAYS"/><Button text="Gửi" onAction="#handleSend" styleClass="primary"/></HBox></bottom>
+      </BorderPane>
+     </Tab>
+     <Tab fx:id="callTab" text="Cuộc gọi">
+      <VBox spacing="4" styleClass="call-panel" fillWidth="true">
+       <Label fx:id="mediaStatusLabel" text="Tham gia để kết nối mic/video" styleClass="muted, small" wrapText="true" minHeight="22"/>
+       <StackPane styleClass="video-frame" minHeight="56" prefHeight="84" maxHeight="92" VBox.vgrow="ALWAYS">
+        <ImageView fx:id="remoteVideoView" fitWidth="250" fitHeight="128" preserveRatio="true" smooth="true"/>
+        <Label fx:id="remoteVideoPlaceholder" text="Video đối thủ" styleClass="muted, small" mouseTransparent="true"/>
+        <StackPane alignment="CENTER" StackPane.alignment="BOTTOM_RIGHT" styleClass="local-video-frame" maxWidth="96" maxHeight="60">
+         <ImageView fx:id="localVideoView" fitWidth="92" fitHeight="56" preserveRatio="true" smooth="true"/>
+         <Label fx:id="localVideoPlaceholder" text="Bạn" styleClass="muted, small" mouseTransparent="true"/>
+        </StackPane>
+       </StackPane>
+       <ComboBox fx:id="microphoneChoice" promptText="Micro mặc định" maxWidth="Infinity" minHeight="24" prefHeight="24" maxHeight="24"/>
+       <ComboBox fx:id="speakerChoice" promptText="Loa mặc định" maxWidth="Infinity" minHeight="24" prefHeight="24" maxHeight="24"/>
+       <ComboBox fx:id="cameraChoice" promptText="Camera mặc định" maxWidth="Infinity" minHeight="24" prefHeight="24" maxHeight="24"/>
+       <HBox spacing="5" alignment="CENTER">
+        <Button fx:id="joinCallButton" text="Tham gia" onAction="#joinCall" styleClass="primary" HBox.hgrow="ALWAYS" maxWidth="Infinity" minHeight="28" prefHeight="30" maxHeight="30"/>
+        <Button fx:id="leaveCallButton" text="Rời gọi" onAction="#leaveCall" styleClass="ghost" disable="true" minHeight="28" prefHeight="30" maxHeight="30"/>
+       </HBox>
+       <HBox spacing="5" alignment="CENTER">
+        <Button fx:id="microphoneButton" text="Bật mic" onAction="#toggleMicrophone" styleClass="ghost" HBox.hgrow="ALWAYS" maxWidth="Infinity" minHeight="28" prefHeight="30" maxHeight="30" disable="true"/>
+        <Button fx:id="cameraButton" text="Bật camera" onAction="#toggleCamera" styleClass="ghost" HBox.hgrow="ALWAYS" maxWidth="Infinity" minHeight="28" prefHeight="30" maxHeight="30" disable="true"/>
+       </HBox>
+      </VBox>
+     </Tab>
+    </tabs>
+   </TabPane>
   </VBox>
  </HBox></center>
 </BorderPane>

@@ -144,6 +144,7 @@ public class GameService {
         r.getGameState().setStatus(MatchStatus.FINISHED); r.winnerId=winner; r.winnerType=type; r.endReason=reason;
     }
     private void complete(Room r) {
+        MediaSignalingService.getInstance().roomEnded(r.getMatchId());
         BotService.getInstance().cancel(r.getMatchId());
         HistoryWriter.submit(r.getMatchId(),()->history.finishMatch(r.getMatchId(),r.winnerId,r.winnerType.name(),r.endReason));
         broadcast(r,Message.of(MessageType.MATCH_FINISHED,snapshot(r)));
