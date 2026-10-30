@@ -12,6 +12,7 @@ public class Client extends Thread {
     private ObjectOutputStream out;
     private volatile long loggedInUserId=-1;
     private volatile String loggedInUsername;
+    private volatile boolean mediaSupported;
     private final AtomicBoolean closed=new AtomicBoolean();
     private final BlockingQueue<Message> outgoing=new ArrayBlockingQueue<>(256);
     private final UserController users=new UserController();
@@ -49,6 +50,11 @@ public class Client extends Thread {
         }
         if(loggedInUserId<0 || ClientManager.getInstance().getClient(loggedInUserId)!=this) throw new IllegalArgumentException("Bạn cần đăng nhập.");
         switch(m.getType()) {
+            case MEDIA_SUPPORT -> mediaSupported=true;
+            case MEDIA_JOIN -> MediaSignalingService.getInstance().join(this,((protocol.dto.MediaMessages.JoinRequest)m.getPayload()).matchId());
+            case MEDIA_LEAVE -> MediaSignalingService.getInstance().leave(this,(String)m.getPayload());
+            case MEDIA_DESCRIPTION -> MediaSignalingService.getInstance().signal(this,(protocol.dto.MediaMessages.Signal)m.getPayload(),false);
+            case MEDIA_CANDIDATE -> MediaSignalingService.getInstance().signal(this,(protocol.dto.MediaMessages.Signal)m.getPayload(),true);
             case ONLINE_LIST, INVITE_REQUEST, INVITE_ACCEPT, INVITE_REJECT, CREATE_BOT_MATCH, CHAT_MESSAGE -> lobby.handleMessage(this,m);
             case ROTATION_SUBMIT, THROW_COORDINATE, LEAVE_MATCH -> game.handleMessage(this,m);
             case GET_RANKING, GET_HISTORY -> ranking.handleMessage(this,m);
@@ -59,11 +65,13 @@ public class Client extends Thread {
     public void send(Message m) { if(!closed.get() && !outgoing.offer(m)) close(); }
     public void close() {
         if(!closed.compareAndSet(false,true)) return;
+        MediaSignalingService.getInstance().disconnected(this);
         try { if(socket!=null) socket.close(); } catch(IOException ignored) {}
         if(writer!=null) writer.interrupt();
         CLEANUP.execute(()->LobbyService.getInstance().logout(this,"DISCONNECT"));
     }
     public boolean isClosed() { return closed.get(); }
+    public boolean supportsMedia(){return mediaSupported;}
     public long getLoggedInUserId() { return loggedInUserId; }
     public void setLoggedInUserId(long id) { loggedInUserId=id; }
     public String getLoggedInUsername() { return loggedInUsername; }
