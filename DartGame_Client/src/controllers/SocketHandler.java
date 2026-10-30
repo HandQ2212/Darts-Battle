@@ -112,6 +112,7 @@ public class SocketHandler {
         current=null;close(c);
         Platform.runLater(()->{
             boolean playing=roomIdPresent!=null;
+            if(Main.startGameController!=null)Main.startGameController.mediaDisconnected();
             clearSession();
             try{Main.setRoot("login");}catch(IOException e){e.printStackTrace();}
             notifyConnection("Đã mất kết nối. Đang tự kết nối lại...");
@@ -139,6 +140,7 @@ public class SocketHandler {
                 if(!a.success()) {showError(a.message());break;}
                 loginUser=a.username();loggedInUserId=a.userId();ConnectionSettings.rememberUsername(a.username());
                 try {Main.setRoot("home");} catch(IOException e) {showError(e.getMessage());}
+                sendData(Message.of(MessageType.MEDIA_SUPPORT,null));
                 getListOnline();
             }
             case REGISTER_RESULT -> {
@@ -197,6 +199,10 @@ public class SocketHandler {
                 ChatMessage chat=(ChatMessage)m.getPayload();
                 if(Objects.equals(roomIdPresent,chat.matchId())&&Main.startGameController!=null)Main.startGameController.addMessage(chat.senderName()+": "+chat.text());
             }
+            case MEDIA_STATUS -> {if(Main.startGameController!=null)Main.startGameController.mediaPeerState((protocol.dto.MediaMessages.PeerState)m.getPayload());}
+            case MEDIA_ICE_SERVERS -> {if(Main.startGameController!=null)Main.startGameController.mediaIceServers((protocol.dto.MediaMessages.IceConfig)m.getPayload());}
+            case MEDIA_DESCRIPTION -> {if(Main.startGameController!=null)Main.startGameController.mediaDescription((protocol.dto.MediaMessages.Signal)m.getPayload());}
+            case MEDIA_CANDIDATE -> {if(Main.startGameController!=null)Main.startGameController.mediaCandidate((protocol.dto.MediaMessages.Signal)m.getPayload());}
             case RANKING_RESULT -> {
                 Main.leaderboardData=new ArrayList<>((List<String>)m.getPayload());
                 if(Main.rankingController!=null)Main.rankingController.updateLeaderboardTable();

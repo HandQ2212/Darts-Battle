@@ -101,6 +101,17 @@
 .result-label:bust { -fx-text-fill: #b54d30; }
 .rule-text { -fx-font-size: 12px; -fx-text-fill: #866b42; -fx-line-spacing: 3; }
 .chat-panel { -fx-background-color: #fff7df; -fx-background-radius: 16; -fx-border-color: #b18c53; -fx-border-radius: 16; -fx-padding: 14; }
+.communication-tabs { -fx-background-color: #fff7df; -fx-background-radius: 16; -fx-border-color: #b18c53; -fx-border-radius: 16; -fx-padding: 5; }
+.communication-tabs > .tab-content-area { -fx-background-color: transparent; -fx-padding: 8 4 4 4; }
+.communication-tabs > .tab-header-area .tab-header-background { -fx-background-color: transparent; }
+.communication-tabs .tab { -fx-background-color: #eee2c1; -fx-background-radius: 9 9 0 0; -fx-padding: 4 9; }
+.communication-tabs .tab:selected { -fx-background-color: #ffebc2; }
+.communication-tabs .tab-label { -fx-text-fill: #77552e; -fx-font-size: 11px; -fx-font-weight: bold; }
+.call-panel { -fx-background-color: transparent; -fx-padding: 1; }
+.video-frame { -fx-background-color: #33432c; -fx-background-radius: 10; -fx-border-color: #b18c53; -fx-border-radius: 10; }
+.local-video-frame { -fx-background-color: #536a40; -fx-background-radius: 6; -fx-border-color: #fff1cb; -fx-border-radius: 6; -fx-border-width: 2; }
+.call-panel .combo-box { -fx-font-size: 10px; -fx-background-radius: 8; -fx-border-radius: 8; }
+.call-panel .button { -fx-padding: 4 8; -fx-font-size: 11px; }
 .chat-list { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 6 0; -fx-background-insets: 0; }
 .chat-list .virtual-flow, .chat-list .viewport { -fx-background-color: transparent; }
 .chat-list .list-cell { -fx-background-color: transparent; -fx-text-fill: #775b35; -fx-padding: 9 2; -fx-font-size: 12px; }
