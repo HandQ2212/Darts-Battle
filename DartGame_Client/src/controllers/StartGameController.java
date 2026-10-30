@@ -13,6 +13,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.*;
 import javafx.scene.text.*;
+import javafx.scene.image.Image;
 import javafx.util.Duration;
 
 /** Rendering and aiming only: all scores, turns and phase come from the server. */
@@ -25,6 +26,13 @@ public class StartGameController {
     @FXML private Label instructionLabel, phaseLabel, turnLabel, lastThrowLabel, lastThrowScoreLabel;
     @FXML private VBox botTurnOverlay;
     @FXML private BorderPane rootPane;
+    @FXML private javafx.scene.control.TabPane communicationTabs;
+    @FXML private javafx.scene.control.Tab callTab;
+    @FXML private Label mediaStatusLabel;
+    @FXML private Button joinCallButton,leaveCallButton,microphoneButton,cameraButton;
+    @FXML private javafx.scene.control.ComboBox<String> microphoneChoice,speakerChoice,cameraChoice;
+    @FXML private javafx.scene.image.ImageView localVideoView,remoteVideoView;
+    @FXML private Label localVideoPlaceholder,remoteVideoPlaceholder;
     private static final double CX=225,CY=200;
     private final Group board=new Group(), marks=new Group();
     private ui.DartThrowEffects dartEffects;
@@ -39,6 +47,9 @@ public class StartGameController {
     private Line lineX,lineY;
     private Timeline xAnimation,yAnimation;
     private boolean xRunning,yRunning,pending,disposed,finished,sound=true,effects=true;
+    private ui.MediaCallSession mediaCall;
+    private boolean pvpMedia,callJoined,microphoneEnabled,cameraEnabled,peerInCall;
+    private String activeCallId,previousCallId;
     private long displayedTurn=-1;
     private final java.util.List<javafx.scene.media.MediaPlayer> players=new java.util.ArrayList<>();
     private void playEffect(String name) {
@@ -81,6 +92,26 @@ public class StartGameController {
             }
         });
         chatInput.setOnAction(e->handleSend());
+        mediaCall=new ui.MediaCallSession(Main.socketHandler::sendData,
+                text->javafx.application.Platform.runLater(()->{if(!disposed)mediaStatusLabel.setText(text);}),
+                text->javafx.application.Platform.runLater(()->{if(!disposed){mediaStatusLabel.setText(text);Main.notifications().toast("Cuộc gọi",text,"warning");}}),
+                enabled->javafx.application.Platform.runLater(()->{if(!disposed){microphoneEnabled=enabled;microphoneButton.setText(enabled?"Tắt mic":"Bật mic");}}),
+                enabled->javafx.application.Platform.runLater(()->{if(!disposed){cameraEnabled=enabled;cameraButton.setText(enabled?"Tắt camera":"Bật camera");localVideoPlaceholder.setVisible(!enabled);}}),
+                image->javafx.application.Platform.runLater(()->{if(!disposed){localVideoView.setImage(image);localVideoPlaceholder.setVisible(image==null);}}),
+                image->javafx.application.Platform.runLater(()->{if(!disposed){remoteVideoView.setImage(image);remoteVideoPlaceholder.setVisible(image==null);}}),
+                devices->javafx.application.Platform.runLater(()->{
+                    if(disposed)return;
+                    microphoneChoice.getItems().setAll(java.util.stream.Stream.concat(java.util.stream.Stream.of("Mặc định"),devices.microphones().stream()).toList());
+                    speakerChoice.getItems().setAll(java.util.stream.Stream.concat(java.util.stream.Stream.of("Mặc định"),devices.speakers().stream()).toList());
+                    cameraChoice.getItems().setAll(java.util.stream.Stream.concat(java.util.stream.Stream.of("Mặc định"),devices.cameras().stream()).toList());
+                    microphoneChoice.getSelectionModel().selectFirst();speakerChoice.getSelectionModel().selectFirst();cameraChoice.getSelectionModel().selectFirst();
+                }));
+        microphoneChoice.getItems().setAll("Mặc định");speakerChoice.getItems().setAll("Mặc định");cameraChoice.getItems().setAll("Mặc định");
+        microphoneChoice.getSelectionModel().selectFirst();speakerChoice.getSelectionModel().selectFirst();cameraChoice.getSelectionModel().selectFirst();
+        microphoneChoice.setOnAction(e->{if(microphoneEnabled)mediaCall.setMicrophone(true,microphoneChoice.getSelectionModel().getSelectedIndex()-1);});
+        speakerChoice.setOnAction(e->mediaCall.setSpeaker(speakerChoice.getSelectionModel().getSelectedIndex()-1));
+        cameraChoice.setOnAction(e->{if(cameraEnabled)mediaCall.selectCamera(cameraChoice.getSelectionModel().getSelectedIndex()-1);});
+        updateMediaAvailability();
         aimStatusLabel.setDisable(true);
         render(Main.gameViewState.getSnapshot());
     }
@@ -137,6 +168,7 @@ public class StartGameController {
     }
     public void render(MatchSnapshot s) {
         if(disposed || s==null)return;
+        updateMediaAvailability();
         if(displayedTurn!=s.turnId()) {
             rotationEffect.cancel();
             stopAim();pending=false;dartEffects.beginTurn();displayedTurn=s.turnId();
@@ -200,7 +232,7 @@ public class StartGameController {
     private void stopAim() {if(xAnimation!=null)xAnimation.stop();if(yAnimation!=null)yAnimation.stop();xRunning=false;yRunning=false;if(lineX!=null)lineX.setVisible(false);if(lineY!=null)lineY.setVisible(false);}
     public void commandFailed() {if(disposed)return;pending=false;render(Main.gameViewState.getSnapshot());}
     public void finish(MatchSnapshot s) {
-        if(disposed||finished)return;finished=true;pending=false;stopAim();render(s);
+        if(disposed||finished)return;finished=true;pending=false;stopAim();stopMedia(false);render(s);
         boolean won=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
         playEffect(won?"win":"loose");
         String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
@@ -210,7 +242,7 @@ public class StartGameController {
         if(finished){goHome();return;}
         Main.notifications().confirm("Rời trận đấu?","Rời lúc này sẽ bị xử thua. Bạn vẫn muốn về sảnh?","Rời trận",()->{
             if(disposed||finished)return;
-            pending=true;stopAim();aimStatusLabel.setDisable(true);Main.socketHandler.leaveGame();
+            pending=true;stopAim();aimStatusLabel.setDisable(true);stopMedia(true);Main.socketHandler.leaveGame();
         });
     }
     private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
@@ -224,7 +256,61 @@ public class StartGameController {
         try {if(dartImpact!=null)dartImpact.play();else playEffect("dart");}
         catch(RuntimeException e) {System.err.println("Impact audio unavailable: "+e.getMessage());}
     }
-    public void dispose() {disposed=true;stopAim();rotationEffect.cancel();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    private void updateMediaAvailability() {
+        if(communicationTabs==null)return;
+        MatchSnapshot snapshot=Main.gameViewState.getSnapshot();pvpMedia=snapshot!=null&&snapshot.mode()==MatchMode.PVP;
+        if(!pvpMedia&&communicationTabs.getTabs().contains(callTab)){communicationTabs.getTabs().remove(callTab);communicationTabs.getSelectionModel().selectFirst();}
+        else if(pvpMedia&&!communicationTabs.getTabs().contains(callTab))communicationTabs.getTabs().add(callTab);
+    }
+    @FXML private void joinCall() {
+        if(disposed||finished||!pvpMedia||callJoined)return;
+        String matchId=Main.gameViewState.getMatchId();if(matchId==null)return;
+        if(activeCallId!=null)previousCallId=activeCallId;activeCallId=null;
+        callJoined=true;peerInCall=false;joinCallButton.setDisable(true);leaveCallButton.setDisable(false);microphoneButton.setDisable(true);cameraButton.setDisable(true);
+        mediaCall.join(matchId);
+    }
+    @FXML private void leaveCall() {if(activeCallId!=null)previousCallId=activeCallId;activeCallId=null;stopMedia(true);}
+    @FXML private void toggleMicrophone() {if(!callJoined||!peerInCall)return;mediaCall.setMicrophone(!microphoneEnabled,microphoneChoice.getSelectionModel().getSelectedIndex()-1);}
+    @FXML private void toggleCamera() {if(!callJoined||!peerInCall)return;mediaCall.setCamera(!cameraEnabled,cameraChoice.getSelectionModel().getSelectedIndex()-1);}
+    public void mediaPeerState(protocol.dto.MediaMessages.PeerState state) {
+        if(disposed||finished||!java.util.Objects.equals(Main.gameViewState.getMatchId(),state.matchId()))return;
+        boolean ended=state.notice()!=null&&(state.notice().startsWith("Cuộc gọi đã kết thúc")||state.notice().startsWith("Trận đã kết thúc"));
+        if(ended&&callJoined&&state.callId()!=null&&state.callId().equals(previousCallId))return;
+        if(ended&&activeCallId!=null&&!activeCallId.equals(state.callId()))return;
+        if(state.callId()==null||state.callId().isBlank()) {
+            callJoined=false;peerInCall=false;joinCallButton.setDisable(finished);leaveCallButton.setDisable(true);microphoneButton.setDisable(true);cameraButton.setDisable(true);
+        } else if(state.notice()!=null&&state.notice().startsWith("Cuộc gọi đã kết thúc")) {
+            if(activeCallId!=null)previousCallId=activeCallId;activeCallId=null;
+            callJoined=false;peerInCall=false;joinCallButton.setDisable(finished);leaveCallButton.setDisable(true);microphoneButton.setDisable(true);cameraButton.setDisable(true);
+        } else if(state.notice()!=null&&state.notice().startsWith("Trận đã kết thúc")) {
+            if(activeCallId!=null)previousCallId=activeCallId;activeCallId=null;callJoined=false;peerInCall=false;joinCallButton.setDisable(true);leaveCallButton.setDisable(true);microphoneButton.setDisable(true);cameraButton.setDisable(true);
+        } else {
+            activeCallId=state.callId();callJoined=true;peerInCall=state.peerJoined();joinCallButton.setDisable(true);leaveCallButton.setDisable(false);
+            microphoneButton.setDisable(!peerInCall);cameraButton.setDisable(!peerInCall);
+        }
+        mediaCall.onPeerState(state);
+    }
+    public void mediaIceServers(protocol.dto.MediaMessages.IceConfig config) {if(!disposed){if(config.callId()!=null)activeCallId=config.callId();mediaCall.onIceConfig(config);}}
+    public void mediaDescription(protocol.dto.MediaMessages.Signal signal) {if(!disposed)mediaCall.onDescription(signal);}
+    public void mediaCandidate(protocol.dto.MediaMessages.Signal signal) {if(!disposed)mediaCall.onCandidate(signal);}
+    public void mediaRequestFailed(String message) {
+        if(disposed||!callJoined)return;
+        mediaCall.cancel();
+        callJoined=false;peerInCall=false;joinCallButton.setDisable(finished);leaveCallButton.setDisable(true);microphoneButton.setDisable(true);cameraButton.setDisable(true);mediaStatusLabel.setText(message);
+    }
+    public void mediaDisconnected() {stopMedia(false);}
+    private void stopMedia(boolean notifyServer) {
+        if(mediaCall!=null){if(notifyServer)mediaCall.leave();else mediaCall.close(false);}
+        if(!notifyServer){previousCallId=activeCallId;activeCallId=null;}
+        callJoined=false;peerInCall=false;microphoneEnabled=false;cameraEnabled=false;
+        if(joinCallButton!=null)joinCallButton.setDisable(finished||!pvpMedia);
+        if(leaveCallButton!=null)leaveCallButton.setDisable(true);
+        if(microphoneButton!=null){microphoneButton.setDisable(true);microphoneButton.setText("Bật mic");}
+        if(cameraButton!=null){cameraButton.setDisable(true);cameraButton.setText("Bật camera");}
+        if(localVideoView!=null)localVideoView.setImage(null);if(remoteVideoView!=null)remoteVideoView.setImage(null);
+        if(localVideoPlaceholder!=null)localVideoPlaceholder.setVisible(true);if(remoteVideoPlaceholder!=null)remoteVideoPlaceholder.setVisible(true);
+    }
+    public void dispose() {if(mediaCall!=null)mediaCall.close(!finished&&Main.socketHandler!=null&&Main.socketHandler.isConnected());disposed=true;stopAim();rotationEffect.cancel();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
     @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"Nhạc: bật":"Nhạc: tắt");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
     @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
 }

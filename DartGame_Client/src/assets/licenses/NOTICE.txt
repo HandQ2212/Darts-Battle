@@ -1,0 +1,4 @@
+Darts Battle includes webrtc-java 0.20.0, provided under the Apache License 2.0.
+The native WebRTC and NVIDIA notices for the selected platform are embedded in
+the accompanying webrtc-java native JAR under META-INF/licenses/.
+The complete Apache License 2.0 text is in this directory as Apache-2.0.txt.

@@ -6,6 +6,7 @@ import models.Room;
 import protocol.*;
 import protocol.dto.*;
 import protocol.dto.GameMessages.*;
+import protocol.dto.MediaMessages.*;
 import services.*;
 import network.*;
 import javax.net.ssl.SSLContext;
@@ -52,7 +53,7 @@ public class MultiplayerIntegrationTest {
             username=name;send(MessageType.REGISTER_REQUEST,new LoginRequest(name,"secret123"));
             AuthResponse registered=(AuthResponse)take(MessageType.REGISTER_RESULT).getPayload();check(registered.success(),"register "+name);
             send(MessageType.LOGIN_REQUEST,new LoginRequest(name,"secret123"));
-            AuthResponse auth=(AuthResponse)take(MessageType.LOGIN_RESULT).getPayload();check(auth.success(),"login "+name);userId=auth.userId();
+            AuthResponse auth=(AuthResponse)take(MessageType.LOGIN_RESULT).getPayload();check(auth.success(),"login "+name);userId=auth.userId();send(MessageType.MEDIA_SUPPORT,null);
         }
         MatchSnapshot snapshot(MessageType type) throws Exception {return (MatchSnapshot)take(type).getPayload();}
         public void close() throws Exception {socket.close();}
@@ -76,6 +77,45 @@ public class MultiplayerIntegrationTest {
         MatchSnapshot applied=a.snapshot(MessageType.ROTATION_APPLIED);a.take(MessageType.TURN_STARTED);
         if(b!=null){check(applied.equals(b.snapshot(MessageType.ROTATION_APPLIED)),"both peers share automatic rotation");b.take(MessageType.TURN_STARTED);}
         check(applied.rotationDegree()==s.rotationDegree()&&applied.rotationDegree()>=0&&applied.rotationDegree()<360&&applied.status()==MatchStatus.PLAYING,"server automatically chooses and applies rotation");return applied;
+    }
+    static void mediaProtocol(Peer a,Peer b,Peer outsider,MatchSnapshot match) throws Exception {
+        a.send(MessageType.MEDIA_JOIN,new MediaMessages.JoinRequest(match.matchId()));
+        IceConfig first=(IceConfig)a.take(MessageType.MEDIA_ICE_SERVERS,m->((IceConfig)m.getPayload()).matchId().equals(match.matchId())).getPayload();
+        PeerState waiting=(PeerState)a.take(MessageType.MEDIA_STATUS,m->((PeerState)m.getPayload()).callId().equals(first.callId())).getPayload();
+        check(!waiting.peerJoined()&&first.callId()!=null&&!first.callId().isBlank(),"first call participant waits with a scoped call id");
+        boolean hasTurn=first.servers().stream().anyMatch(s->s.urls().stream().anyMatch(url->url.startsWith("turn:")||url.startsWith("turns:")));
+        check(first.turnAvailable()==hasTurn&&first.servers().stream().anyMatch(s->s.urls().stream().anyMatch(url->url.startsWith("stun:"))),"ICE configuration reports TURN availability and retains STUN fallback");
+        if(Boolean.parseBoolean(System.getenv("DARTS_REQUIRE_TURN")))check(first.turnAvailable()&&hasTurn,"configured TURN credentials delivered to first participant");
+        b.send(MessageType.MEDIA_JOIN,new MediaMessages.JoinRequest(match.matchId()));
+        IceConfig second=(IceConfig)b.take(MessageType.MEDIA_ICE_SERVERS,m->((IceConfig)m.getPayload()).matchId().equals(match.matchId())).getPayload();
+        boolean secondHasTurn=second.servers().stream().anyMatch(s->s.urls().stream().anyMatch(url->url.startsWith("turn:")||url.startsWith("turns:")));
+        if(Boolean.parseBoolean(System.getenv("DARTS_REQUIRE_TURN")))check(second.turnAvailable()&&secondHasTurn,"configured TURN credentials delivered to second participant");
+        PeerState aReady=(PeerState)a.take(MessageType.MEDIA_STATUS,m->{PeerState s=(PeerState)m.getPayload();return s.matchId().equals(match.matchId())&&s.peerJoined();}).getPayload();
+        PeerState bReady=(PeerState)b.take(MessageType.MEDIA_STATUS,m->{PeerState s=(PeerState)m.getPayload();return s.matchId().equals(match.matchId())&&s.peerJoined();}).getPayload();
+        check(first.callId().equals(second.callId())&&aReady.offerer()&&!bReady.offerer(),"both participants receive one session; player one is sole offerer");
+        outsider.send(MessageType.MEDIA_JOIN,new MediaMessages.JoinRequest(match.matchId()));
+        PeerState denied=(PeerState)outsider.take(MessageType.MEDIA_STATUS,m->((PeerState)m.getPayload()).matchId().equals(match.matchId())).getPayload();
+        check(denied.callId().isBlank()&&!denied.peerJoined(),"client outside the match cannot join its call");
+        String sdp="v=0\\r\\no=darts 1 1 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\n";
+        outsider.send(MessageType.MEDIA_DESCRIPTION,new Signal(match.matchId(),first.callId(),"OFFER",sdp,null,0,0));outsider.take(MessageType.ERROR);
+        check(true,"client outside the match cannot signal the call");
+        a.send(MessageType.MEDIA_DESCRIPTION,new Signal(match.matchId(),first.callId(),"OFFER",sdp,null,0,0));
+        Signal forwarded=(Signal)b.take(MessageType.MEDIA_DESCRIPTION,m->((Signal)m.getPayload()).callId().equals(first.callId())).getPayload();
+        check(forwarded.senderId()==a.userId&&forwarded.value().equals(sdp),"server stamps sender identity when forwarding SDP");
+        b.send(MessageType.MEDIA_CANDIDATE,new Signal(match.matchId(),first.callId(),"ICE","candidate:1 1 UDP 1 127.0.0.1 5000 typ host","0",0,Long.MAX_VALUE));
+        Signal candidate=(Signal)a.take(MessageType.MEDIA_CANDIDATE,m->((Signal)m.getPayload()).callId().equals(first.callId())).getPayload();
+        check(candidate.senderId()==b.userId&&candidate.value().startsWith("candidate:"),"server forwards bounded ICE candidate with authenticated sender");
+        b.send(MessageType.MEDIA_DESCRIPTION,new Signal(match.matchId(),first.callId(),"OFFER",sdp,null,0,0));b.take(MessageType.ERROR);
+        a.send(MessageType.MEDIA_DESCRIPTION,new Signal(match.matchId(),first.callId(),"OFFER","x".repeat(65537),null,0,0));a.take(MessageType.ERROR);
+        a.send(MessageType.MEDIA_LEAVE,match.matchId());
+        PeerState ended=(PeerState)b.take(MessageType.MEDIA_STATUS,m->{PeerState s=(PeerState)m.getPayload();return s.matchId().equals(match.matchId())&&s.notice().startsWith("Cuộc gọi đã kết thúc");}).getPayload();
+        check(!ended.peerJoined(),"leaving ends the shared call for both players");
+        a.send(MessageType.MEDIA_CANDIDATE,new Signal(match.matchId(),first.callId(),"ICE","candidate:old","0",0,0));a.take(MessageType.ERROR);
+        b.send(MessageType.MEDIA_JOIN,new MediaMessages.JoinRequest(match.matchId()));
+        IceConfig restarted=(IceConfig)b.take(MessageType.MEDIA_ICE_SERVERS,m->((IceConfig)m.getPayload()).matchId().equals(match.matchId())).getPayload();
+        check(!restarted.callId().equals(first.callId()),"players can start a fresh call after leaving");
+        b.send(MessageType.MEDIA_LEAVE,match.matchId());
+        b.take(MessageType.MEDIA_STATUS,m->((PeerState)m.getPayload()).callId().equals(restarted.callId()));
     }
     static ThrowResolvedResponse hit(Peer a,Peer b,MatchSnapshot s,double x,double y) throws Exception {
         ThrowCoordinateRequest req=new ThrowCoordinateRequest(s.matchId(),s.turnId(),s.dartsThrown()+1,UUID.randomUUID().toString(),x,y);
@@ -129,6 +169,7 @@ public class MultiplayerIntegrationTest {
             check(RoomManager.getInstance().getRoom(cancelled.matchId())==null,"leaving during rotation cannot restart a match");
             System.setProperty("darts.rotationDelayMillis","25");
             MatchSnapshot ab=match(a,b),cd=match(c,d);ab=awaitRotation(a,b,ab);cd=awaitRotation(c,d,cd);
+            mediaProtocol(a,b,c,ab);
             a.send(MessageType.CREATE_BOT_MATCH,null);a.take(MessageType.ERROR);check(RoomManager.getInstance().allRooms().size()==2,"one room per user");
             c.send(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(ab.matchId(),ab.turnId(),1,"outsider",0,0));c.take(MessageType.ERROR);
             b.send(MessageType.THROW_COORDINATE,new ThrowCoordinateRequest(ab.matchId(),ab.turnId(),1,"wrongturn",0,0));b.take(MessageType.ERROR);

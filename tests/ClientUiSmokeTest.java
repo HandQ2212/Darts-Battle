@@ -71,6 +71,8 @@ public class ClientUiSmokeTest {
                 }
                 MatchSnapshot initial=snap(1,1,0,MatchStatus.PLAYING,1L);Main.gameViewState.begin(initial,1);
                 FXMLLoader loader=new FXMLLoader(Main.class.getResource("/views/startgame.fxml"));Parent root=loader.load();StartGameController game=loader.getController();
+                javafx.scene.control.TabPane communication=(javafx.scene.control.TabPane)root.lookup("#communicationTabs");
+                check(communication.getTabs().size()==2&&root.lookup("#joinCallButton")!=null,"PvP game includes separate chat and call tabs");
                 ((Button)root.lookup("#effectSoundButton")).fire();
                 Label start=(Label)root.lookup("#aimStatusLabel");
                 check(root.lookup("#rotateButton")==null&&root.lookup("#angleInput")==null,"manual rotation controls removed");
@@ -81,6 +83,10 @@ public class ClientUiSmokeTest {
                 check(root.lookupAll(".score-value").size()==2,"both remaining scores visible");
                 preview(root,"game-minimum",1040,780);
                 for(String id:new String[]{"#gamePane","#scoreboardPane","#aimStatusLabel","#chatInput"})fits(root,id);
+                communication.getSelectionModel().select(1);root.applyCss();root.layout();
+                for(String id:new String[]{"#mediaStatusLabel","#microphoneChoice","#speakerChoice","#cameraChoice","#joinCallButton","#microphoneButton","#cameraButton"})fits(root,id);
+                check(((Button)root.lookup("#microphoneButton")).isDisabled()&&((Button)root.lookup("#cameraButton")).isDisabled(),"media devices start disabled until both players join the call");
+                communication.getSelectionModel().select(0);root.applyCss();root.layout();
                 for(String id:new String[]{"#rulesLabel","#bustRuleLabel"}) {
                     Label rule=(Label)root.lookup(id);
                     check(rule.getHeight()>=rule.prefHeight(rule.getWidth())-1,id+" shows full instructions without clipping");
