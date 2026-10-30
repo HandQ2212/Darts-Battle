@@ -43,6 +43,14 @@ public class WindowNavigationTest {
                 check(!mode.equals("maximized") || stage.isMaximized(), "Maximized state lost on " + page);
                 check(!mode.equals("fullscreen") || stage.isFullScreen(), "Fullscreen state lost on " + page);
                 check(stage.getMinWidth() == 1040 && stage.getMinHeight() == 780, "Minimum size changed on " + page);
+                if(page.equals("startgame")){
+                    var root=Main.notifications().root();root.applyCss();root.layout();
+                    var board=root.lookup("#gamePane");var left=(javafx.scene.layout.Region)root.lookup("#leftColumn");var right=(javafx.scene.layout.Region)root.lookup("#rightColumn");
+                    var area=board.localToScene(board.getBoundsInLocal());
+                    check(close(left.getWidth(),right.getWidth()),mode+" side columns are unequal");
+                    check(close((area.getMinX()+area.getMaxX())/2,stage.getScene().getWidth()/2),mode+" dartboard is not centered");
+                    check(area.getMinX()>=0&&area.getMaxX()<=stage.getScene().getWidth()&&area.getMinY()>=0&&area.getMaxY()<=stage.getScene().getHeight(),mode+" dartboard is clipped");
+                }
                 return null;
             });
         }

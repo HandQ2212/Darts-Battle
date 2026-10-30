@@ -187,7 +187,7 @@ public class SocketHandler {
             }
             case THROW_RESOLVED -> {
                 ThrowResolvedResponse res=(ThrowResolvedResponse)m.getPayload();
-                if(Main.gameViewState.apply(res.getSnapshot())&&Main.startGameController!=null)Main.startGameController.showThrow(res);
+                if(Main.gameViewState.applyThrow(res)&&Main.startGameController!=null)Main.startGameController.showThrow(res);
             }
             case MATCH_FINISHED -> {
                 MatchSnapshot s=(MatchSnapshot)m.getPayload();
