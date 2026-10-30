@@ -10,6 +10,7 @@ import protocol.Message;
 import protocol.MessageType;
 import protocol.dto.MediaMessages.*;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,6 +22,7 @@ public final class MediaCallSession implements AutoCloseable {
     private final Consumer<Message> send;
     private final Consumer<String> status;
     private final Consumer<String> error;
+    private final Consumer<String> connectionFailure;
     private final Consumer<Boolean> micState,cameraState;
     private final Consumer<Image> localFrame,remoteFrame;
     private final Consumer<DeviceLists> deviceLists;
@@ -30,6 +32,11 @@ public final class MediaCallSession implements AutoCloseable {
     private volatile boolean closed;
     private String matchId,callId,lastEndedCallId;
     private boolean joined,peerJoined,offerer,remoteDescriptionSet,microphoneEnabled,cameraEnabled,turnAvailable,devicesEnumerated;
+    private boolean answerPending;
+    private Boolean pendingMicrophone,pendingCamera;
+    private int pendingMicrophoneDevice,pendingCameraDevice;
+    private volatile long peerGeneration;
+    private volatile long localVideoEpoch;
     private IceConfig iceConfig;
     private PeerConnectionFactory factory;
     private AudioDeviceModule audioModule;
@@ -43,23 +50,27 @@ public final class MediaCallSession implements AutoCloseable {
     private VideoTrack videoTrack;
     private volatile VideoTrack remoteVideoTrack;
     private volatile AudioTrack remoteAudioTrack;
+    private RTCDataChannel mediaStateChannel;
+    private volatile Boolean remoteCameraEnabled;
     private final VideoTrackSink localSink,remoteSink;
+    private final MediaStreamTrackMuteListener remoteMuteListener;
     private final ArrayList<String> microphoneNames=new ArrayList<>(),speakerNames=new ArrayList<>();
     private final ArrayList<AudioDevice> microphones=new ArrayList<>(),speakers=new ArrayList<>();
     private final ArrayList<VideoDevice> cameras=new ArrayList<>();
 
-    public MediaCallSession(Consumer<Message> send,Consumer<String> status,Consumer<String> error,
+    public MediaCallSession(Consumer<Message> send,Consumer<String> status,Consumer<String> error,Consumer<String> connectionFailure,
             Consumer<Boolean> micState,Consumer<Boolean> cameraState,Consumer<Image> localFrame,
             Consumer<Image> remoteFrame,Consumer<DeviceLists> deviceLists) {
-        this.send=send;this.status=status;this.error=error;this.micState=micState;this.cameraState=cameraState;
+        this.send=send;this.status=status;this.error=error;this.connectionFailure=connectionFailure;this.micState=micState;this.cameraState=cameraState;
         this.localFrame=localFrame;this.remoteFrame=remoteFrame;this.deviceLists=deviceLists;
-        this.localSink=frame->renderFrame(frame,this.localFrame,localFrameQueued);
-        this.remoteSink=frame->renderFrame(frame,this.remoteFrame,remoteFrameQueued);
+        this.localSink=frame->{long generation=peerGeneration,epoch=localVideoEpoch;renderFrame(frame,image->{if(generation==peerGeneration&&epoch==localVideoEpoch)this.localFrame.accept(image);},localFrameQueued);};
+        this.remoteSink=frame->{long generation=peerGeneration;if(!Boolean.FALSE.equals(remoteCameraEnabled))renderFrame(frame,image->{if(generation==peerGeneration&&!Boolean.FALSE.equals(remoteCameraEnabled))this.remoteFrame.accept(image);},remoteFrameQueued);};
+        this.remoteMuteListener=(track,muted)->{if(muted&&track==remoteVideoTrack&&peer!=null)this.remoteFrame.accept(null);};
     }
 
     public void join(String id) { post(()->{matchId=id;joined=true;status.accept("Đang kết nối cuộc gọi…");send.accept(Message.of(MessageType.MEDIA_JOIN,new JoinRequest(id)));}); }
     public void onPeerState(PeerState value) { post(()->{
-        if(!Objects.equals(matchId,value.matchId()))return;
+        if(!joined||!Objects.equals(matchId,value.matchId()))return;
         boolean endedNotice=value.notice()!=null&&(value.notice().startsWith("Cuộc gọi đã kết thúc")||value.notice().startsWith("Trận đã kết thúc"));
         if(endedNotice&&joined&&value.callId()!=null&&value.callId().equals(lastEndedCallId))return;
         if(endedNotice&&callId!=null&&!Objects.equals(callId,value.callId()))return;
@@ -69,7 +80,7 @@ public final class MediaCallSession implements AutoCloseable {
         if(peerJoined){ensurePeer();negotiateIfReady();}
     }); }
     public void onIceConfig(IceConfig value) { post(()->{
-        if(!Objects.equals(matchId,value.matchId()))return;
+        if(!joined||!Objects.equals(matchId,value.matchId())||Objects.equals(lastEndedCallId,value.callId()))return;
         callId=value.callId();boolean refresh=iceConfig!=null;iceConfig=value;turnAvailable=value.turnAvailable();ensurePeer();negotiateIfReady();
         if(!turnAvailable)status.accept("Đang gọi trực tiếp · chưa có kết nối dự phòng TURN");
         if(refresh&&peer!=null)updateIceServers(value);
@@ -79,8 +90,8 @@ public final class MediaCallSession implements AutoCloseable {
         if(!valid(signal))return;
         RTCSdpType type="OFFER".equals(signal.descriptionType())?RTCSdpType.OFFER:RTCSdpType.ANSWER;
         peer.setRemoteDescription(new RTCSessionDescription(type,signal.value()),new SetSessionDescriptionObserver(){
-            public void onSuccess(){post(()->{remoteDescriptionSet=true;flushCandidates();if(type==RTCSdpType.OFFER)createAnswer();});}
-            public void onFailure(String message){post(()->error.accept("Không thể thiết lập kết nối cuộc gọi."));}
+            public void onSuccess(){post(()->{remoteDescriptionSet=true;flushCandidates();if(type==RTCSdpType.OFFER){answerPending=true;maybeCreateAnswer();}});}
+            public void onFailure(String message){post(()->failConnection("Không thể thiết lập kết nối mic/video."));}
         });
     }); }
     public void onCandidate(Signal signal) { post(()->{
@@ -95,24 +106,84 @@ public final class MediaCallSession implements AutoCloseable {
         if(factory==null)return;
         RTCConfiguration settings=new RTCConfiguration();
         for(IceServer source:iceConfig.servers()) {RTCIceServer server=new RTCIceServer();server.urls=new ArrayList<>(source.urls());server.username=source.username();server.password=source.credential();settings.iceServers.add(server);}
+        long generation=++peerGeneration;
         peer=factory.createPeerConnection(settings,new PeerConnectionObserver(){
             @Override public void onIceCandidate(RTCIceCandidate candidate){
                 if(candidate==null||candidate.sdp==null||candidate.sdp.length()>2048)return;
                 post(()->send.accept(Message.of(MessageType.MEDIA_CANDIDATE,new Signal(matchId,callId,"ICE",candidate.sdp,candidate.sdpMid,candidate.sdpMLineIndex,0))));
             }
-            @Override public void onConnectionChange(RTCPeerConnectionState state){post(()->{String message=switch(state){case CONNECTED->"Đã kết nối mic/video";case CONNECTING->"Đang thiết lập kết nối…";case FAILED->"Không kết nối được. Hãy thử rời và tham gia lại.";case DISCONNECTED->"Kết nối bị gián đoạn";case CLOSED->"Cuộc gọi đã đóng";default->"Đang chờ kết nối…";};if(!turnAvailable)message+=" · chưa có kết nối dự phòng TURN";status.accept(message);});}
+            @Override public void onConnectionChange(RTCPeerConnectionState state){post(()->{
+                if(generation!=peerGeneration||!joined)return;
+                if(state==RTCPeerConnectionState.FAILED||state==RTCPeerConnectionState.DISCONNECTED){
+                    String message="Kết nối mic/video bị gián đoạn. Bấm mic hoặc camera để thử lại.";
+                    failConnection(message);return;
+                }
+                String message=switch(state){case CONNECTED->"Đã kết nối mic/video";case CONNECTING->"Đang thiết lập kết nối…";case CLOSED->"Cuộc gọi đã đóng";default->"Đang chờ kết nối…";};
+                if(!turnAvailable)message+=" · chưa có kết nối dự phòng TURN";status.accept(message);
+            });}
             @Override public void onTrack(RTCRtpTransceiver transceiver){
                 RTCRtpReceiver receiver=transceiver.getReceiver();var track=receiver.getTrack();
-                if(track instanceof AudioTrack remoteAudio){remoteAudio.setVolume(1.0);post(()->{remoteAudioTransceiver=transceiver;remoteAudioReceiver=receiver;remoteAudioTrack=remoteAudio;});}
-                if(track instanceof VideoTrack remoteVideo){post(()->{remoteVideoTransceiver=transceiver;remoteVideoReceiver=receiver;attachRemoteVideo(remoteVideo);});}
+                if(track instanceof AudioTrack remoteAudio){remoteAudio.setVolume(1.0);post(()->{
+                    if(generation!=peerGeneration)return;
+                    remoteAudioTransceiver=transceiver;remoteAudioReceiver=receiver;remoteAudioTrack=remoteAudio;
+                    if(!offerer){transceiver.setDirection(RTCRtpTransceiverDirection.SEND_RECV);audioTransceiver=transceiver;audioSender=transceiver.getSender();}
+                    maybeCreateAnswer();applyPendingDevices();
+                });}
+                if(track instanceof VideoTrack remoteVideo){post(()->{
+                    if(generation!=peerGeneration)return;
+                    remoteVideoTransceiver=transceiver;remoteVideoReceiver=receiver;attachRemoteVideo(remoteVideo);
+                    if(!offerer){transceiver.setDirection(RTCRtpTransceiverDirection.SEND_RECV);videoTransceiver=transceiver;videoSender=transceiver.getSender();}
+                    maybeCreateAnswer();applyPendingDevices();
+                });}
             }
+            @Override public void onDataChannel(RTCDataChannel channel){post(()->{
+                if(generation==peerGeneration&&"darts-media-state".equals(channel.getLabel()))attachMediaChannel(channel,generation);
+                else {try{channel.close();channel.dispose();}catch(RuntimeException ignored){}}
+            });}
         });
         peer.setAudioRecording(false);peer.setAudioPlayout(true);
-        RTCRtpTransceiverInit direction=new RTCRtpTransceiverInit();direction.direction=RTCRtpTransceiverDirection.SEND_RECV;direction.streamIds=new ArrayList<>(List.of("darts-match"));
-        audioTransceiver=peer.addTransceiver(MediaType.AUDIO,direction);audioSender=audioTransceiver.getSender();
-        RTCRtpTransceiverInit videoDirection=new RTCRtpTransceiverInit();videoDirection.direction=RTCRtpTransceiverDirection.SEND_RECV;videoDirection.streamIds=new ArrayList<>(List.of("darts-match"));
-        videoTransceiver=peer.addTransceiver(MediaType.VIDEO,videoDirection);videoSender=videoTransceiver.getSender();
+        if(offerer){
+            RTCRtpTransceiverInit direction=new RTCRtpTransceiverInit();direction.direction=RTCRtpTransceiverDirection.SEND_RECV;direction.streamIds=new ArrayList<>(List.of("darts-match"));
+            audioTransceiver=peer.addTransceiver(MediaType.AUDIO,direction);audioSender=audioTransceiver.getSender();
+            RTCRtpTransceiverInit videoDirection=new RTCRtpTransceiverInit();videoDirection.direction=RTCRtpTransceiverDirection.SEND_RECV;videoDirection.streamIds=new ArrayList<>(List.of("darts-match"));
+            videoTransceiver=peer.addTransceiver(MediaType.VIDEO,videoDirection);videoSender=videoTransceiver.getSender();
+            try{attachMediaChannel(peer.createDataChannel("darts-media-state",new RTCDataChannelInit()),generation);}catch(RuntimeException e){status.accept("Không thể đồng bộ trạng thái camera.");}
+            applyPendingDevices();
+        }
         status.accept("Đang thiết lập kết nối…");
+    }
+    private void maybeCreateAnswer(){
+        if(answerPending&&audioSender!=null&&videoSender!=null){answerPending=false;createAnswer();}
+    }
+    private void applyPendingDevices(){
+        if(audioSender!=null&&pendingMicrophone!=null){boolean enabled=pendingMicrophone;int device=pendingMicrophoneDevice;pendingMicrophone=null;setMicrophone(enabled,device);}
+        if(videoSender!=null&&pendingCamera!=null){boolean enabled=pendingCamera;int device=pendingCameraDevice;pendingCamera=null;setCamera(enabled,device);}
+    }
+    private void attachMediaChannel(RTCDataChannel channel,long generation){
+        mediaStateChannel=channel;
+        channel.registerObserver(new RTCDataChannelObserver(){
+            public void onBufferedAmountChange(long previous){}
+            public void onStateChange(){post(()->{if(generation==peerGeneration&&mediaStateChannel==channel)sendCameraState();});}
+            public void onMessage(RTCDataChannelBuffer message){
+                ByteBuffer bytes=message.data.slice();if(message.binary||bytes.remaining()>32)return;
+                byte[] data=new byte[bytes.remaining()];bytes.get(data);String text=new String(data,StandardCharsets.UTF_8);
+                post(()->{
+                    if(generation!=peerGeneration||mediaStateChannel!=channel)return;
+                    if("camera:off".equals(text)){remoteCameraEnabled=false;remoteFrame.accept(null);}
+                    else if("camera:on".equals(text))remoteCameraEnabled=true;
+                });
+            }
+        });
+        sendCameraState();
+    }
+    private void sendCameraState(){
+        if(mediaStateChannel==null)return;
+        try{
+            if(mediaStateChannel.getState()==RTCDataChannelState.OPEN){
+                byte[] data=(cameraEnabled?"camera:on":"camera:off").getBytes(StandardCharsets.UTF_8);
+                mediaStateChannel.send(new RTCDataChannelBuffer(ByteBuffer.wrap(data),false));
+            }
+        }catch(Exception ignored){}
     }
     private void updateIceServers(IceConfig config){
         try {
@@ -125,12 +196,13 @@ public final class MediaCallSession implements AutoCloseable {
     private void initializeFactory(){
         try {
             audioModule=new AudioDeviceModule();factory=new PeerConnectionFactory(audioModule);
-            audioModule.setMicrophoneMute(true);
         } catch(Throwable e){
+            if(e instanceof VirtualMachineError fatal)throw fatal;
+            if(factory!=null)try{factory.dispose();}catch(Throwable ignored){}factory=null;
             if(audioModule!=null)try{audioModule.dispose();}catch(RuntimeException ignored){}
             audioModule=null;
             try{factory=new PeerConnectionFactory();error.accept("Đang dùng thiết bị âm thanh hệ thống mặc định.");}
-            catch(Throwable fallback){factory=null;error.accept("Không khởi tạo được WebRTC: "+safeMessage(fallback));}
+            catch(Throwable fallback){if(fallback instanceof VirtualMachineError fatal)throw fatal;factory=null;failConnection("Không khởi tạo được WebRTC: "+safeMessage(fallback));}
         }
     }
     private void negotiateIfReady(){
@@ -142,18 +214,18 @@ public final class MediaCallSession implements AutoCloseable {
         peer.createOffer(options,new CreateSessionDescriptionObserver(){
             public void onSuccess(RTCSessionDescription description){peer.setLocalDescription(description,new SetSessionDescriptionObserver(){
                 public void onSuccess(){post(()->sendDescription("OFFER",peer.getLocalDescription().sdp));}
-                public void onFailure(String message){post(()->error.accept("Không thể tạo lời mời cuộc gọi."));}
+                public void onFailure(String message){post(()->failConnection("Không thể tạo kết nối mic/video."));}
             });}
-            public void onFailure(String message){post(()->error.accept("Không thể tạo lời mời cuộc gọi."));}
+            public void onFailure(String message){post(()->failConnection("Không thể tạo kết nối mic/video."));}
         });
     }
     private void createAnswer(){
         peer.createAnswer(new RTCAnswerOptions(),new CreateSessionDescriptionObserver(){
             public void onSuccess(RTCSessionDescription description){peer.setLocalDescription(description,new SetSessionDescriptionObserver(){
                 public void onSuccess(){post(()->sendDescription("ANSWER",peer.getLocalDescription().sdp));}
-                public void onFailure(String message){post(()->error.accept("Không thể chấp nhận cuộc gọi."));}
+                public void onFailure(String message){post(()->failConnection("Không thể chấp nhận kết nối mic/video."));}
             });}
-            public void onFailure(String message){post(()->error.accept("Không thể chấp nhận cuộc gọi."));}
+            public void onFailure(String message){post(()->failConnection("Không thể chấp nhận kết nối mic/video."));}
         });
     }
     private void sendDescription(String type,String sdp){if(sdp!=null&&sdp.length()<=65536)send.accept(Message.of(MessageType.MEDIA_DESCRIPTION,new Signal(matchId,callId,type,sdp,null,0,0)));else error.accept("Dữ liệu kết nối quá lớn.");}
@@ -161,34 +233,50 @@ public final class MediaCallSession implements AutoCloseable {
     private void flushCandidates(){for(Signal item:new ArrayList<>(pendingCandidates))addCandidate(item);pendingCandidates.clear();}
     private void enumerateDevices(){
         try{microphones.clear();microphones.addAll(audioModule==null?MediaDevices.getAudioCaptureDevices():audioModule.getRecordingDevices());microphoneNames.clear();microphones.forEach(d->microphoneNames.add(d.getName()));}
-        catch(RuntimeException e){error.accept("Không thể liệt kê micro: "+safeMessage(e));}
+        catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;error.accept("Không thể liệt kê micro: "+safeMessage(e));}
         try{speakers.clear();speakers.addAll(audioModule==null?MediaDevices.getAudioRenderDevices():audioModule.getPlayoutDevices());speakerNames.clear();speakers.forEach(d->speakerNames.add(d.getName()));}
-        catch(RuntimeException e){error.accept("Không thể liệt kê loa: "+safeMessage(e));}
+        catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;error.accept("Không thể liệt kê loa: "+safeMessage(e));}
         try{cameras.clear();cameras.addAll(MediaDevices.getVideoCaptureDevices());}
-        catch(RuntimeException e){error.accept("Không thể liệt kê camera: "+safeMessage(e));}
+        catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;error.accept("Không thể liệt kê camera: "+safeMessage(e));}
         deviceLists.accept(new DeviceLists(new ArrayList<>(microphoneNames),new ArrayList<>(speakerNames),cameras.stream().map(Device::getName).toList()));
     }
     private int audioInputDeviceIndex=-1;
     public void setMicrophone(boolean enabled,int deviceIndex){post(()->{
-        if(!ready())return;
+        if(!joined)return;
+        if(!ready()||audioSender==null){pendingMicrophone=enabled;pendingMicrophoneDevice=deviceIndex;return;}
+        pendingMicrophone=null;
         try {
             if(enabled&&audioTrack==null){
-                if(audioModule!=null&&deviceIndex>=0&&deviceIndex<microphones.size())audioModule.setRecordingDevice(microphones.get(deviceIndex));
+                if(audioModule!=null)audioModule.setRecordingDevice(recordingDevice(deviceIndex));
                 audioInputDeviceIndex=deviceIndex;
                 AudioOptions options=new AudioOptions();options.echoCancellation=true;options.autoGainControl=true;options.noiseSuppression=true;options.highpassFilter=true;
                 audioSource=factory.createAudioSource(options);audioTrack=factory.createAudioTrack("darts-audio",audioSource);audioTrack.setEnabled(true);audioSender.replaceTrack(audioTrack);
             }
-            else if(enabled&&audioModule!=null&&deviceIndex>=0&&deviceIndex<microphones.size()&&deviceIndex!=audioInputDeviceIndex){peer.setAudioRecording(false);audioModule.setRecordingDevice(microphones.get(deviceIndex));audioInputDeviceIndex=deviceIndex;peer.setAudioRecording(true);}
+            else if(enabled&&audioModule!=null&&deviceIndex!=audioInputDeviceIndex){peer.setAudioRecording(false);audioModule.setRecordingDevice(recordingDevice(deviceIndex));audioInputDeviceIndex=deviceIndex;peer.setAudioRecording(true);}
             microphoneEnabled=enabled;
             if(audioTrack!=null)audioTrack.setEnabled(enabled);
-            if(audioModule!=null)audioModule.setMicrophoneMute(!enabled);peer.setAudioRecording(enabled);micState.accept(enabled);
-        }catch(RuntimeException e){microphoneEnabled=false;if(audioTrack!=null)audioTrack.setEnabled(false);if(audioModule!=null)try{audioModule.setMicrophoneMute(true);}catch(RuntimeException ignored){}try{peer.setAudioRecording(false);}catch(RuntimeException ignored){}micState.accept(false);error.accept("Không mở được micro: "+safeMessage(e));}
+            peer.setAudioRecording(enabled);micState.accept(enabled);
+        }catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;microphoneEnabled=false;if(audioTrack!=null)try{audioTrack.setEnabled(false);}catch(Throwable ignored){}try{peer.setAudioRecording(false);}catch(Throwable ignored){}micState.accept(false);error.accept("Không mở được micro: "+safeMessage(e));}
     });}
-    public void setSpeaker(int deviceIndex){post(()->{if(deviceIndex>=0&&deviceIndex<speakers.size())try{if(audioModule!=null)audioModule.setPlayoutDevice(speakers.get(deviceIndex));else if(factory!=null)MediaDevices.getDefaultAudioRenderDevice();}catch(RuntimeException e){error.accept("Không đổi được loa: "+safeMessage(e));}});}
-    public void setCamera(boolean enabled,int deviceIndex){post(()->{int selectedDevice=deviceIndex;
-        if(!ready())return;
+    private AudioDevice recordingDevice(int index){
+        AudioDevice device=index>=0&&index<microphones.size()?microphones.get(index):MediaDevices.getDefaultAudioCaptureDevice();
+        if(device==null)throw new IllegalStateException("Không tìm thấy micro.");return device;
+    }
+    public void setSpeaker(int deviceIndex){post(()->{try{
+        if(audioModule==null){if(deviceIndex>=0)error.accept("Không thể chọn loa, đang dùng loa mặc định.");return;}
+        AudioDevice device=deviceIndex>=0&&deviceIndex<speakers.size()?speakers.get(deviceIndex):MediaDevices.getDefaultAudioRenderDevice();
+        if(device==null)throw new IllegalStateException("Không tìm thấy loa.");
+        if(peer!=null)peer.setAudioPlayout(false);
+        try{audioModule.setPlayoutDevice(device);}finally{if(peer!=null)peer.setAudioPlayout(true);}
+    }catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;error.accept("Không đổi được loa: "+safeMessage(e));}});}
+    public void setCamera(boolean enabled,int deviceIndex){post(()->setCameraNow(enabled,deviceIndex));}
+    private void setCameraNow(boolean enabled,int deviceIndex){int selectedDevice=deviceIndex;
+        if(!joined)return;
+        if(!ready()||videoSender==null){pendingCamera=enabled;pendingCameraDevice=deviceIndex;return;}
+        pendingCamera=null;
+        localVideoEpoch++;
         try {
-            if(!enabled){if(videoSource!=null)videoSource.stop();if(videoTrack!=null)videoTrack.setEnabled(false);cameraEnabled=false;cameraState.accept(false);localFrame.accept(null);return;}
+            if(!enabled){if(videoSource!=null)videoSource.stop();if(videoTrack!=null)videoTrack.setEnabled(false);cameraEnabled=false;sendCameraState();cameraState.accept(false);localFrame.accept(null);return;}
             if(cameras.isEmpty())cameras.addAll(MediaDevices.getVideoCaptureDevices());
             if(cameras.isEmpty())throw new IllegalStateException("Không tìm thấy camera.");
             if(selectedDevice<0||selectedDevice>=cameras.size())selectedDevice=0;
@@ -198,15 +286,15 @@ public final class MediaCallSession implements AutoCloseable {
             List<VideoCaptureCapability> caps=MediaDevices.getVideoCaptureCapabilities(cameras.get(selectedDevice));
             if(!caps.isEmpty())videoSource.setVideoCaptureCapability(caps.stream().min(Comparator.comparingInt(c->Math.abs(c.width-640)+Math.abs(c.height-360)+Math.max(0,c.frameRate-15)*8)).orElse(caps.get(0)));
             videoTrack.setEnabled(true);videoSender.replaceTrack(videoTrack);setVideoLimits();videoSource.start();
-            cameraEnabled=true;cameraState.accept(true);
-        }catch(RuntimeException e){if(videoSource!=null)try{videoSource.stop();}catch(RuntimeException ignored){}if(videoTrack!=null)videoTrack.setEnabled(false);cameraEnabled=false;cameraState.accept(false);localFrame.accept(null);error.accept("Không mở được camera: "+safeMessage(e));}
-    });}
-    public void selectCamera(int index){if(cameraEnabled)setCamera(true,index);}
+            cameraEnabled=true;sendCameraState();cameraState.accept(true);
+        }catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;if(videoSource!=null)try{videoSource.stop();}catch(Throwable ignored){}if(videoTrack!=null)try{videoTrack.setEnabled(false);}catch(Throwable ignored){}cameraEnabled=false;sendCameraState();cameraState.accept(false);localFrame.accept(null);error.accept("Không mở được camera: "+safeMessage(e));}
+    }
+    public void selectCamera(int index){post(()->{if(cameraEnabled)setCameraNow(true,index);});}
     private int videoSourceDeviceIndex=-1;
     private void setVideoLimits(){try{RTCRtpSendParameters parameters=videoSender.getParameters();if(parameters.encodings!=null)for(RTCRtpEncodingParameters encoding:parameters.encodings){encoding.maxFramerate=15.0;encoding.maxBitrate=700_000;}videoSender.setParameters(parameters);}catch(RuntimeException ignored){}}
     private void attachRemoteVideo(VideoTrack track){
-        if(remoteVideoTrack!=null)remoteVideoTrack.removeSink(remoteSink);
-        remoteVideoTrack=track;track.addSink(remoteSink);
+        if(remoteVideoTrack!=null){remoteVideoTrack.removeSink(remoteSink);remoteVideoTrack.removeTrackMuteListener(remoteMuteListener);}
+        remoteVideoTrack=track;track.addSink(remoteSink);track.addTrackMuteListener(remoteMuteListener);
     }
     private static void renderFrame(VideoFrame frame,Consumer<Image> consumer,AtomicBoolean queued){
         if(!queued.compareAndSet(false,true))return;
@@ -227,18 +315,31 @@ public final class MediaCallSession implements AutoCloseable {
     }
     private static int clamp(int x){return Math.max(0,Math.min(255,x));}
     private boolean ready(){return joined&&peerJoined&&peer!=null;}
+    private void failConnection(String message){
+        if(!joined)return;
+        if(callId!=null)lastEndedCallId=callId;
+        joined=false;peerJoined=false;callId=null;
+        try{send.accept(Message.of(MessageType.MEDIA_LEAVE,matchId));}
+        finally{try{closeResources();}finally{connectionFailure.accept(message);}}
+    }
     private void finishRemote(String message){closeResources();joined=false;peerJoined=false;callId=null;status.accept(message);micState.accept(false);cameraState.accept(false);}
-    private void post(Runnable action){if(closed)return;try{worker.execute(()->{if(!closed)try{action.run();}catch(RuntimeException e){error.accept("Lỗi cuộc gọi: "+safeMessage(e));}});}catch(RejectedExecutionException ignored){}}
+    private void post(Runnable action){if(closed)return;try{worker.execute(()->{if(!closed)try{action.run();}catch(Throwable e){if(e instanceof VirtualMachineError fatal)throw fatal;if(joined)failConnection("Lỗi mic/video: "+safeMessage(e));else error.accept("Lỗi mic/video: "+safeMessage(e));}});}catch(RejectedExecutionException ignored){}}
     private static String safeMessage(Throwable e){String text=e.getMessage();return text==null||text.isBlank()?e.getClass().getSimpleName():text;}
     private void closeResources(){
+        peerGeneration++;
+        localVideoEpoch++;
+        if(mediaStateChannel!=null){try{mediaStateChannel.unregisterObserver();mediaStateChannel.close();mediaStateChannel.dispose();}catch(RuntimeException ignored){}mediaStateChannel=null;}
+        remoteCameraEnabled=null;
         if(audioSender!=null)try{audioSender.replaceTrack(null);}catch(RuntimeException ignored){}
         if(videoSender!=null)try{videoSender.replaceTrack(null);}catch(RuntimeException ignored){}
         if(videoSource!=null)try{videoSource.stop();}catch(RuntimeException ignored){}
         if(videoTrack!=null)try{videoTrack.removeSink(localSink);}catch(RuntimeException ignored){}
         if(peer!=null){try{peer.setAudioRecording(false);peer.setAudioPlayout(false);peer.close();}catch(RuntimeException ignored){}peer=null;}
-        if(remoteVideoTrack!=null)try{remoteVideoTrack.removeSink(remoteSink);}catch(RuntimeException ignored){}
+        if(remoteVideoTrack!=null)try{remoteVideoTrack.removeSink(remoteSink);remoteVideoTrack.removeTrackMuteListener(remoteMuteListener);}catch(RuntimeException ignored){}
         if(audioSender!=null){try{audioSender.dispose();}catch(RuntimeException ignored){}audioSender=null;}
         if(videoSender!=null){try{videoSender.dispose();}catch(RuntimeException ignored){}videoSender=null;}
+        if(remoteAudioTransceiver==audioTransceiver)remoteAudioTransceiver=null;
+        if(remoteVideoTransceiver==videoTransceiver)remoteVideoTransceiver=null;
         if(audioTransceiver!=null){try{audioTransceiver.dispose();}catch(RuntimeException ignored){}audioTransceiver=null;}
         if(videoTransceiver!=null){try{videoTransceiver.dispose();}catch(RuntimeException ignored){}videoTransceiver=null;}
         if(remoteAudioTransceiver!=null){try{remoteAudioTransceiver.dispose();}catch(RuntimeException ignored){}remoteAudioTransceiver=null;}
@@ -253,7 +354,7 @@ public final class MediaCallSession implements AutoCloseable {
         if(videoSource!=null){try{videoSource.dispose();}catch(RuntimeException ignored){}videoSource=null;}
         if(factory!=null){factory.dispose();factory=null;}
         if(audioModule!=null){audioModule.dispose();audioModule=null;}
-        pendingCandidates.clear();remoteDescriptionSet=false;microphoneEnabled=false;cameraEnabled=false;audioInputDeviceIndex=-1;videoSourceDeviceIndex=-1;devicesEnumerated=false;iceConfig=null;microphones.clear();speakers.clear();cameras.clear();
+        pendingCandidates.clear();pendingMicrophone=null;pendingCamera=null;answerPending=false;remoteDescriptionSet=false;microphoneEnabled=false;cameraEnabled=false;audioInputDeviceIndex=-1;videoSourceDeviceIndex=-1;devicesEnumerated=false;iceConfig=null;microphones.clear();speakers.clear();cameras.clear();
     }
     public void leave(){post(()->{if(joined){if(callId!=null)lastEndedCallId=callId;send.accept(Message.of(MessageType.MEDIA_LEAVE,matchId));}closeResources();joined=false;peerJoined=false;callId=null;status.accept("Đã rời cuộc gọi");micState.accept(false);cameraState.accept(false);localFrame.accept(null);remoteFrame.accept(null);});}
     public void cancel(){post(()->{closeResources();joined=false;peerJoined=false;callId=null;micState.accept(false);cameraState.accept(false);});}

@@ -40,3 +40,15 @@ The game server must be reachable through the configured TLS/WSS domain. A
 Cloudflare Tunnel routes game signaling; WebRTC media uses Cloudflare TURN when
 direct peer-to-peer connectivity is blocked. Publishing a tunnel alone does
 not enable the TURN relay.
+
+## Check media signaling
+
+Run `python scripts/desktop.py media-test` to connect two WebRTC sessions through
+an isolated game server and an in-memory test database. To require the test to
+receive real TURN credentials, set `DARTS_REQUIRE_TURN=true` for that process;
+the server reads the TURN configuration described above. The test does not
+modify the running server or its database.
+
+This check verifies credential delivery and a local peer connection. To prove
+that media is relayed through TURN, test two devices on different networks with
+direct connections blocked and inspect the selected ICE candidate pair.

@@ -67,6 +67,42 @@ public final class Notifications {
     public Notice result(boolean won,String message,Runnable goHome) {
         return dialog(won?"★  CHIẾN THẮNG":"HẸN TRẬN TIẾP THEO",won?"Bạn thắng rồi!":"Một trận đấu đáng nhớ",message,"Về sảnh",goHome,false,won?"victory":"result");
     }
+    /** A custom in-window modal sharing the same focus and lifecycle as other dialogs. */
+    public Notice custom(String title,Node body,Runnable onClose) {
+        if(activeModal!=null)activeModal.close();
+        Node previousFocus=root.getScene()==null?null:root.getScene().getFocusOwner();
+        VBox card=card("DARTS BATTLE",title,"","info");card.getStyleClass().add("notification-modal");
+        card.setId("customDialog");card.setMaxWidth(760);card.setMaxHeight(Region.USE_PREF_SIZE);
+        Button close=new Button("Đóng");close.setId("customDialogClose");close.getStyleClass().add("primary");
+        HBox actions=new HBox(close);actions.setAlignment(Pos.CENTER_RIGHT);
+        card.getChildren().addAll(body,actions);VBox.setVgrow(body,Priority.ALWAYS);
+        Notice notice=new Notice(card);activeModal=notice;close.setOnAction(event->notice.close());
+        notice.afterClose=()->{
+            content.setDisable(false);modal.setVisible(false);modal.getChildren().clear();card.getChildren().remove(body);modal.setOnKeyPressed(null);
+            if(previousFocus!=null&&previousFocus.getScene()==root.getScene())previousFocus.requestFocus();
+            if(onClose!=null)onClose.run();
+        };
+        modal.setOnKeyPressed(event->{
+            if(event.getCode()==KeyCode.ESCAPE){notice.close();event.consume();}
+            else if(event.getCode()==KeyCode.TAB&&root.getScene()!=null){
+                List<Node> focusable=new ArrayList<>();collectFocusable(card,focusable);
+                if(!focusable.isEmpty()){
+                    int index=focusable.indexOf(root.getScene().getFocusOwner());
+                    focusable.get(Math.floorMod(index+(event.isShiftDown()?-1:1),focusable.size())).requestFocus();event.consume();
+                }
+            }
+        });
+        content.setDisable(true);modal.getChildren().setAll(card);modal.setVisible(true);
+        appear(card,notice);close.requestFocus();return notice;
+    }
+    private static void collectFocusable(Node node,List<Node> result) {
+        if(!node.isVisible()||node.isDisabled())return;
+        if(node instanceof Control control) {
+            if(control.isFocusTraversable())result.add(control);
+            return;
+        }
+        if(node instanceof Parent parent)for(Node child:parent.getChildrenUnmodifiable())collectFocusable(child,result);
+    }
     private Notice dialog(String badge,String title,String message,String action,Runnable confirmed,boolean cancellable,String kind) {
         if(activeModal!=null)activeModal.close();
         Node previousFocus=root.getScene()==null?null:root.getScene().getFocusOwner();
