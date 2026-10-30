@@ -19,6 +19,7 @@ BUILD = ROOT / 'build' / 'desktop'
 CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
+WEBRTC_VERSION = '0.20.0'
 
 
 def tool(name):
@@ -78,6 +79,23 @@ def javafx():
     return files
 
 
+def webrtc():
+    props = subprocess.run([tool('java'), '-XshowSettings:properties', '-version'], capture_output=True, text=True, check=True)
+    arch = re.search(r'os.arch\s*=\s*(\S+)', props.stderr).group(1)
+    system = platform.system()
+    normalized_arch = 'aarch64' if arch in ('aarch64', 'arm64') else 'x86_64' if arch in ('amd64', 'x86_64') else None
+    classifiers = {
+        ('Windows', 'x86_64'): 'windows-x86_64', ('Windows', 'aarch64'): 'windows-aarch64',
+        ('Darwin', 'x86_64'): 'macos-x86_64', ('Darwin', 'aarch64'): 'macos-aarch64',
+        ('Linux', 'x86_64'): 'linux-x86_64', ('Linux', 'aarch64'): 'linux-aarch64',
+    }
+    classifier = classifiers.get((system, normalized_arch))
+    if classifier is None:
+        raise RuntimeError(f'webrtc-java {WEBRTC_VERSION} does not provide a native library for {system}/{arch}.')
+    return [download('dev.onvoid.webrtc', 'webrtc-java', WEBRTC_VERSION),
+            download('dev.onvoid.webrtc', 'webrtc-java', WEBRTC_VERSION, classifier)]
+
+
 def load_release_profile(host=None, port=None, certificate=None, transport=None):
     config = {}
     saved = ROOT / '.local' / 'client-profile.properties'
@@ -114,7 +132,8 @@ def build(target, profile=None, client_libraries=None):
     libraries = ([ROOT / 'DartGame_Server/lib/mysql-connector-j-9.4.0.jar',
                   download('org.java-websocket', 'Java-WebSocket', '1.6.0'),
                   download('org.slf4j', 'slf4j-api', '2.0.13'),
-                  download('org.slf4j', 'slf4j-nop', '2.0.13')] if target == 'server' else (client_libraries if client_libraries is not None else javafx()))
+                  download('org.slf4j', 'slf4j-nop', '2.0.13')] if target == 'server' else
+                 (list(client_libraries) if client_libraries is not None else javafx() + webrtc()))
     # javac @argfile handles Windows command length limits and paths with spaces.
     arguments = ['--release', '17', '-encoding', 'UTF-8', '-cp', os.pathsep.join(map(str, libraries)), '-d', str(classes), *map(str, sources)]
     argfile = directory / 'javac.args'
@@ -149,14 +168,14 @@ def build(target, profile=None, client_libraries=None):
     return package_input, main
 
 
-def package(target, package_type, profile=None):
+def package(target, package_type, profile=None, output_dir=None):
     if target == 'client' and profile is None:
         profile = load_release_profile()
     folder, main = build(target, profile)
-    output = ROOT / 'dist' / (platform.system().lower() + '-' + platform.machine())
+    output = Path(output_dir).resolve() if output_dir else ROOT / 'dist' / (platform.system().lower() + '-' + platform.machine())
     name = 'DartsBattle' if target == 'client' else 'DartsBattleServer'
     args = [tool('jpackage'), '--type', package_type, '--input', folder, '--dest', output,
-            '--name', name, '--app-version', '2.1.0', '--vendor', 'Darts Battle',
+            '--name', name, '--app-version', '2.2.0', '--vendor', 'Darts Battle',
             '--main-jar', f'darts-{target}.jar', '--main-class', main,
             '--java-options', '-Dfile.encoding=UTF-8']
     if target == 'client':
@@ -186,7 +205,7 @@ def package(target, package_type, profile=None):
             else:
                 installers = staging / 'installers'
                 run([tool('jpackage'), '--type', package_type, '--app-image', app,
-                     '--dest', installers, '--name', name, '--app-version', '2.1.0'])
+                     '--dest', installers, '--name', name, '--app-version', '2.2.0'])
                 artifacts = list(installers.iterdir())
             for artifact in artifacts:
                 destination = output / artifact.name
@@ -236,10 +255,11 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    cases = ('ClientUiSmokeTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest')
-    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', str(classes) + os.pathsep + str(libs / '*'), '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
+    cases = ('ClientUiSmokeTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest')
+    test_classpath = str(classes) + os.pathsep + str(libs / '*')
+    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
     for case in cases:
-        run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', classes, case])
+        run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', test_classpath, case])
 
 
 def probe(endpoint=None, certificate=None):
@@ -261,6 +281,7 @@ def main():
     parser.add_argument('--server-host', help='Public hostname configured once by the server owner')
     parser.add_argument('--server-port', type=int, help='Public TCP port (default 8443)')
     parser.add_argument('--server-cert', help='Public certificate to pin in release clients')
+    parser.add_argument('--output-dir', help='Package destination (defaults to the platform release directory)')
     parser.add_argument('--h2-jar', help='Existing H2 2.3.232 JAR to run tests offline')
     args = parser.parse_args()
     if args.command == 'probe':
@@ -273,7 +294,7 @@ def main():
         for target in (('server', 'client') if args.target == 'all' else (args.target,)):
             if args.command == 'package':
                 profile = load_release_profile(args.server_host, args.server_port, args.server_cert, args.transport) if target == 'client' else None
-                package(target, args.type, profile)
+                package(target, args.type, profile, args.output_dir)
             else:
                 profile = load_release_profile(args.server_host, args.server_port, args.server_cert, args.transport) if args.command == 'run' and target == 'client' else None
                 folder, _ = build(target, profile)
