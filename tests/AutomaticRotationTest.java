@@ -45,6 +45,7 @@ public class AutomaticRotationTest {
             });
             Thread.sleep(500);
             fx(()->{
+                check(socket.mediaJoins==1,"PvP automatically sends exactly one media join");
                 check(scale.getX()>1.15&&scale.getY()>1.15,"board enlarges before spinning");
                 var playing=ClientUiSmokeTest.snap(2,1,0,MatchStatus.PLAYING,1L);
                 Main.gameViewState.apply(playing);controller.rotationConfirmed(playing);controller.render(playing);

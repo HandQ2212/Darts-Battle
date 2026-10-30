@@ -94,12 +94,12 @@ public class DartThrowEffectsTest {
     private static void integrationFeedback() {
         ((javafx.scene.control.Button)root.lookup("#effectSoundButton")).fire();
         protocol.dto.ThrowResolvedResponse result=new protocol.dto.ThrowResolvedResponse();
-        result.setActorId(1L);result.setDartIndex(1);result.setX(110);result.setY(0);result.setDartScore(20);
+        result.setMatchId("ui-match");result.setTurnId(1);result.setActorId(1L);result.setDartIndex(1);result.setX(110);result.setY(0);result.setDartScore(20);result.setRemainingScoreAfter(281);
         result.setSnapshot(ClientUiSmokeTest.snap(2,1,1,MatchStatus.PLAYING,1L));
-        Main.gameViewState.apply(result.getSnapshot());controller.showThrow(result);
+        check(Main.gameViewState.applyThrow(result),"confirmed throw enters history");controller.showThrow(result);
         later(500,()->{
-            check(root.lookup(".score-popup")!=null&&((javafx.scene.control.Label)root.lookup("#lastThrowScoreLabel")).getText().equals("20"),
-                "real throw renderer shows popup and persistent score together");
+            check(root.lookup(".score-popup")!=null&&Main.gameViewState.history(true).get(0).deducted()==20,
+                "real throw renderer shows popup and retains the result in history");
             capture("game-hit-feedback");finish(null);
         });
     }

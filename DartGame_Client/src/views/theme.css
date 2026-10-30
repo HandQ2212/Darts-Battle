@@ -118,6 +118,23 @@
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.20); -fx-background-radius: 16; }
 .bot-overlay .label { -fx-text-fill: #e9f7ff; -fx-font-size: 17px; -fx-font-weight: bold; }
 .progress-indicator { -fx-progress-color: #ff8909; }
+.turn-indicator { -fx-text-fill: #fff4ca; -fx-font-size: 12px; -fx-font-weight: bold; -fx-background-color: #548335; -fx-background-radius: 12; -fx-padding: 5 12; -fx-min-height: 28; -fx-max-width: Infinity; -fx-alignment: CENTER; }
+.history-button { -fx-background-color: #fff2cb; -fx-background-radius: 11; -fx-border-color: #bd8d49; -fx-border-radius: 11; -fx-text-fill: #75451f; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 9 5; }
+.history-button:hover { -fx-background-color: #ffdf9f; }
+.video-frame { -fx-background-color: #2d422e; -fx-background-radius: 12; -fx-border-color: #d1ae70; -fx-border-radius: 12; -fx-border-width: 2; }
+.video-placeholder { -fx-text-fill: #e6d4a5; -fx-font-size: 12px; -fx-font-weight: bold; -fx-alignment: CENTER; }
+.media-status { -fx-text-fill: #fff4d4; -fx-font-size: 11px; -fx-min-height: 28; }
+.device-button { -fx-background-color: #fff3d2; -fx-background-radius: 12; -fx-border-color: #b7884b; -fx-border-radius: 12; -fx-min-width: 44; -fx-min-height: 42; -fx-padding: 8; }
+.device-button:active { -fx-background-color: #b8df8d; -fx-border-color: #6d9b42; }
+.device-button:pending { -fx-background-color: #ffdc96; -fx-border-color: #e39227; }
+.compact-guidance { -fx-background-color: #fff1cb; -fx-background-radius: 12; -fx-border-color: #b58a4a; -fx-border-radius: 12; -fx-padding: 9 12; -fx-min-height: 38; }
+.history-heading { -fx-font-weight: bold; -fx-text-fill: #885125; -fx-font-size: 12px; }
+.history-row { -fx-background-color: #fff4d3; -fx-background-radius: 9; -fx-padding: 9; -fx-border-color: #ead3a0; -fx-border-radius: 9; }
+.history-row .label { -fx-text-fill: #765331; -fx-font-size: 11px; }
+#historyScroll { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 2; }
+#deviceSettingsPanel .combo-box { -fx-max-width: Infinity; }
+#chatPanel { -fx-padding: 10; }
+.chat-send { -fx-padding: 8 10; -fx-min-width: 50; -fx-pref-width: 50; }
 .dialog-pane { -fx-background-color: #fff0ce; }
 .dialog-pane > .content.label { -fx-text-fill: #765331; }
 .dialog-pane:header .header-panel { -fx-background-color: #ffdb9b; }

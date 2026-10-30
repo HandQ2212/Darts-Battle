@@ -51,6 +51,11 @@ public class NotificationsTest {
                 check(confirmed==1,"confirmation callback fires exactly once");
                 notices.confirm("Rời trận?","Không tự gửi lệnh khi thay màn hình.","Rời trận",()->confirmed++);
                 notices.setPage(login);check(confirmed==1&&!login.isDisabled(),"navigation silently cancels stale confirmation");
+                int[] customClosed={0};ComboBox<String> device=new ComboBox<>();device.getItems().add("Mặc định");
+                notices.custom("Thiết bị",new VBox(device),()->customClosed[0]++);
+                check(login.isDisabled(),"custom modal blocks the page");
+                javafx.event.Event.fireEvent(notices.root().lookup("#modalLayer"),new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,"","",javafx.scene.input.KeyCode.ESCAPE,false,false,false,false));
+                check(customClosed[0]==1&&!login.isDisabled(),"Escape closes custom modal and restores page");
                 notices.invite("Bobby",System.currentTimeMillis()+30000,value->{if(value)accepted++;else rejected++;});
                 check(!login.isDisabled(),"invitation does not block page or chat");
                 check(notices.root().lookup("#inviteCountdown")!=null,"invitation shows countdown");
