@@ -5,6 +5,7 @@ import controllers.MatchHistoryController;
 import controllers.RankingController;
 import controllers.SocketHandler;
 import controllers.StartGameController;
+import controllers.MatchDetailController;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -37,6 +38,10 @@ public class Main extends Application {
     public static StartGameController startGameController;
     public static RankingController rankingController;
     public static MatchHistoryController matchHistoryController;
+    public static MatchDetailController matchDetailController;
+    public static long historyPlayerId=-1;
+    public static String historyPlayerName="",historyOrigin="home",historyMatchId;
+    public static int historyPage=0;
     // 🎵 Biến lưu trình phát nhạc
     private static MediaPlayer backgroundPlayer;
 
@@ -82,6 +87,7 @@ public class Main extends Application {
         chooseOpponentController = null;
         rankingController = null;
         matchHistoryController = null;
+        matchDetailController = null;
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/views/" + fxml + ".fxml"));
         Parent root = loader.load();
 

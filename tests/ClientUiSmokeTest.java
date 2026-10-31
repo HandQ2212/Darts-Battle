@@ -66,7 +66,7 @@ public class ClientUiSmokeTest {
                 ((TextField)login.lookup("#usernameField")).setText("Alice");((PasswordField)login.lookup("#passwordField")).setText("secret123");loginButton.fire();
                 check(socket.last.getType()==MessageType.LOGIN_REQUEST,"manual login retained");
                 preview(login,"login",1080,740);
-                for(String page:new String[]{"register","home","chooseOpponent","choosecomponent","ranking","match_history","notificationdialog"}) {
+                for(String page:new String[]{"register","home","chooseOpponent","choosecomponent","ranking","match_history","match_detail","notificationdialog"}) {
                     Parent p=FXMLLoader.load(Main.class.getResource("/views/"+page+".fxml"));check(p!=null,"FXML "+page);
                     preview(p,page,page.equals("notificationdialog")?420:1100,page.equals("notificationdialog")?220:740);
                 }
@@ -114,12 +114,14 @@ public class ClientUiSmokeTest {
                 check(start.isDisabled(),"one in-flight throw");
                 ThrowResolvedResponse res=new ThrowResolvedResponse();res.setMatchId("ui-match");res.setTurnId(1);res.setActorId(1L);res.setDartIndex(1);res.setX(0);res.setY(0);res.setDartScore(50);res.setSnapshot(snap(3,1,1,MatchStatus.PLAYING,1L));
                 res.setRemainingScoreAfter(251);check(Main.gameViewState.applyThrow(res),"throw added to history");game.showThrow(res);check(!start.isDisabled(),"next dart enabled after result");
+                check(((Label)root.lookup("#myScoreSlot").lookup("#scoreFeedback")).getText().equals("−50"),"confirmed throw shows points deducted");
                 check(!Main.gameViewState.applyThrow(res),"duplicate throw is not recorded twice");
                 ((Button)root.lookup("#myHistoryButton")).fire();
                 check(root.isDisabled()&&Main.notifications().root().lookup("#historyScroll")!=null,"history modal blocks game input");
                 socket.last=null;game.handleGameAction();check(socket.last==null,"aiming does not submit while history is open");
                 ThrowResolvedResponse bust=new ThrowResolvedResponse();bust.setMatchId("ui-match");bust.setTurnId(1);bust.setActorId(1L);bust.setDartIndex(2);bust.setDartScore(100);bust.setBust(true);bust.setRemainingScoreAfter(251);bust.setSnapshot(snap(4,1,2,MatchStatus.PLAYING,1L));
                 check(Main.gameViewState.applyThrow(bust),"bust is recorded");game.showThrow(bust);
+                check(((Label)root.lookup("#myScoreSlot").lookup("#scoreFeedback")).getText().equals("BUST"),"bust displays distinct feedback");
                 var turn=Main.gameViewState.history(true).get(0);check(turn.deducted()==50&&turn.remaining()==251&&turn.darts().get(1).bust(),"bust contributes zero and preserves remaining score");
                 Main.notifications().root().applyCss();Main.notifications().root().layout();
                 check(Main.notifications().root().lookupAll(".history-row").stream().filter(n->n instanceof javafx.scene.layout.VBox).count()==2,"history displays both players and refreshes while open");
@@ -149,10 +151,28 @@ public class ClientUiSmokeTest {
                 check(isolated.applyThrow(opponent)&&isolated.history(false).get(0).deducted()==20,"opponent results are stored separately");
                 ThrowResolvedResponse winning=new ThrowResolvedResponse();winning.setMatchId("ui-match");winning.setTurnId(3);winning.setActorId(1L);winning.setDartIndex(1);winning.setDartScore(50);winning.setRemainingScoreAfter(0);winning.setSnapshot(snap(3,3,1,MatchStatus.FINISHED,1L));
                 check(isolated.applyThrow(winning)&&isolated.history(true).get(0).remaining()==0,"winning dart remains in match history");
+                socket.sessionIdPresent="ui-match";socket.roomIdPresent="ui-match";
+                socket.sessionState=new protocol.dto.SessionMessages.State("ui-match","ui-match","RESULTS",1,true,false,false,null,"");
+                Main.gameViewState.begin(snap(1,1,0,MatchStatus.PLAYING,1L),1);
+                FXMLLoader replayLoader=new FXMLLoader(Main.class.getResource("/views/startgame.fxml"));Parent replayRoot=replayLoader.load();StartGameController replayGame=replayLoader.getController();
+                Main.notifications().setPage(replayRoot);
+                var mediaField=StartGameController.class.getDeclaredField("mediaCall");mediaField.setAccessible(true);Object sameMedia=mediaField.get(replayGame);
+                MatchSnapshot result=new MatchSnapshot("ui-match",MatchMode.PVP,1,"Alice",2L,"Bobby",1L,ActorType.HUMAN,1,1,0,0,301,MatchStatus.FINISHED,2,1L,ActorType.HUMAN,"WIN",0);
+                Main.gameViewState.apply(result);replayGame.finish(result);
+                check(replayRoot.lookup("#resultPanel").isVisible()&&!replayRoot.lookup("#boardContainer").isVisible(),"result replaces board and preserves game page");
+                socket.last=null;((Button)replayRoot.lookup("#rematchButton")).fire();
+                check(socket.last!=null&&socket.last.getType()==MessageType.SESSION_READY,"rematch button sends readiness");
+                ((TextField)replayRoot.lookup("#chatInput")).setText("hello");replayGame.handleSend();
+                check(socket.last.getType()==MessageType.CHAT_MESSAGE,"chat stays usable on result screen");
+                MatchSnapshot fresh=new MatchSnapshot("ui-next",MatchMode.PVP,1,"Alice",2L,"Bobby",2L,ActorType.HUMAN,1,0,0,301,301,MatchStatus.PLAYING,1,null,null,null,0);
+                socket.roomIdPresent="ui-next";socket.sessionState=new protocol.dto.SessionMessages.State("ui-match","ui-next","PLAYING",2,true,false,false,null,"");
+                Main.gameViewState.begin(fresh,1);replayGame.nextMatch(fresh);
+                check(replayRoot.lookup("#boardContainer").isVisible()&&!replayRoot.lookup("#resultPanel").isVisible()&&mediaField.get(replayGame)==sameMedia,"new round reuses page and media session");
+                replayGame.dispose();socket.sessionState=null;socket.sessionIdPresent=null;
                 MatchSnapshot bot=new MatchSnapshot("bot-match",MatchMode.PVE,1,"Alice",null,"BOT",1L,ActorType.HUMAN,1,0,0,301,301,MatchStatus.PLAYING,1,null,null,null,System.currentTimeMillis()+120000);
                 Main.gameViewState.begin(bot,1);FXMLLoader botLoader=new FXMLLoader(Main.class.getResource("/views/startgame.fxml"));Parent botRoot=botLoader.load();StartGameController botGame=botLoader.getController();
                 check(!botRoot.lookup("#mediaControls").isManaged()&&!botRoot.lookup("#chatComposer").isManaged(),"bot match hides media and chat input");
-                check(((Label)botRoot.lookup("#remoteVideoPlaceholder")).getGraphic()!=null,"bot has an avatar");botGame.dispose();
+                check(!botRoot.lookup("#localVideoFrame").isManaged()&&!botRoot.lookup("#remoteVideoFrame").isManaged()&&!botRoot.lookup("#chatPanel").isManaged(),"bot match hides both video blocks and chat");botGame.dispose();
                 System.out.println("ALL UI SMOKE CHECKS PASSED");
             } catch(Throwable e){failure.set(e);} finally {socket.shutdown();done.countDown();}
         });

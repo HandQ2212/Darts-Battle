@@ -5,6 +5,7 @@ import enums.*;
 import protocol.*;
 import protocol.dto.*;
 import protocol.dto.GameMessages.*;
+import protocol.dto.SessionMessages.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -16,6 +17,8 @@ public class SocketHandler {
     public long loggedInUserId=-1;
     public String competitor="";
     public String roomIdPresent;
+    public String sessionIdPresent;
+    public State sessionState;
     public boolean checkYouAreInvited;
     private volatile Connection current;
     public String lobbyNotice="";
@@ -33,12 +36,14 @@ public class SocketHandler {
     private java.util.function.BiConsumer<Boolean,String> connectionListener;
     private boolean authPending;
     private static class Connection {
+        final String id=UUID.randomUUID().toString();
         Socket socket; Socket transport; ObjectInputStream in; ObjectOutputStream out;
         volatile boolean closed;
         final BlockingQueue<Message> queue=new ArrayBlockingQueue<>(128);
         Thread writer;
     }
     public SocketHandler() {
+        network.DiagnosticLog.configure("client");
         heartbeat.scheduleAtFixedRate(()->{
             Connection c=current;
             if(c!=null&&!c.closed) sendData(Message.of(MessageType.PING,null));
@@ -68,20 +73,23 @@ public class SocketHandler {
         notifyConnection("Đang kết nối máy chủ...");
         connector.execute(()->{
             Connection c=new Connection();
+            network.DiagnosticLog.event("connect_start","connection="+c.id+" transport="+ConnectionSettings.transport());
             try {
                 if("websocket".equals(ConnectionSettings.transport())) {
                     Socket tunnel=network.WebSocketSocket.open(ConnectionSettings.websocketUri(),5000);c.transport=tunnel;
                     c.socket=network.TransportSecurity.secure(tunnel,ConnectionSettings.host(),ConnectionSettings.port(),5000,ConnectionSettings.tlsContext());
                 }else c.socket=network.TransportSecurity.connect(ConnectionSettings.host(),ConnectionSettings.port(),5000,ConnectionSettings.tlsContext());
                 c.socket.setSoTimeout(10000);c.socket.setTcpNoDelay(true);
-                c.out=new ObjectOutputStream(c.socket.getOutputStream());c.out.flush();
+                c.out=new ObjectOutputStream(new BufferedOutputStream(c.socket.getOutputStream(),16384));c.out.flush();
                 c.in=new ObjectInputStream(c.socket.getInputStream());c.in.setObjectInputFilter(WireFilter.create());
                 c.socket.setSoTimeout(35000);
                 synchronized(this){if(stopped){close(c);return;}current=c;}
+                network.DiagnosticLog.event("connect_ok","connection="+c.id);
                 c.writer=new Thread(()->write(c),"server-writer");c.writer.setDaemon(true);c.writer.start();
                 Thread reader=new Thread(()->listen(c),"server-reader");reader.setDaemon(true);reader.start();
                 notifyConnection("Đã kết nối. Mời bạn đăng nhập.");finishConnect(c);
             } catch(Exception e) {
+                network.DiagnosticLog.event("connect_error","connection="+c.id+" error="+network.DiagnosticLog.type(e));
                 close(c);pendingConnect.clear();
                 String text=e instanceof javax.net.ssl.SSLException || e instanceof java.security.GeneralSecurityException
                         ? "Không xác minh được máy chủ. Vui lòng liên hệ người tổ chức."
@@ -96,7 +104,7 @@ public class SocketHandler {
     }
     private void write(Connection c) {
         try {while(!c.closed){Message m=c.queue.take();c.out.writeObject(m);c.out.reset();c.out.flush();}}
-        catch(Exception e){failed(c);}
+        catch(Exception e){network.DiagnosticLog.event("write_error","connection="+c.id+" error="+network.DiagnosticLog.type(e));failed(c);}
     }
     private void listen(Connection c) {
         try {
@@ -105,10 +113,11 @@ public class SocketHandler {
                 if(m.getType()==MessageType.PONG)continue;
                 Platform.runLater(()->{if(current==c&&!c.closed){try{receive(m);}catch(RuntimeException e){showError("Không xử lý được phản hồi server: "+e.getMessage());}}});
             }
-        }catch(Exception e){failed(c);}
+        }catch(Exception e){network.DiagnosticLog.event("read_error","connection="+c.id+" error="+network.DiagnosticLog.type(e));failed(c);}
     }
     private synchronized void failed(Connection c) {
         if(current!=c||c.closed)return;
+        network.DiagnosticLog.event("connection_lost","connection="+c.id+" userId="+loggedInUserId+" inMatch="+(roomIdPresent!=null));
         current=null;close(c);
         Platform.runLater(()->{
             boolean playing=roomIdPresent!=null;
@@ -130,7 +139,7 @@ public class SocketHandler {
     public void sendData(Message m) {
         Connection c=current;
         if(c==null||c.closed){Platform.runLater(()->showError("Máy chủ chưa sẵn sàng. Vui lòng chờ kết nối phục hồi."));return;}
-        if(!c.queue.offer(m))failed(c);
+        if(!c.queue.offer(m)){network.DiagnosticLog.event("outgoing_queue_full","connection="+c.id);failed(c);}
     }
     @SuppressWarnings("unchecked") private void receive(Message m) {
         switch(m.getType()) {
@@ -139,7 +148,9 @@ public class SocketHandler {
                 AuthResponse a=(AuthResponse)m.getPayload();
                 if(!a.success()) {showError(a.message());break;}
                 loginUser=a.username();loggedInUserId=a.userId();ConnectionSettings.rememberUsername(a.username());
+                network.DiagnosticLog.event("login_ok","connection="+(current==null?"none":current.id)+" userId="+loggedInUserId);
                 try {Main.setRoot("home");} catch(IOException e) {showError(e.getMessage());}
+                sendData(Message.of(MessageType.FEATURE_SUPPORT,null));
                 sendData(Message.of(MessageType.MEDIA_SUPPORT,null));
                 getListOnline();
             }
@@ -175,8 +186,14 @@ public class SocketHandler {
                 closeInvite();
                 MatchSnapshot s=(MatchSnapshot)m.getPayload();
                 if(Objects.equals(roomIdPresent,s.matchId()))break;
+                boolean next=sessionState!=null&&sessionState.rematchSupported()&&Objects.equals(sessionState.matchId(),s.matchId())
+                    &&roomIdPresent!=null&&Main.startGameController!=null;
                 roomIdPresent=s.matchId();Main.gameViewState.begin(s,loggedInUserId);competitor=Main.gameViewState.getOpponentName();
-                try {Main.setRoot("startgame");Main.startGameController.render(s);}catch(IOException e){showError(e.getMessage());}
+                if(next)Main.startGameController.nextMatch(s);
+                else try {Main.setRoot("startgame");Main.startGameController.render(s);
+                    if(sessionState!=null&&!sessionState.rematchSupported()&&sessionState.notice()!=null&&!sessionState.notice().isBlank())
+                        Main.notifications().toast("Chơi tiếp",sessionState.notice(),"info");
+                }catch(IOException e){showError(e.getMessage());}
             }
             case TURN_PREPARING, ROTATION_APPLIED, TURN_STARTED -> {
                 MatchSnapshot s=(MatchSnapshot)m.getPayload();
@@ -192,12 +209,22 @@ public class SocketHandler {
             case MATCH_FINISHED -> {
                 MatchSnapshot s=(MatchSnapshot)m.getPayload();
                 if(!Objects.equals(roomIdPresent,s.matchId()))break;
-                Main.gameViewState.apply(s); roomIdPresent=null;
+                Main.gameViewState.apply(s);
+                if(sessionState==null||!sessionState.rematchSupported())roomIdPresent=null;
                 if(Main.startGameController!=null)Main.startGameController.finish(s);
+            }
+            case SESSION_STATUS -> {
+                State state=(State)m.getPayload();
+                if(state==null||(sessionIdPresent!=null&&!Objects.equals(sessionIdPresent,state.sessionId())&&roomIdPresent!=null))break;
+                sessionIdPresent=state.sessionId();sessionState=state;
+                if("CLOSED".equals(state.phase())){
+                    if(state.rematchSupported()&&Main.startGameController!=null)Main.startGameController.sessionClosed(state.notice());
+                    sessionIdPresent=null;sessionState=null;roomIdPresent=null;
+                } else if(Main.startGameController!=null)Main.startGameController.sessionChanged(state);
             }
             case CHAT_MESSAGE -> {
                 ChatMessage chat=(ChatMessage)m.getPayload();
-                if(Objects.equals(roomIdPresent,chat.matchId())&&Main.startGameController!=null)Main.startGameController.addMessage(chat.senderName()+": "+chat.text());
+                if((Objects.equals(roomIdPresent,chat.matchId())||Objects.equals(sessionIdPresent,chat.matchId()))&&Main.startGameController!=null)Main.startGameController.addMessage(chat.senderName()+": "+chat.text());
             }
             case MEDIA_STATUS -> {if(Main.startGameController!=null)Main.startGameController.mediaPeerState((protocol.dto.MediaMessages.PeerState)m.getPayload());}
             case MEDIA_ICE_SERVERS -> {if(Main.startGameController!=null)Main.startGameController.mediaIceServers((protocol.dto.MediaMessages.IceConfig)m.getPayload());}
@@ -212,11 +239,14 @@ public class SocketHandler {
                 for(String row:(List<String>)m.getPayload()) {String[] p=row.split("\\|",-1);if(p.length>=6)rows.add(loginUser+"|"+p[2]+"|"+p[3]+"|"+p[5]);}
                 if(Main.matchHistoryController!=null)Main.matchHistoryController.updateMatchHistory(rows);
             }
+            case RANKING_V2_RESULT -> {if(Main.rankingController!=null)Main.rankingController.updateRankings((protocol.dto.HistoryMessages.Rankings)m.getPayload());}
+            case PLAYER_MATCHES_RESULT -> {if(Main.matchHistoryController!=null)Main.matchHistoryController.updatePage((protocol.dto.HistoryMessages.Page)m.getPayload());}
+            case MATCH_DETAIL_RESULT -> {if(Main.matchDetailController!=null)Main.matchDetailController.updateDetail((protocol.dto.HistoryMessages.Detail)m.getPayload());}
             case ERROR -> showError((String)m.getPayload());
             default -> {}
         }
     }
-    private void clearSession() {authPending=false;closeInvite();lobbyNotice="";loginUser=null;loggedInUserId=-1;roomIdPresent=null;competitor="";Main.listOnlineUser.clear();Main.gameViewState.reset();}
+    private void clearSession() {authPending=false;closeInvite();lobbyNotice="";loginUser=null;loggedInUserId=-1;roomIdPresent=null;sessionIdPresent=null;sessionState=null;competitor="";Main.listOnlineUser.clear();Main.gameViewState.reset();}
     public void showError(String message) {
         authPending=false;notifyConnection(isConnected()?"Đã kết nối. Mời bạn đăng nhập.":connectionText);
         if(Main.startGameController!=null)Main.startGameController.commandFailed();
@@ -230,13 +260,21 @@ public class SocketHandler {
         if(authPending || !isConnected())return;authPending=true;notifyConnection("Đang đăng ký...");
         sendData(Message.of(MessageType.REGISTER_REQUEST,new LoginRequest(username,password)));
     }
-    public void logout() {sendData(Message.of(MessageType.LOGOUT_REQUEST,null));}
+    public void logout() {network.DiagnosticLog.event("logout_requested","userId="+loggedInUserId);sendData(Message.of(MessageType.LOGOUT_REQUEST,null));}
     public void getListOnline() {sendData(Message.of(MessageType.ONLINE_LIST,null));}
     public void inviteToPlay(String opponent) {sendData(Message.of(MessageType.INVITE_REQUEST,opponent));}
     public void leaveGame() {sendData(Message.of(MessageType.LEAVE_MATCH,roomIdPresent));}
     public void createBotMatch() {sendData(Message.of(MessageType.CREATE_BOT_MATCH,null));}
+    public void createBotMatch(BotDifficulty difficulty) {sendData(Message.of(MessageType.CREATE_BOT_MATCH,new BotMatchRequest(difficulty)));}
+    public void setRematchReady(boolean ready) {
+        if(sessionIdPresent!=null&&roomIdPresent!=null)sendData(Message.of(MessageType.SESSION_READY,new ReadyRequest(sessionIdPresent,roomIdPresent,UUID.randomUUID().toString(),ready)));
+    }
+    public void leaveSession() {if(sessionIdPresent!=null)sendData(Message.of(MessageType.SESSION_LEAVE,new LeaveRequest(sessionIdPresent,UUID.randomUUID().toString())));}
     public void getLeaderboard(int limit) {sendData(Message.of(MessageType.GET_RANKING,limit));}
     public void getMatchHistory(String username) {sendData(Message.of(MessageType.GET_HISTORY,null));}
+    public void getRankingsV2(){sendData(Message.of(MessageType.RANKING_V2_REQUEST,null));}
+    public void getHistoryPage(long playerId,int page){sendData(Message.of(MessageType.PLAYER_MATCHES_REQUEST,new protocol.dto.HistoryMessages.PageRequest(playerId,page,"ranking".equals(Main.historyOrigin))));}
+    public void getMatchDetail(String matchId){sendData(Message.of(MessageType.MATCH_DETAIL_REQUEST,new protocol.dto.HistoryMessages.DetailRequest(matchId)));}
     public void getUserRank(String username) {}
     public void getUserStats(String username) {}
     public void submitThrowCoordinate(double x,double y) {

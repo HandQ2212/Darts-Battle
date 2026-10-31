@@ -83,6 +83,10 @@
 .score-value { -fx-font-family: 'Lilita One'; -fx-fill: #75421f; -fx-font-size: 48px; -fx-font-weight: bold; }
 .opponent-card .score-value { -fx-fill: #9b5528; }
 .score-caption { -fx-text-fill: #9b7950; -fx-font-size: 10px; }
+.score-feedback { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #dc7b0c; -fx-padding: 3 8; -fx-background-color: #fff6d7; -fx-background-radius: 10; }
+.score-feedback-bust { -fx-text-fill: #b5452d; -fx-background-color: #ffe0cd; }
+.score-feedback-miss { -fx-text-fill: #857658; }
+.score-feedback-win { -fx-text-fill: #5b8c32; -fx-background-color: #ebf7c7; }
 .versus { -fx-font-family: 'Lilita One'; -fx-font-size: 27px; -fx-text-fill: #fff1c4; -fx-min-width: 36; -fx-max-width: 36; -fx-alignment: CENTER; }
 .dart-chip { -fx-background-color: #fffbeb; -fx-border-color: #d0ab66; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 5 7; -fx-min-width: 38; -fx-max-height: 32; -fx-min-height: 32; -fx-alignment: CENTER; }
 .dart-value { -fx-fill: #825127; -fx-font-size: 15px; -fx-font-weight: bold; }
@@ -118,7 +122,7 @@
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.20); -fx-background-radius: 16; }
 .bot-overlay .label { -fx-text-fill: #e9f7ff; -fx-font-size: 17px; -fx-font-weight: bold; }
 .progress-indicator { -fx-progress-color: #ff8909; }
-.turn-indicator { -fx-text-fill: #fff4ca; -fx-font-size: 12px; -fx-font-weight: bold; -fx-background-color: #548335; -fx-background-radius: 12; -fx-padding: 5 12; -fx-min-height: 28; -fx-max-width: Infinity; -fx-alignment: CENTER; }
+.turn-indicator { -fx-text-fill: #fffbea; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: #4f8532; -fx-background-radius: 10; -fx-padding: 6 9; -fx-min-height: 30; -fx-alignment: CENTER; -fx-effect: dropshadow(gaussian, rgba(58,95,30,0.35), 6, 0, 0, 2); }
 .history-button { -fx-background-color: #fff2cb; -fx-background-radius: 11; -fx-border-color: #bd8d49; -fx-border-radius: 11; -fx-text-fill: #75451f; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 9 5; }
 .history-button:hover { -fx-background-color: #ffdf9f; }
 .video-frame { -fx-background-color: #2d422e; -fx-background-radius: 12; -fx-border-color: #d1ae70; -fx-border-radius: 12; -fx-border-width: 2; }
@@ -128,7 +132,11 @@
 .device-button:active { -fx-background-color: #b8df8d; -fx-border-color: #6d9b42; }
 .device-button:pending { -fx-background-color: #ffdc96; -fx-border-color: #e39227; }
 .compact-guidance { -fx-background-color: #fff1cb; -fx-background-radius: 12; -fx-border-color: #b58a4a; -fx-border-radius: 12; -fx-padding: 9 12; -fx-min-height: 38; }
+.match-result-panel { -fx-background-color: linear-gradient(to bottom, #fff7dc, #ffdfaa); -fx-background-radius: 18; -fx-border-color: #c3904c; -fx-border-radius: 18; -fx-border-width: 2 2 4 2; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(33,48,20,0.38), 18, 0, 0, 5); }
+.result-heading { -fx-text-fill: #75421f; -fx-font-size: 26px; -fx-font-weight: bold; -fx-alignment: CENTER; }
+.result-summary { -fx-text-fill: #77542b; -fx-font-size: 13px; -fx-alignment: CENTER; }
 .history-heading { -fx-font-weight: bold; -fx-text-fill: #885125; -fx-font-size: 12px; }
+.bot-difficulty-button { -fx-alignment: CENTER_LEFT; -fx-min-height: 44; }
 .history-row { -fx-background-color: #fff4d3; -fx-background-radius: 9; -fx-padding: 9; -fx-border-color: #ead3a0; -fx-border-radius: 9; }
 .history-row .label { -fx-text-fill: #765331; -fx-font-size: 11px; }
 #historyScroll { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 2; }
