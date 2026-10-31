@@ -15,12 +15,12 @@ import tempfile
 import secrets
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / 'build' / 'desktop'
+BUILD = Path(os.environ.get('DARTS_BUILD_DIR', ROOT / 'build' / 'desktop')).resolve()
 CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
 WEBRTC_VERSION = '0.20.0'
-APP_VERSION = '2.3.0'
+APP_VERSION = '2.4.1'
 
 
 def tool(name):
@@ -224,10 +224,13 @@ def tests(h2_jar):
     build('server')
     h2 = Path(h2_jar).resolve() if h2_jar else download('com.h2database', 'h2', H2_VERSION)
     classes = BUILD / 'server' / 'classes'
-    sources = sorted((ROOT / 'tests').glob('*IntegrationTest.java'))
+    sources = sorted((ROOT / 'tests').glob('*IntegrationTest.java')) + [ROOT / 'tests/BotAimTest.java', ROOT / 'tests/DiagnosticLogTest.java']
     test_cp = str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*')
     run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_cp, '-d', classes, *sources])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'BotAimTest'])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'DiagnosticLogTest'])
     run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'MultiplayerIntegrationTest'])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'SessionIntegrationTest'])
     tls_tests(classes, h2)
 
 
@@ -245,6 +248,7 @@ def tls_tests(classes, h2):
              '-storepass:env', 'DARTS_TEST_TLS_PASSWORD', '-file', directory / 'trusted.pem'],
             env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         run([tool('java'), '-cp', str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*'), 'TlsIntegrationTest', directory / 'trusted.p12', directory / 'trusted.pem', directory / 'other.p12'], env=environment)
+        run([tool('java'), '-cp', str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*'), 'HistoryTransportIntegrationTest', directory / 'trusted.p12', directory / 'trusted.pem'], env=environment)
         environment['DARTS_TEST_TLS_STORE'] = str(directory / 'trusted.p12')
         environment['DARTS_TEST_TLS_CERT'] = str(directory / 'trusted.pem')
         run([tool('java'), '-Ddarts.test.websocket=true', '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'MultiplayerIntegrationTest'], env=environment)
@@ -256,7 +260,7 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    cases = ('ClientUiSmokeTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
+    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
     test_classpath = str(classes) + os.pathsep + str(libs / '*')
     run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
     for case in cases:

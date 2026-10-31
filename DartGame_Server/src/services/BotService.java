@@ -13,8 +13,7 @@ public final class BotService {
         for(int i=1;i<=3;i++) {
             final int dart=i;
             list.add(timer.schedule(()->{
-                try { GameService.getInstance().playBotStep(matchId,turnId,dart,
-                        ThreadLocalRandom.current().nextDouble(-140,140),ThreadLocalRandom.current().nextDouble(-140,140)); }
+                try { GameService.getInstance().playBotStep(matchId,turnId,dart); }
                 catch(RuntimeException e) { System.err.println("Bot failed: "+e.getMessage()); }
                 if(dart==3) tasks.remove(matchId,list);
             },delay*i,TimeUnit.MILLISECONDS));
