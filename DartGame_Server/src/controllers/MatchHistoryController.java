@@ -11,7 +11,10 @@ public class MatchHistoryController {
     
     // Create a new match record
     public void createMatch(String matchId, String mode, long player1Id, Long player2Id, String player2Type) {
-        String sql = "INSERT INTO matches (id, mode, player1_id, player2_id, player2_type) VALUES (?, ?, ?, ?, ?)";
+        createMatch(matchId,mode,player1Id,player2Id,player2Type,null,1,null);
+    }
+    public void createMatch(String matchId, String mode, long player1Id, Long player2Id, String player2Type,String sessionId,int round,String botDifficulty) {
+        String sql = "INSERT INTO matches (id, mode, player1_id, player2_id, player2_type,session_id,round_index,bot_difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, matchId);
@@ -23,6 +26,7 @@ public class MatchHistoryController {
                 stmt.setNull(4, java.sql.Types.BIGINT);
             }
             stmt.setString(5, player2Type);
+            stmt.setString(6,sessionId);stmt.setInt(7,round);stmt.setString(8,botDifficulty);
             stmt.executeUpdate();
         } catch (Exception e) {
             throw new IllegalStateException("Không lưu được lịch sử trận đấu", e);
@@ -31,8 +35,8 @@ public class MatchHistoryController {
 
     // Save a throw result
     public void saveThrow(ThrowResult result, Long playerId) {
-        String sql = "INSERT INTO match_throws (match_id, player_id, actor_type, turn_number, dart_number, x, y, rotation_degree, hit_area, dart_score, remaining_score_after) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO match_throws (match_id, player_id, actor_type, turn_number, dart_number, x, y, rotation_degree, hit_area, dart_score, remaining_score_after,is_bust) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, result.getMatchId());
@@ -50,6 +54,7 @@ public class MatchHistoryController {
             stmt.setString(9, result.getHitArea().name());
             stmt.setInt(10, result.getDartScore());
             stmt.setInt(11, result.getRemainingScoreAfter());
+            stmt.setBoolean(12,result.isBust());
             stmt.executeUpdate();
         } catch (java.sql.SQLIntegrityConstraintViolationException duplicate) {
             // A retried write may already have committed. Only accept the exact stored throw.
@@ -69,7 +74,10 @@ public class MatchHistoryController {
 
     // Finish match
     public void finishMatch(String matchId, Long winnerId, String winnerType, String endReason) {
-        String sql = "UPDATE matches SET winner_id = ?, winner_type = ?, end_reason = ?, ended_at = CURRENT_TIMESTAMP WHERE id = ?";
+        finishMatch(matchId,winnerId,winnerType,endReason,null,null);
+    }
+    public void finishMatch(String matchId, Long winnerId, String winnerType, String endReason,Integer player1Score,Integer player2Score) {
+        String sql = "UPDATE matches SET winner_id = ?, winner_type = ?, end_reason = ?, ended_at = CURRENT_TIMESTAMP,player1_final_score=?,player2_final_score=? WHERE id = ? AND ended_at IS NULL";
         try (Connection conn = DBConnection.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             if (winnerId != null) {
@@ -79,10 +87,18 @@ public class MatchHistoryController {
             }
             stmt.setString(2, winnerType);
             stmt.setString(3, endReason);
-            stmt.setString(4, matchId);
+            if(player1Score==null)stmt.setNull(4,java.sql.Types.INTEGER);else stmt.setInt(4,player1Score);
+            if(player2Score==null)stmt.setNull(5,java.sql.Types.INTEGER);else stmt.setInt(5,player2Score);
+            stmt.setString(6, matchId);
             stmt.executeUpdate();
         } catch (Exception e) {
             throw new IllegalStateException("Không lưu được lịch sử trận đấu", e);
         }
+    }
+    /** Delete a reserved record only if its match was never announced or played. */
+    public void discardUnstartedMatch(String matchId) {
+        try(Connection conn=DBConnection.getInstance().getConnection();PreparedStatement stmt=conn.prepareStatement("DELETE FROM matches WHERE id=? AND ended_at IS NULL")){
+            stmt.setString(1,matchId);stmt.executeUpdate();
+        }catch(Exception e){throw new IllegalStateException("Không xóa được ván chưa bắt đầu",e);}
     }
 }

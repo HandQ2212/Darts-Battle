@@ -75,10 +75,31 @@ public class DBConnection {
                 }
                 unique=indexColumns.values().stream().anyMatch(columns->columns.equals(java.util.Set.of("match_id","turn_number","dart_number")));
                 if(!unique) stmt.execute("ALTER TABLE match_throws ADD CONSTRAINT uq_match_dart UNIQUE(match_id,turn_number,dart_number)");
+                addColumn(connection,stmt,"matches","session_id","VARCHAR(255)");
+                addColumn(connection,stmt,"matches","round_index","INT");
+                addColumn(connection,stmt,"matches","bot_difficulty","VARCHAR(20)");
+                addColumn(connection,stmt,"matches","player1_final_score","INT");
+                addColumn(connection,stmt,"matches","player2_final_score","INT");
+                addColumn(connection,stmt,"match_throws","is_bust","BOOLEAN");
+                addIndex(connection,stmt,"matches","idx_matches_p1_ended","player1_id,ended_at");
+                addIndex(connection,stmt,"matches","idx_matches_p2_ended","player2_id,ended_at");
             }
             System.out.println("Tables checked/created successfully.");
         } catch (Exception e) {
             throw new IllegalStateException("Không khởi tạo được DB; kiểm tra DARTS_DB_URL/USER/PASSWORD", e);
         }
+    }
+    private static void addColumn(Connection connection,java.sql.Statement stmt,String table,String column,String type)throws java.sql.SQLException {
+        try(java.sql.ResultSet rs=stmt.executeQuery("SELECT * FROM "+table+" WHERE 1=0")){
+            var metadata=rs.getMetaData();
+            for(int i=1;i<=metadata.getColumnCount();i++)if(column.equalsIgnoreCase(metadata.getColumnName(i)))return;
+        }
+        stmt.execute("ALTER TABLE "+table+" ADD COLUMN "+column+" "+type);
+    }
+    private static void addIndex(Connection connection,java.sql.Statement stmt,String table,String name,String columns)throws java.sql.SQLException {
+        try(java.sql.ResultSet rs=connection.getMetaData().getIndexInfo(connection.getCatalog(),null,table,false,false)){
+            while(rs.next())if(name.equalsIgnoreCase(rs.getString("INDEX_NAME")))return;
+        }
+        stmt.execute("CREATE INDEX "+name+" ON "+table+" ("+columns+")");
     }
 }

@@ -11,9 +11,8 @@
   <Button fx:id="soundButton" text="Nhạc: bật" onAction="#toggleSound" styleClass="ghost"/>
   <Button fx:id="effectSoundButton" text="Hiệu ứng: bật" onAction="#toggleEffectSound" styleClass="ghost"/>
  </HBox></top>
- <center><HBox fx:id="gameMain" styleClass="game-main" alignment="TOP_CENTER">
+ <center><StackPane><HBox fx:id="gameMain" styleClass="game-main" alignment="TOP_CENTER">
   <VBox fx:id="leftColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
-   <Label fx:id="myTurnTag" text="Lượt của bạn" styleClass="turn-indicator"/>
    <VBox fx:id="myScoreSlot"/>
    <Button fx:id="myHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
    <StackPane fx:id="localVideoFrame" styleClass="video-frame" minHeight="0">
@@ -34,11 +33,16 @@
      <Pane fx:id="gamePane" minWidth="450" maxWidth="450" minHeight="400" maxHeight="400" prefWidth="450" prefHeight="400" styleClass="board-surface"/>
      <VBox fx:id="botTurnOverlay" alignment="CENTER" spacing="12" visible="false" mouseTransparent="true" styleClass="bot-overlay"><ProgressIndicator prefWidth="36" prefHeight="36" maxWidth="36" maxHeight="36"/><Label text="Bot đang ngắm..."/></VBox>
     </StackPane>
+    <VBox fx:id="resultPanel" visible="false" managed="false" alignment="CENTER" spacing="14" maxWidth="380" maxHeight="300" styleClass="match-result-panel">
+     <Label fx:id="resultTitle" text="Kết quả ván đấu" styleClass="result-heading" wrapText="true"/>
+     <Label fx:id="resultScore" styleClass="result-summary" wrapText="true"/>
+     <Label fx:id="rematchStatus" styleClass="result-summary" wrapText="true"/>
+     <HBox alignment="CENTER" spacing="10"><Button fx:id="rematchButton" text="Chơi tiếp" onAction="#toggleRematch" styleClass="primary"/><Button fx:id="exitSessionButton" text="Thoát về sảnh" onAction="#leaveSession" styleClass="ghost"/></HBox>
+    </VBox>
    </StackPane>
    <HBox alignment="CENTER" styleClass="compact-guidance"><Label fx:id="aimStatusLabel" text="Chờ lượt" styleClass="instruction" wrapText="true"/></HBox>
   </VBox>
   <VBox fx:id="rightColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
-   <Label fx:id="otherTurnTag" text="Lượt đối thủ" styleClass="turn-indicator"/>
    <VBox fx:id="otherScoreSlot"/>
    <Button fx:id="otherHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
    <StackPane fx:id="remoteVideoFrame" styleClass="video-frame" minHeight="0">
@@ -51,5 +55,5 @@
     <bottom><HBox fx:id="chatComposer" spacing="6" alignment="CENTER"><TextField fx:id="chatInput" promptText="Nhập tin nhắn..." minWidth="0" HBox.hgrow="ALWAYS"/><Button text="Gửi" onAction="#handleSend" styleClass="primary, chat-send"/></HBox></bottom>
    </BorderPane>
   </VBox>
- </HBox></center>
+ </HBox><Pane fx:id="turnMotionLayer" mouseTransparent="true" pickOnBounds="false"/></StackPane></center>
 </BorderPane>

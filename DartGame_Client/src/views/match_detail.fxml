@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:controller="controllers.MatchDetailController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+ <VBox spacing="14" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+  <HBox alignment="CENTER_LEFT"><Button text="← Lịch sử" onAction="#handleBack" styleClass="ghost"/><Region HBox.hgrow="ALWAYS"/><Label text="DARTS / BATTLE" styleClass="brand"/></HBox><Region styleClass="divider"/>
+  <Label text="CHI TIẾT VÁN ĐẤU" styleClass="eyebrow"/><Label fx:id="headingLabel" text="Đang tải..." styleClass="title"/>
+  <VBox spacing="8" styleClass="card"><Label fx:id="summaryLabel" wrapText="true"/><Label fx:id="statusLabel" text="Đang tải dữ liệu..." wrapText="true" styleClass="muted"/></VBox>
+  <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS"><content><VBox fx:id="historyRows" spacing="8"/></content></ScrollPane>
+ </VBox>
+</AnchorPane>

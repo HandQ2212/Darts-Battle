@@ -28,6 +28,10 @@ public class StartGameController {
     @FXML private HBox gameMain,mediaControls,chatComposer;
     @FXML private VBox leftColumn,rightColumn,myScoreSlot,otherScoreSlot;
     @FXML private StackPane localVideoFrame,remoteVideoFrame;
+    @FXML private StackPane boardContainer;
+    @FXML private VBox resultPanel;
+    @FXML private Label resultTitle,resultScore,rematchStatus;
+    @FXML private Button rematchButton,exitSessionButton;
     @FXML private BorderPane chatPanel;
     @FXML private Label mediaStatusLabel;
     @FXML private Button microphoneButton,cameraButton,deviceSettingsButton;
@@ -40,8 +44,11 @@ public class StartGameController {
     private ui.BoardRotationEffect rotationEffect;
     private javafx.scene.media.AudioClip dartImpact;
     private final Text myScore=new Text(),otherScore=new Text();
+    private ui.ScoreEffect myScoreEffect,otherScoreEffect;
     private VBox myCard, otherCard;
-    @FXML private Label myTurnTag,otherTurnTag;
+    @FXML private Pane turnMotionLayer;
+    private Label myTurnTag,otherTurnTag;
+    private ui.TurnMotion turnMotion;
     private static final javafx.css.PseudoClass ACTIVE=javafx.css.PseudoClass.getPseudoClass("active");
     private static final javafx.css.PseudoClass PENDING=javafx.css.PseudoClass.getPseudoClass("pending");
     private Line lineX,lineY;
@@ -52,9 +59,9 @@ public class StartGameController {
     private boolean microphoneRequested,cameraRequested,mediaStarted,historyOpen;
     private boolean lastTurnMine;
     private long animatedTurn=-1;
-    private Animation turnAnimation;
     private final PauseTransition remoteVideoExpiry=new PauseTransition(Duration.seconds(2));
     private ui.Notifications.Notice historyNotice;
+    private ui.Notifications.Notice settingsNotice;
     private VBox historyRows,deviceSettingsPanel;
     private String activeCallId,previousCallId;
     private long displayedTurn=-1;
@@ -92,6 +99,7 @@ public class StartGameController {
         otherCard=playerCard(Main.socketHandler.competitor,"ĐỐI THỦ",otherScore);
         otherCard.getStyleClass().add("opponent-card");
         myScoreSlot.getChildren().add(myCard);otherScoreSlot.getChildren().add(otherCard);
+        turnMotion=new ui.TurnMotion(myCard,myTurnTag,otherCard,otherTurnTag,turnMotionLayer);
         remoteVideoExpiry.setOnFinished(event->{if(!disposed){remoteVideoView.setImage(null);remoteVideoPlaceholder.setVisible(true);}});
         chatList.setCellFactory(list->new ListCell<>() {
             private final Label message=new Label();
@@ -135,10 +143,17 @@ public class StartGameController {
     }
     private VBox playerCard(String name,String caption,Text score) {
         Label player=new Label(name==null?caption:name);player.getStyleClass().add("player-name");
-        player.setMaxWidth(Double.MAX_VALUE);player.setWrapText(true);
+        player.setMaxWidth(Double.MAX_VALUE);player.setMinWidth(0);player.setWrapText(true);
         score.getStyleClass().add("score-value");
         Label remaining=new Label(caption+" / CÒN LẠI");remaining.getStyleClass().add("score-caption");
-        VBox card=new VBox(4,player,score,remaining);card.getStyleClass().add("score-card");
+        StackPane scoreRow=new StackPane();scoreRow.setMinWidth(0);scoreRow.setMaxWidth(Double.MAX_VALUE);
+        ui.ScoreEffect effect=new ui.ScoreEffect(score,scoreRow);
+        if(score==myScore)myScoreEffect=effect;else otherScoreEffect=effect;
+        Label tag=new Label("Đến lượt");tag.setId(score==myScore?"myTurnTag":"otherTurnTag");tag.getStyleClass().add("turn-indicator");
+        tag.setVisible(false);tag.setMouseTransparent(true);
+        if(score==myScore)myTurnTag=tag;else otherTurnTag=tag;
+        HBox heading=new HBox(5,player,tag);heading.setAlignment(javafx.geometry.Pos.CENTER_LEFT);HBox.setHgrow(player,Priority.ALWAYS);
+        VBox card=new VBox(4,heading,scoreRow,remaining);card.getStyleClass().add("score-card");
         card.setMinWidth(0);card.setMaxWidth(Double.MAX_VALUE);
         return card;
     }
@@ -188,13 +203,12 @@ public class StartGameController {
         rotationEffect.setAngle(s.rotationDegree());
         boolean rotating=rotationEffect.isRunning() || s.status()==MatchStatus.WAITING_ROTATION;
         boolean p1=Main.gameViewState.isPlayer1();
-        myScore.setText(String.valueOf(p1?s.player1Score():s.player2Score()));otherScore.setText(String.valueOf(p1?s.player2Score():s.player1Score()));
+        myScoreEffect.sync(p1?s.player1Score():s.player2Score());otherScoreEffect.sync(p1?s.player2Score():s.player1Score());
         boolean me=Main.gameViewState.isMyTurn() && s.status()!=MatchStatus.FINISHED;
         boolean active=s.status()!=MatchStatus.FINISHED;
         myCard.pseudoClassStateChanged(ACTIVE,me);otherCard.pseudoClassStateChanged(ACTIVE,active&&!me);
-        myTurnTag.setVisible(me);otherTurnTag.setVisible(active&&!me);
         if(active&&(turnChanged||animatedTurn!=s.turnId()||lastTurnMine!=me))animateTurn(me,s.turnId());
-        if(!active&&turnAnimation!=null)turnAnimation.stop();
+        if(!active)turnMotion.clear();
         botTurnOverlay.setVisible(!rotating && s.actorType()==ActorType.BOT && s.status()!=MatchStatus.FINISHED);
         if(!me || rotating || s.status()!=MatchStatus.PLAYING||historyOpen)stopAim();
         aimStatusLabel.setDisable(historyOpen||!me || rotating || s.status()!=MatchStatus.PLAYING || pending || s.dartsThrown()>=3);
@@ -209,6 +223,7 @@ public class StartGameController {
     public void showThrow(ThrowResolvedResponse res) {
         if(disposed)return;pending=false;stopAim();
         boolean own=java.util.Objects.equals(res.getActorId(),Main.socketHandler.loggedInUserId);
+        (own?myScoreEffect:otherScoreEffect).play(res.getRemainingScoreAfter(),res.getDartScore(),res.isBust());
         dartEffects.throwDart(CX+res.getX(),CY+res.getY(),own,res.getDartScore(),res.isBust());
         if(historyOpen)refreshHistory();
         render(res.getSnapshot());
@@ -232,37 +247,66 @@ public class StartGameController {
         }
     }
     private void stopAim() {if(xAnimation!=null)xAnimation.stop();if(yAnimation!=null)yAnimation.stop();xRunning=false;yRunning=false;if(lineX!=null)lineX.setVisible(false);if(lineY!=null)lineY.setVisible(false);}
-    public void commandFailed() {if(disposed)return;pending=false;render(Main.gameViewState.getSnapshot());}
+    public void commandFailed() {if(disposed)return;pending=false;if(finished&&canRematch())sessionChanged(Main.socketHandler.sessionState);render(Main.gameViewState.getSnapshot());}
     public void finish(MatchSnapshot s) {
-        if(disposed||finished)return;finished=true;pending=false;stopAim();stopMedia(false);render(s);
+        if(disposed||finished)return;finished=true;pending=false;stopAim();render(s);
         boolean won=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
         playEffect(won?"win":"loose");
         String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
-        Main.notifications().result(won,reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name(),this::goHome);
+        if(canRematch()){
+            if(historyNotice!=null)historyNotice.close();if(settingsNotice!=null)settingsNotice.close();
+            resultTitle.setText(won?"Bạn thắng rồi!":"Ván đấu đã kết thúc");
+            resultScore.setText(reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name());
+            boardContainer.setVisible(false);boardContainer.setManaged(false);resultPanel.setVisible(true);resultPanel.setManaged(true);
+            sessionChanged(Main.socketHandler.sessionState);updateMediaButtons();
+        } else {stopMedia(false);Main.notifications().result(won,reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name(),this::goHome);}
     }
     @FXML public void handleBack() {
-        if(finished){goHome();return;}
-        Main.notifications().confirm("Rời trận đấu?","Rời lúc này sẽ bị xử thua. Bạn vẫn muốn về sảnh?","Rời trận",()->{
-            if(disposed||finished)return;
-            pending=true;stopAim();aimStatusLabel.setDisable(true);stopMedia(true);Main.socketHandler.leaveGame();
+        if(finished&&!canRematch()){goHome();return;}
+        Main.notifications().confirm("Rời phiên chơi?",finished?"Cuộc gọi sẽ kết thúc và bạn sẽ về sảnh.":"Rời lúc này sẽ bị xử thua. Cuộc gọi cũng sẽ kết thúc.","Rời trận",()->{
+            if(disposed)return;
+            pending=true;stopAim();aimStatusLabel.setDisable(true);
+            if(canRematch())Main.socketHandler.leaveSession();else {stopMedia(true);Main.socketHandler.leaveGame();}
         });
+    }
+    private boolean canRematch(){return Main.socketHandler.sessionState!=null&&Main.socketHandler.sessionState.rematchSupported()&&!"CLOSED".equals(Main.socketHandler.sessionState.phase());}
+    private String mediaSessionId(){return Main.socketHandler.sessionIdPresent!=null?Main.socketHandler.sessionIdPresent:Main.gameViewState.getMatchId();}
+    @FXML private void toggleRematch(){
+        if(disposed||!finished||!canRematch())return;
+        var state=Main.socketHandler.sessionState;
+        boolean ready=Main.gameViewState.isPlayer1()?state.player1Ready():state.player2Ready();
+        rematchButton.setDisable(true);Main.socketHandler.setRematchReady(!ready);
+    }
+    @FXML private void leaveSession(){if(!disposed&&canRematch()){exitSessionButton.setDisable(true);rematchButton.setDisable(true);Main.socketHandler.leaveSession();}}
+    public void sessionChanged(protocol.dto.SessionMessages.State state){
+        if(disposed||state==null||!state.rematchSupported()||!finished||!"RESULTS".equals(state.phase()))return;
+        boolean ready=Main.gameViewState.isPlayer1()?state.player1Ready():state.player2Ready();
+        boolean opponentReady=Main.gameViewState.isPlayer1()?state.player2Ready():state.player1Ready();
+        boolean starting=ready&&(Main.gameViewState.getSnapshot().mode()==MatchMode.PVE||opponentReady);
+        rematchButton.setDisable(starting);exitSessionButton.setDisable(false);rematchButton.setText(ready?"Hủy sẵn sàng":"Chơi tiếp");
+        rematchStatus.setText(starting?"Đang chuẩn bị ván mới…":state.notice()!=null&&state.notice().startsWith("Không")?state.notice():ready?"Đang chờ đối thủ…":opponentReady?"Đối thủ muốn chơi tiếp.":"Bạn có muốn chơi tiếp?");
+    }
+    public void nextMatch(MatchSnapshot snapshot){
+        if(disposed)return;if(historyNotice!=null)historyNotice.close();if(settingsNotice!=null)settingsNotice.close();
+        finished=false;pending=false;historyOpen=false;displayedTurn=-1;animatedTurn=-1;turnMotion.clear();myScoreEffect.reset(301);otherScoreEffect.reset(301);
+        resultPanel.setVisible(false);resultPanel.setManaged(false);boardContainer.setVisible(true);boardContainer.setManaged(true);
+        rematchButton.setDisable(false);exitSessionButton.setDisable(false);render(snapshot);
+    }
+    public void sessionClosed(String notice){
+        if(disposed)return;stopMedia(false);goHome();Main.notifications().toast("Phiên chơi",notice==null?"Phiên chơi đã kết thúc.":notice,"info");
     }
     private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
     @FXML public void handleSend() {
-        String text=chatInput.getText().trim();if(text.isEmpty()||text.length()>500||finished)return;
-        Main.socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE,new ChatMessage(Main.socketHandler.roomIdPresent,text,null)));chatInput.clear();
+        String text=chatInput.getText().trim();if(text.isEmpty()||text.length()>500||(finished&&!canRematch()))return;
+        String id=canRematch()?Main.socketHandler.sessionIdPresent:Main.socketHandler.roomIdPresent;
+        Main.socketHandler.sendData(Message.of(MessageType.CHAT_MESSAGE,new ChatMessage(id,text,null)));chatInput.clear();
     }
     public void addMessage(String text) {if(!disposed){chatList.getItems().add(text);if(chatList.getItems().size()>300)chatList.getItems().remove(0);chatList.scrollTo(chatList.getItems().size()-1);}}
     private void animateTurn(boolean mine,long turnId) {
-        if(turnAnimation!=null)turnAnimation.stop();
-        myTurnTag.setOpacity(1);otherTurnTag.setOpacity(1);myTurnTag.setTranslateY(0);otherTurnTag.setTranslateY(0);
-        Label label=mine?myTurnTag:otherTurnTag;label.setOpacity(0);label.setTranslateY(-8);
-        FadeTransition fade=new FadeTransition(Duration.millis(300),label);fade.setFromValue(0);fade.setToValue(1);
-        TranslateTransition slide=new TranslateTransition(Duration.millis(300),label);slide.setFromY(-8);slide.setToY(0);
-        turnAnimation=new ParallelTransition(fade,slide);turnAnimation.play();animatedTurn=turnId;lastTurnMine=mine;
+        turnMotion.activate(mine);animatedTurn=turnId;lastTurnMine=mine;
     }
     @FXML private void showHistory() {
-        if(disposed||finished||historyOpen)return;
+        if(disposed||(finished&&!canRematch())||historyOpen)return;
         historyOpen=true;stopAim();render(Main.gameViewState.getSnapshot());
         historyRows=new VBox(8);refreshHistory();
         ScrollPane scroll=new ScrollPane(historyRows);scroll.setId("historyScroll");scroll.setFitToWidth(true);
@@ -285,24 +329,22 @@ public class StartGameController {
     }
     private Label historyColumnTitle(String text){Label label=new Label(text);label.getStyleClass().add("history-heading");label.setMaxWidth(Double.MAX_VALUE);HBox.setHgrow(label,Priority.ALWAYS);return label;}
     private VBox historyCell(models.GameViewState.Turn turn,int number){
-        Label heading=new Label("Lượt "+number);heading.getStyleClass().add("history-heading");
         String darts="—   ·   —   ·   —",summary="Chưa có lượt";
         if(turn!=null){
             darts=turn.darts().stream().map(d->d==null?"—":d.bust()?d.score()+" BUST":String.valueOf(d.score())).collect(java.util.stream.Collectors.joining("   ·   "));
             summary="Trừ "+turn.deducted()+"  ·  Còn "+turn.remaining();
         }
-        Label scores=new Label(darts),total=new Label(summary);scores.setWrapText(true);total.setWrapText(true);
-        VBox box=new VBox(4,heading,scores,total);box.getStyleClass().add("history-row");box.setMinWidth(0);box.setMaxWidth(Double.MAX_VALUE);HBox.setHgrow(box,Priority.ALWAYS);return box;
+        return ui.TurnHistoryView.cell(number,darts,summary);
     }
     @FXML private void showDeviceSettings() {
-        if(disposed||finished||!pvpMedia||historyOpen)return;
+        if(disposed||(finished&&!canRematch())||!pvpMedia||historyOpen)return;
         historyOpen=true;stopAim();render(Main.gameViewState.getSnapshot());
         if(deviceSettingsPanel==null){
             microphoneChoice.setMaxWidth(Double.MAX_VALUE);speakerChoice.setMaxWidth(Double.MAX_VALUE);cameraChoice.setMaxWidth(Double.MAX_VALUE);
             deviceSettingsPanel=new VBox(8,new Label("Micro"),microphoneChoice,new Label("Loa"),speakerChoice,new Label("Camera"),cameraChoice);
             deviceSettingsPanel.setId("deviceSettingsPanel");
         }
-        Main.notifications().custom("Cài đặt thiết bị",deviceSettingsPanel,()->{historyOpen=false;if(!disposed&&!finished)render(Main.gameViewState.getSnapshot());});
+        settingsNotice=Main.notifications().custom("Cài đặt thiết bị",deviceSettingsPanel,()->{settingsNotice=null;historyOpen=false;if(!disposed&&!finished)render(Main.gameViewState.getSnapshot());});
     }
     private Group deviceIcon(String kind,boolean enabled){
         SVGPath path=new SVGPath();
@@ -320,12 +362,12 @@ public class StartGameController {
         boolean waiting=requested&&!enabled;
         button.setGraphic(deviceIcon(kind,enabled));button.pseudoClassStateChanged(ACTIVE,enabled);button.pseudoClassStateChanged(PENDING,waiting);
         String action=waiting?"Hủy bật "+label:enabled?"Tắt "+label:"Bật "+label;
-        button.setAccessibleText(action);button.setTooltip(new Tooltip(action+(waiting?" (đang kết nối)":"")));button.setDisable(finished||!pvpMedia);
+        button.setAccessibleText(action);button.setTooltip(new Tooltip(action+(waiting?" (đang kết nối)":"")));button.setDisable((finished&&!canRematch())||!pvpMedia);
     }
     private void updateMediaButtons(){
         deviceButton(microphoneButton,"microphone",microphoneEnabled,microphoneRequested,"mic");
         deviceButton(cameraButton,"camera",cameraEnabled,cameraRequested,"camera");
-        deviceSettingsButton.setDisable(finished||!pvpMedia);
+        deviceSettingsButton.setDisable((finished&&!canRematch())||!pvpMedia);
     }
     private void playDartImpact() {
         if(disposed||!effects)return;
@@ -335,6 +377,8 @@ public class StartGameController {
     private void updateMediaAvailability() {
         MatchSnapshot snapshot=Main.gameViewState.getSnapshot();pvpMedia=snapshot!=null&&snapshot.mode()==MatchMode.PVP;
         mediaControls.setVisible(pvpMedia);mediaControls.setManaged(pvpMedia);mediaStatusLabel.setVisible(pvpMedia);mediaStatusLabel.setManaged(pvpMedia);
+        localVideoFrame.setVisible(pvpMedia);localVideoFrame.setManaged(pvpMedia);remoteVideoFrame.setVisible(pvpMedia);remoteVideoFrame.setManaged(pvpMedia);
+        chatPanel.setVisible(pvpMedia);chatPanel.setManaged(pvpMedia);
         chatComposer.setVisible(pvpMedia);chatComposer.setManaged(pvpMedia);
         if(!pvpMedia){
             remoteVideoPlaceholder.setText("BOT");
@@ -347,24 +391,24 @@ public class StartGameController {
         } else {remoteVideoPlaceholder.setText("Camera đối thủ đang tắt");remoteVideoPlaceholder.setGraphic(null);}
     }
     private void joinCall() {
-        if(disposed||finished||!pvpMedia||callJoined)return;
-        String matchId=Main.gameViewState.getMatchId();if(matchId==null)return;
+        if(disposed||(finished&&!canRematch())||!pvpMedia||callJoined)return;
+        String matchId=mediaSessionId();if(matchId==null)return;
         if(activeCallId!=null)previousCallId=activeCallId;activeCallId=null;
         callJoined=true;peerInCall=false;mediaStatusLabel.setText("Đang kết nối mic/video…");
         mediaCall.join(matchId);
     }
     @FXML private void toggleMicrophone() {
-        if(disposed||finished||!pvpMedia)return;microphoneRequested=!microphoneRequested;updateMediaButtons();
+        if(disposed||(finished&&!canRematch())||!pvpMedia)return;microphoneRequested=!microphoneRequested;updateMediaButtons();
         if(!callJoined&&microphoneRequested)joinCall();
         if(peerInCall)mediaCall.setMicrophone(microphoneRequested,microphoneChoice.getSelectionModel().getSelectedIndex()-1);
     }
     @FXML private void toggleCamera() {
-        if(disposed||finished||!pvpMedia)return;cameraRequested=!cameraRequested;updateMediaButtons();
+        if(disposed||(finished&&!canRematch())||!pvpMedia)return;cameraRequested=!cameraRequested;updateMediaButtons();
         if(!callJoined&&cameraRequested)joinCall();
         if(peerInCall)mediaCall.setCamera(cameraRequested,cameraChoice.getSelectionModel().getSelectedIndex()-1);
     }
     public void mediaPeerState(protocol.dto.MediaMessages.PeerState state) {
-        if(disposed||finished||!java.util.Objects.equals(Main.gameViewState.getMatchId(),state.matchId()))return;
+        if(disposed||(finished&&!canRematch())||!java.util.Objects.equals(mediaSessionId(),state.matchId()))return;
         boolean ended=state.notice()!=null&&(state.notice().startsWith("Cuộc gọi đã kết thúc")||state.notice().startsWith("Trận đã kết thúc"));
         if(ended&&callJoined&&state.callId()!=null&&state.callId().equals(previousCallId))return;
         if(ended&&activeCallId!=null&&!activeCallId.equals(state.callId()))return;
@@ -386,7 +430,7 @@ public class StartGameController {
         }
     }
     public void mediaIceServers(protocol.dto.MediaMessages.IceConfig config) {
-        if(disposed||finished||!callJoined||config==null||!java.util.Objects.equals(Main.gameViewState.getMatchId(),config.matchId())
+        if(disposed||(finished&&!canRematch())||!callJoined||config==null||!java.util.Objects.equals(mediaSessionId(),config.matchId())
                 ||config.callId()==null||config.callId().equals(previousCallId)||(activeCallId!=null&&!activeCallId.equals(config.callId())))return;
         activeCallId=config.callId();mediaCall.onIceConfig(config);
     }
@@ -411,7 +455,7 @@ public class StartGameController {
         if(localVideoView!=null)localVideoView.setImage(null);if(remoteVideoView!=null)remoteVideoView.setImage(null);
         if(localVideoPlaceholder!=null)localVideoPlaceholder.setVisible(true);if(remoteVideoPlaceholder!=null)remoteVideoPlaceholder.setVisible(true);
     }
-    public void dispose() {if(mediaCall!=null)mediaCall.close(!finished&&Main.socketHandler!=null&&Main.socketHandler.isConnected());disposed=true;remoteVideoExpiry.stop();if(turnAnimation!=null)turnAnimation.stop();stopAim();rotationEffect.cancel();dartEffects.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    public void dispose() {if(mediaCall!=null)mediaCall.close(!finished&&Main.socketHandler!=null&&Main.socketHandler.isConnected());disposed=true;remoteVideoExpiry.stop();if(turnMotion!=null)turnMotion.clear();stopAim();rotationEffect.cancel();dartEffects.dispose();if(myScoreEffect!=null)myScoreEffect.dispose();if(otherScoreEffect!=null)otherScoreEffect.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
     @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"Nhạc: bật":"Nhạc: tắt");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
     @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
 }

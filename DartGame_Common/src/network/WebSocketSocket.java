@@ -25,6 +25,8 @@ public final class WebSocketSocket extends Socket implements WebSocket.Listener 
                     byte[] bytes=incoming.poll(timeout>0?timeout:35000,TimeUnit.MILLISECONDS);
                     if(bytes==null){if(closed)return -1;throw new SocketTimeoutException("WebSocket read timed out");}
                     part=new ByteArrayInputStream(bytes);
+                    // Replenish receive demand only after freeing a queue slot.
+                    WebSocket ws=websocket;if(!closed&&ws!=null)ws.request(1);
                 } catch(InterruptedException e){Thread.currentThread().interrupt();throw new InterruptedIOException();}
             }
             return part.read(data,offset,length);
@@ -58,13 +60,13 @@ public final class WebSocketSocket extends Socket implements WebSocket.Listener 
     }
     @Override public void onOpen(WebSocket ws){websocket=ws;ws.request(1);}
     @Override public CompletionStage<?> onBinary(WebSocket ws,ByteBuffer data,boolean last) {
-        if(data.remaining()>65536){close();return null;}
+        if(data.remaining()>65536){DiagnosticLog.event("websocket_frame_limit","bytes="+data.remaining());close();return null;}
         byte[] bytes=new byte[data.remaining()];data.get(bytes);
-        if(!closed&&incoming.offer(bytes))ws.request(1);else close();return null;
+        if(!closed&&!incoming.offer(bytes)){DiagnosticLog.event("websocket_queue_full","queued="+incoming.size());close();}return null;
     }
     @Override public CompletionStage<?> onText(WebSocket ws,CharSequence data,boolean last){close();return null;}
-    @Override public CompletionStage<?> onClose(WebSocket ws,int status,String reason){closed=true;incoming.offer(new byte[0]);return null;}
-    @Override public void onError(WebSocket ws,Throwable error){closed=true;incoming.offer(new byte[0]);}
+    @Override public CompletionStage<?> onClose(WebSocket ws,int status,String reason){DiagnosticLog.event("websocket_close","code="+status);closed=true;incoming.offer(new byte[0]);return null;}
+    @Override public void onError(WebSocket ws,Throwable error){DiagnosticLog.event("websocket_error","error="+DiagnosticLog.type(error));closed=true;incoming.offer(new byte[0]);}
     @Override public InputStream getInputStream(){return input;}
     @Override public OutputStream getOutputStream(){return output;}
     @Override public void setSoTimeout(int millis){if(millis<0)throw new IllegalArgumentException();timeout=millis;}

@@ -61,11 +61,16 @@ public class HomeController {
     }
 
     public void handleClickStartGameWithBot() {
-        try {
-            socketHandler.createBotMatch();
-        } catch (Exception e) {
-            e.printStackTrace();
+        VBox body=new VBox(10,new Label("Chọn độ khó của bot"));
+        final ui.Notifications.Notice[] notice=new ui.Notifications.Notice[1];
+        for(enums.BotDifficulty difficulty:enums.BotDifficulty.values()){
+            Button button=new Button(difficulty.label());
+            button.setId("botDifficulty"+difficulty.name());button.setMaxWidth(Double.MAX_VALUE);
+            button.getStyleClass().add("bot-difficulty-button");
+            button.setOnAction(event->{notice[0].close();socketHandler.createBotMatch(difficulty);});
+            body.getChildren().add(button);
         }
+        notice[0]=Main.notifications().custom("Chơi với bot",body,null,390);
     }
 
     public void handleRanking() {
@@ -77,6 +82,7 @@ public class HomeController {
     }
     public void handleClickMatchHistory() {
         try {
+            Main.historyPlayerId=Main.socketHandler.loggedInUserId;Main.historyPlayerName=Main.socketHandler.loginUser;Main.historyPage=0;Main.historyOrigin="home";
             Main.setRoot("match_history");
         } catch (Exception e) {
             e.printStackTrace();
