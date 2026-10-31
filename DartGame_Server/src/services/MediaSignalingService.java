@@ -31,8 +31,8 @@ public final class MediaSignalingService {
     public void join(Client client,String matchId) {
         long userId=client.getLoggedInUserId();
         if(!client.supportsMedia()){client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(matchId,"","",false,false,"Cập nhật client để dùng cuộc gọi.")));return;}
-        Room room=RoomManager.getInstance().getRoom(matchId);
-        if(room==null||!room.started||room.getMode()!=MatchMode.PVP||room.getGameState().getStatus()==MatchStatus.FINISHED||!room.containsUser(userId))
+        Room room=RoomManager.getInstance().getSession(matchId);
+        if(room==null||!room.started||room.getMode()!=MatchMode.PVP||!mediaAllowed(room)||!room.containsUser(userId))
             {client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(matchId,"","",false,false,"Chỉ người chơi trong trận 1v1 đang diễn ra mới tham gia cuộc gọi được.")));return;}
         Long opponentId=room.getOpponentUserId(userId);
         Client opponent=opponentId==null?null:ClientManager.getInstance().getClient(opponentId);
@@ -50,34 +50,34 @@ public final class MediaSignalingService {
 
     private void finishJoin(Client client,Room room,long userId,String peerName,JoinKey key,JoinAttempt attempt) {
         var iceServers=turn.servers();
-        if(client.isClosed()||ClientManager.getInstance().getClient(userId)!=client||RoomManager.getInstance().getRoom(room.getMatchId())!=room||room.getGameState().getStatus()==MatchStatus.FINISHED)return;
-        Session session=sessions.compute(room.getMatchId(),(mapKey,old)->old==null?new Session(room):old);
+        if(client.isClosed()||ClientManager.getInstance().getClient(userId)!=client||RoomManager.getInstance().getSession(room.getSessionId())!=room||!mediaAllowed(room))return;
+        Session session=sessions.compute(room.getSessionId(),(mapKey,old)->old==null?new Session(room):old);
         if(session.room!=room)return;
         Client p1=ClientManager.getInstance().getClient(room.getPlayer1Id());
         Client p2=ClientManager.getInstance().getClient(room.getPlayer2Id());
         if(p1==null||p2==null||!p1.supportsMedia()||!p2.supportsMedia()){
-            client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getMatchId(),session.id,peerName,false,false,"Đối thủ chưa hỗ trợ cuộc gọi.")));return;
+            client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getSessionId(),session.id,peerName,false,false,"Đối thủ chưa hỗ trợ cuộc gọi.")));return;
         }
         synchronized(attempt) { synchronized(session) {
-            if(attempt.cancelled||pendingJoins.get(key)!=attempt||sessions.get(room.getMatchId())!=session||RoomManager.getInstance().getRoom(room.getMatchId())!=room){if(session.joined.isEmpty())sessions.remove(room.getMatchId(),session);return;}
+            if(attempt.cancelled||pendingJoins.get(key)!=attempt||sessions.get(room.getSessionId())!=session||RoomManager.getInstance().getSession(room.getSessionId())!=room){if(session.joined.isEmpty())sessions.remove(room.getSessionId(),session);return;}
             pendingJoins.remove(key,attempt);
             session.joined.add(userId);
             boolean both=session.joined.contains(room.getPlayer1Id())&&session.joined.contains(room.getPlayer2Id());
             boolean turnAvailable=iceServers.stream().anyMatch(s->s.urls().stream().anyMatch(u->u.startsWith("turn:")||u.startsWith("turns:")));
             if(turnAvailable)session.nextRefreshAt=Math.min(session.nextRefreshAt,System.currentTimeMillis()+TimeUnit.MINUTES.toMillis(45));
             else if(turn.configured())session.nextRefreshAt=Math.min(session.nextRefreshAt,System.currentTimeMillis()+TimeUnit.MINUTES.toMillis(5));
-            client.send(Message.of(MessageType.MEDIA_ICE_SERVERS,new IceConfig(room.getMatchId(),session.id,iceServers,turnAvailable)));
+            client.send(Message.of(MessageType.MEDIA_ICE_SERVERS,new IceConfig(room.getSessionId(),session.id,iceServers,turnAvailable)));
             if(both) {
-                p1.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getMatchId(),session.id,room.player2Name,true,true,"Cả hai đã vào cuộc gọi.")));
-                p2.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getMatchId(),session.id,room.player1Name,true,false,"Cả hai đã vào cuộc gọi.")));
-            } else client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getMatchId(),session.id,peerName,false,userId==room.getPlayer1Id(),"Đang chờ đối thủ tham gia.")));
+                p1.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getSessionId(),session.id,room.player2Name,true,true,"Cả hai đã vào cuộc gọi.")));
+                p2.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getSessionId(),session.id,room.player1Name,true,false,"Cả hai đã vào cuộc gọi.")));
+            } else client.send(Message.of(MessageType.MEDIA_STATUS,new PeerState(room.getSessionId(),session.id,peerName,false,userId==room.getPlayer1Id(),"Đang chờ đối thủ tham gia.")));
         }}
     }
 
     public void leave(Client client,String matchId) {
         if(matchId==null)return;
         long userId=client.getLoggedInUserId();
-        Room room=RoomManager.getInstance().getRoom(matchId);
+        Room room=RoomManager.getInstance().getSession(matchId);
         if(room==null||!room.containsUser(userId))return;
         JoinKey key=new JoinKey(matchId,userId);JoinAttempt attempt=pendingJoins.remove(key);
         if(attempt!=null)synchronized(attempt){attempt.cancelled=true;}
@@ -99,7 +99,7 @@ public final class MediaSignalingService {
         long userId=client.getLoggedInUserId();
         if(userId<=0)return;
         pendingJoins.forEach((key,attempt)->{if(key.userId()==userId&&pendingJoins.remove(key,attempt))synchronized(attempt){attempt.cancelled=true;}});
-        for(Session session:sessions.values())if(session.room.containsUser(userId))leave(client,session.room.getMatchId());
+        for(Session session:sessions.values())if(session.room.containsUser(userId))leave(client,session.room.getSessionId());
     }
     public void roomEnded(String matchId) {
         pendingJoins.forEach((key,attempt)->{if(key.matchId().equals(matchId)&&pendingJoins.remove(key,attempt))synchronized(attempt){attempt.cancelled=true;}});
@@ -124,7 +124,7 @@ public final class MediaSignalingService {
                         if(!available){renewedAll=false;continue;}
                         Client client=ClientManager.getInstance().getClient(userId);
                         if(client==null||!client.supportsMedia()){renewedAll=false;continue;}
-                        synchronized(session){if(sessions.get(session.room.getMatchId())==session&&session.joined.contains(userId))client.send(Message.of(MessageType.MEDIA_ICE_SERVERS,new IceConfig(session.room.getMatchId(),session.id,servers,true)));}
+                        synchronized(session){if(sessions.get(session.room.getSessionId())==session&&session.joined.contains(userId))client.send(Message.of(MessageType.MEDIA_ICE_SERVERS,new IceConfig(session.room.getSessionId(),session.id,servers,true)));}
                     }
                 } catch(RuntimeException failure) {
                     renewedAll=false;
@@ -159,6 +159,7 @@ public final class MediaSignalingService {
     }
 
     private static IllegalArgumentException invalid(String message){return new IllegalArgumentException(message);}
+    private static boolean mediaAllowed(Room room){return room.getGameState().getStatus()!=MatchStatus.FINISHED||room.isRematchSupported()&&"RESULTS".equals(room.getSessionPhase());}
     private record JoinKey(String matchId,long userId){}
     private static final class JoinAttempt {final long id;boolean cancelled;JoinAttempt(long id){this.id=id;}}
     private static final class Session {

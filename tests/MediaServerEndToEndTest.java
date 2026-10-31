@@ -5,6 +5,9 @@ import protocol.dto.*;
 import protocol.dto.GameMessages.*;
 import protocol.dto.MediaMessages.*;
 import services.Client;
+import services.GameService;
+import services.RoomManager;
+import protocol.dto.SessionMessages.*;
 import ui.MediaCallSession;
 import java.io.*;
 import java.net.*;
@@ -16,6 +19,7 @@ public class MediaServerEndToEndTest {
     private static final CountDownLatch connected=new CountDownLatch(2),turnCredentials=new CountDownLatch(2);
     private static final AtomicReference<String> failure=new AtomicReference<>();
     private static final AtomicBoolean captured=new AtomicBoolean();
+    private static final AtomicBoolean callEnded=new AtomicBoolean();
     private static final class Peer implements AutoCloseable {
         final Socket socket;
         final ObjectOutputStream out;
@@ -56,9 +60,10 @@ public class MediaServerEndToEndTest {
             send(MessageType.LOGIN_REQUEST,new LoginRequest(name,"secret123"));
             if(!((AuthResponse)take(MessageType.LOGIN_RESULT).getPayload()).success())throw new AssertionError("Login failed");
             send(MessageType.MEDIA_SUPPORT,null);
+            send(MessageType.FEATURE_SUPPORT,null);
         }
         void startMedia(String matchId){
-            media=new MediaCallSession(this::send,status->{if(status.startsWith("Đã kết nối")&&didConnect.compareAndSet(false,true))connected.countDown();},
+            media=new MediaCallSession(this::send,status->{if(status.startsWith("Đã kết nối")&&didConnect.compareAndSet(false,true))connected.countDown();if(status.startsWith("Trận đã kết thúc")||status.startsWith("Cuộc gọi đã kết thúc"))callEnded.set(true);},
                 text->{},text->failure.compareAndSet(null,text),on->{if(on)captured.set(true);},on->{if(on)captured.set(true);},image->{},image->{},devices->{});
             media.join(matchId);
         }
@@ -86,7 +91,15 @@ public class MediaServerEndToEndTest {
                     throw new AssertionError("TURN credentials were not delivered to both participants");
                 System.out.println("PASS two real game-server clients establish PvP media with devices off");
                 if(Boolean.parseBoolean(System.getenv("DARTS_REQUIRE_TURN")))System.out.println("PASS real game server delivers TURN to both clients");
-                a.send(MessageType.LEAVE_MATCH,first.matchId());a.take(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);
+                var room=RoomManager.getInstance().getRoom(first.matchId());
+                synchronized(room){room.deadline=0;}GameService.getInstance().expireTurns();
+                a.take(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);
+                a.send(MessageType.SESSION_READY,new ReadyRequest(first.matchId(),first.matchId(),"a",true));
+                b.send(MessageType.SESSION_READY,new ReadyRequest(first.matchId(),first.matchId(),"b",true));
+                MatchSnapshot next=(MatchSnapshot)a.take(MessageType.MATCH_STARTED).getPayload();b.take(MessageType.MATCH_STARTED);
+                if(next.matchId().equals(first.matchId())||callEnded.get()||failure.get()!=null)throw new AssertionError("Call did not survive rematch: "+failure.get());
+                System.out.println("PASS native WebRTC call remains open through a rematch");
+                a.send(MessageType.SESSION_LEAVE,new LeaveRequest(first.matchId(),"leave"));a.take(MessageType.MATCH_FINISHED);b.take(MessageType.MATCH_FINISHED);
                 System.out.println("PASS PvP match exits cleanly");
             }
         }

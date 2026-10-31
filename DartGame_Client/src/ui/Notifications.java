@@ -69,10 +69,13 @@ public final class Notifications {
     }
     /** A custom in-window modal sharing the same focus and lifecycle as other dialogs. */
     public Notice custom(String title,Node body,Runnable onClose) {
+        return custom(title,body,onClose,760);
+    }
+    public Notice custom(String title,Node body,Runnable onClose,double maxWidth) {
         if(activeModal!=null)activeModal.close();
         Node previousFocus=root.getScene()==null?null:root.getScene().getFocusOwner();
         VBox card=card("DARTS BATTLE",title,"","info");card.getStyleClass().add("notification-modal");
-        card.setId("customDialog");card.setMaxWidth(760);card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setId("customDialog");card.setMaxWidth(maxWidth);card.setMaxHeight(Region.USE_PREF_SIZE);
         Button close=new Button("Đóng");close.setId("customDialogClose");close.getStyleClass().add("primary");
         HBox actions=new HBox(close);actions.setAlignment(Pos.CENTER_RIGHT);
         card.getChildren().addAll(body,actions);VBox.setVgrow(body,Priority.ALWAYS);
