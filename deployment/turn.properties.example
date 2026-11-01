@@ -1,0 +1,4 @@
+# Copy this file to .local/turn.properties on the game server machine.
+# Obtain a TURN key ID and its API token from the Cloudflare Calls dashboard.
+turn.keyId=
+turn.apiToken=

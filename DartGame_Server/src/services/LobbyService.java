@@ -29,7 +29,7 @@ public final class LobbyService {
         // Remove the leaving socket first so it never receives a stale victory dialog.
         ClientManager.getInstance().removeClient(c);
         Room r = RoomManager.getInstance().findRoomOfUser(id);
-        if (r != null) GameService.getInstance().leaveMatch(r.getMatchId(), id, reason);
+        if (r != null) GameService.getInstance().leaveSession(r,id,reason);
         c.setLoggedInUserId(-1); c.setLoggedInUsername(null);
         ClientManager.getInstance().broadcastOnlineList();
     }
@@ -64,15 +64,21 @@ public final class LobbyService {
             }
             case CREATE_BOT_MATCH -> {
                 if (!idle(id)) throw new IllegalArgumentException("Bạn đang bận; hãy kết thúc trận/lời mời hiện tại.");
-                start(RoomManager.getInstance().createPveRoom(id), c.getLoggedInUsername(), "BOT");
+                Object payload=m.getPayload();
+                BotDifficulty difficulty=payload==null?BotDifficulty.EASY:
+                    payload instanceof protocol.dto.BotMatchRequest request&&request.difficulty()!=null?request.difficulty():null;
+                if(difficulty==null)throw new IllegalArgumentException("Độ khó bot không hợp lệ.");
+                Room room=RoomManager.getInstance().createPveRoom(id);room.setBotDifficulty(difficulty);
+                start(room,c.getLoggedInUsername(),payload==null?"BOT":"BOT · "+difficulty.label());
             }
             case CHAT_MESSAGE -> {
                 ChatMessage chat=(ChatMessage)m.getPayload();
-                Room r=RoomManager.getInstance().getRoom(chat.matchId());
+                Room r=RoomManager.getInstance().getSession(chat.matchId());
+                if(r==null)r=RoomManager.getInstance().getRoom(chat.matchId());
                 if (r==null || !r.containsUser(id) || chat.text()==null || chat.text().isBlank() || chat.text().length()>500)
                     throw new IllegalArgumentException("Tin nhắn hoặc phòng không hợp lệ (tối đa 500 ký tự).");
                 synchronized(r) {
-                    if (r.getGameState().getStatus()==MatchStatus.FINISHED) throw new IllegalArgumentException("Trận đã kết thúc.");
+                    if (r.getGameState().getStatus()==MatchStatus.FINISHED&&!r.isRematchSupported()) throw new IllegalArgumentException("Trận đã kết thúc.");
                     GameService.getInstance().broadcast(r, Message.of(MessageType.CHAT_MESSAGE,
                             new ChatMessage(r.getMatchId(), chat.text().trim(), c.getLoggedInUsername())));
                 }
@@ -83,6 +89,9 @@ public final class LobbyService {
     }
     private void start(Room r, String p1, String p2) {
         r.player1Name=p1; r.player2Name=p2;
+        Client first=ClientManager.getInstance().getClient(r.getPlayer1Id());
+        Client second=r.getPlayer2Id()==null?null:ClientManager.getInstance().getClient(r.getPlayer2Id());
+        r.setRematchSupported(first!=null&&first.supportsSessions()&&(r.getMode()==MatchMode.PVE||second!=null&&second.supportsSessions()));
         try { GameService.getInstance().startMatch(r); }
         catch (RuntimeException e) { RoomManager.getInstance().removeRoom(r.getMatchId()); throw e; }
     }
