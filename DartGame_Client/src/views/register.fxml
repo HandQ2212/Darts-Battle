@@ -25,6 +25,7 @@
    <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập" maxWidth="380"/>
    <Label text="Mật khẩu" wrapText="true"/>
    <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu" maxWidth="380"/>
+   <Label fx:id="formErrorLabel" text="" visible="false" managed="false" maxWidth="380" wrapText="true" styleClass="form-error"/>
    <Region prefHeight="4"/>
    <Button fx:id="registerButton" text="Tạo tài khoản" onAction="#handleRegister" disable="true" maxWidth="380" styleClass="primary"/>
    <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." maxWidth="380" styleClass="status-box" wrapText="true"/>

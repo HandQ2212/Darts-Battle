@@ -8,7 +8,7 @@ có một writer tuần tự, filter deserialization và heartbeat. Không tươ
 - INVITE_REQUEST: username; INVITE_RECEIVED: InviteResponse(id, senderId, senderName,
   expiresAt); ACCEPT/REJECT: invitationId. Invitation hết hạn sau 30 giây.
 - MATCH_STARTED, TURN_PREPARING, TURN_STARTED, ROTATION_APPLIED: MatchSnapshot.
-- ROTATION_SUBMIT: RotationRequest(matchId, turnId, absoluteDegrees, requestId).
+- ROTATION_SUBMIT: không còn được chấp nhận; góc xoay do server tự chọn.
 - THROW_COORDINATE: ThrowCoordinateRequest(matchId, turnId, dartIndex, requestId, x, y).
 - THROW_RESOLVED: ThrowResolvedResponse có actorId, requestId và snapshot sau lệnh.
 - MATCH_FINISHED: MatchSnapshot với winnerId/type và endReason.
@@ -35,7 +35,12 @@ state lần hai. Mỗi snapshot có version tăng; client bỏ event cũ/trùng 
 
 Luật: 301 straight-out, tối đa 3 phi tiêu/lượt. Vượt điểm: phi tiêu đó không trừ điểm,
 vẫn tính một phi tiêu (giữ luật hiện tại). Đúng 0 thắng, không yêu cầu double-out.
-Người đang chơi chọn góc tuyệt đối nguyên [0,359] một lần trước lượt ném.
+Đầu mỗi lượt (cả HUMAN và BOT), server tự chọn góc tuyệt đối nguyên [0,359].
+MATCH_STARTED/TURN_PREPARING chứa góc đích, trạng thái WAITING_ROTATION.
+Client phóng bảng lên 118%, xoay ít nhất ba vòng rồi thu lại trong 2800 ms.
+Server giữ WAITING_ROTATION trong thời gian này, từ chối ném sớm, sau đó gửi
+ROTATION_APPLIED và TURN_STARTED với trạng thái PLAYING. Timeout ném được tính
+lại từ lúc bảng dừng. Hiệu ứng không thay đổi hệ tọa độ tính điểm hoặc kích thước cửa sổ.
 Tọa độ tương đối tâm bàn, X sang phải, Y xuống dưới; góc dương chiều kim đồng hồ.
 Bán kính dùng chung DartboardLayout, client chuyển tọa độ pane sang tâm bàn trước gửi.
 Mất kết nối, bỏ cuộc hoặc hết thời gian lượt bị xử thua; không nối lại trận cũ.
