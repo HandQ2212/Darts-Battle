@@ -44,6 +44,8 @@ public class Main extends Application {
     public static int historyPage=0;
     // 🎵 Biến lưu trình phát nhạc
     private static MediaPlayer backgroundPlayer;
+    private static final java.util.Set<Long> backgroundDuckTokens=new java.util.HashSet<>();
+    private static long nextBackgroundDuckToken;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -117,8 +119,8 @@ public class Main extends Application {
                 Media media = new Media(path);
                 backgroundPlayer = new MediaPlayer(media);
                 backgroundPlayer.setCycleCount(MediaPlayer.INDEFINITE); // lặp vô hạn
-                backgroundPlayer.setVolume(0.3); // âm lượng vừa phải
             }
+            updateBackgroundVolume();
             backgroundPlayer.play();
         } catch (Exception e) {
             System.out.println("Không thể phát nhạc nền: " + e.getMessage());
@@ -139,6 +141,24 @@ public class Main extends Application {
         } else {
             backgroundPlayer.play();
         }
+    }
+
+    /** Temporarily lowers background music without changing its play/stop state. */
+    public static long duckBackgroundMusic() {
+        long token=++nextBackgroundDuckToken;
+        backgroundDuckTokens.add(token);
+        updateBackgroundVolume();
+        return token;
+    }
+
+    /** Releases only the duck request that was previously acquired by this token. */
+    public static void restoreBackgroundMusic(long token) {
+        if(backgroundDuckTokens.remove(token))updateBackgroundVolume();
+    }
+
+    private static void updateBackgroundVolume() {
+        if(backgroundPlayer!=null&&backgroundPlayer.getStatus()!=MediaPlayer.Status.DISPOSED)
+            backgroundPlayer.setVolume(backgroundDuckTokens.isEmpty()?0.3:0.07);
     }
 
     public static void main(String[] args) {
