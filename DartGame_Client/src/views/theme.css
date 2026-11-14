@@ -133,6 +133,13 @@
 .device-button:pending { -fx-background-color: #ffdc96; -fx-border-color: #e39227; }
 .compact-guidance { -fx-background-color: #fff1cb; -fx-background-radius: 12; -fx-border-color: #b58a4a; -fx-border-radius: 12; -fx-padding: 9 12; -fx-min-height: 38; }
 .match-result-panel { -fx-background-color: linear-gradient(to bottom, #fff7dc, #ffdfaa); -fx-background-radius: 18; -fx-border-color: #c3904c; -fx-border-radius: 18; -fx-border-width: 2 2 4 2; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(33,48,20,0.38), 18, 0, 0, 5); }
+.result-presentation { -fx-background-color: transparent; }
+.result-presentation-title { -fx-font-family: 'System'; -fx-font-size: 88px; -fx-font-weight: bold; }
+.result-presentation-title.win { -fx-fill: linear-gradient(to bottom, #fff7be, #ffd04e, #fff29a); }
+.result-presentation-title.loss { -fx-fill: linear-gradient(to bottom, #ffffff, #cce8f5, #a9cce0); }
+.result-skip-button { -fx-background-color: rgba(24,34,20,0.72); -fx-text-fill: #fff4ce; -fx-border-color: rgba(255,239,190,0.75); -fx-border-radius: 18; -fx-background-radius: 18; -fx-padding: 8 16; -fx-font-weight: bold; -fx-cursor: hand; }
+.result-skip-button:hover { -fx-background-color: rgba(65,83,42,0.92); }
+.result-skip-button:focused { -fx-border-color: #fff5a8; -fx-border-width: 2; }
 .result-heading { -fx-text-fill: #75421f; -fx-font-size: 26px; -fx-font-weight: bold; -fx-alignment: CENTER; }
 .result-summary { -fx-text-fill: #77542b; -fx-font-size: 13px; -fx-alignment: CENTER; }
 .history-heading { -fx-font-weight: bold; -fx-text-fill: #885125; -fx-font-size: 12px; }
@@ -210,4 +217,11 @@
 .notice-scroll, .notice-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
 .notice-scroll { -fx-border-color: transparent; }
 .notice-invite .progress-bar { -fx-accent: #86ad49; }
+.records-page .page > .label, .records-page .page > HBox .label {
+    -fx-text-fill: #ffdf69;
+    -fx-effect: dropshadow(gaussian, #182c19, 2, 0.9, 0, 1);
+}
+.score-feedback.score-feedback-own { -fx-text-fill: #195c91; -fx-background-color: #e3f2ff; }
+.score-feedback.score-feedback-opponent { -fx-text-fill: #99501a; -fx-background-color: #ffedce; }
+.score-feedback.score-feedback-bust { -fx-border-color: #b64c30; -fx-border-radius: 10; -fx-border-width: 2; }
 .form-error { -fx-background-color: #ffe7d9; -fx-background-radius: 10; -fx-padding: 10 12; -fx-border-color: #e1ad8e; -fx-border-radius: 10; -fx-text-fill: #a1462a; -fx-font-size: 12px; }

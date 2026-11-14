@@ -45,6 +45,8 @@ public class DartThrowEffectsTest {
     public static void main(String[] args)throws Exception {
         Platform.startup(()->{
             try {
+                for(int points:new int[]{0,50})for(boolean bust:new boolean[]{false,true})
+                    check(!ui.ThrowPalette.popup(true,points,bust).equals(ui.ThrowPalette.popup(false,points,bust)),"throw colors distinguish players for points="+points+" bust="+bust);
                 socket=new ClientUiSmokeTest.FakeSocket();Main.socketHandler=socket;
                 socket.loginUser="Alice";socket.loggedInUserId=1;socket.competitor="Bobby";
                 Main.gameViewState.begin(ClientUiSmokeTest.snap(1,1,0,MatchStatus.PLAYING,1L),1);

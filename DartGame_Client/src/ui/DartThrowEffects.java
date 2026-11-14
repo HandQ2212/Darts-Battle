@@ -35,6 +35,13 @@ public final class DartThrowEffects {
     /** Clear the previous turn, but let its last dart finish landing and playing its impact. */
     public void beginTurn() {generation++;lodged.getChildren().clear();}
 
+    /** Stop all cosmetic work without disposing the renderer, for the result reveal or next match. */
+    public void cancel() {
+        generation++;
+        for(Animation animation:new ArrayList<>(animations))animation.stop();
+        animations.clear();lodged.getChildren().clear();flying.getChildren().clear();feedback.getChildren().clear();scoreAnimation=null;
+    }
+
     public void throwDart(double x,double y,boolean own) {
         throwDart(x,y,own,null,false);
     }
@@ -42,7 +49,7 @@ public final class DartThrowEffects {
     public void throwDart(double x,double y,boolean own,Integer score,boolean bust) {
         if(disposed)return;
         long turn=generation;
-        Color accent=Color.web(own?"#87d7bc":"#f0ae6c");
+        Color accent=ThrowPalette.accent(own);
         Group dart=createDart(accent);dart.getStyleClass().add("dart-projectile");
         dart.setLayoutX(x);dart.setLayoutY(y);
         Translate flight=new Translate(110+(450-x)*0.35,Math.max(140,440-y));
@@ -87,7 +94,7 @@ public final class DartThrowEffects {
         feedback.getChildren().clear();
         Group bubble=new Group();bubble.getStyleClass().add("score-popup");
         Rectangle plaque=new Rectangle(-87,-49,174,98);plaque.setArcWidth(28);plaque.setArcHeight(28);
-        plaque.setFill(Color.web(bust?"#d95635":score==0?"#6c8862":"#ff900c"));
+        plaque.setFill(ThrowPalette.popup(own,score,bust));
         plaque.setStroke(Color.web("#75451f"));plaque.setStrokeWidth(3);
         Text heading=centered(own?"BẠN VỪA NÉM":"ĐỐI THỦ VỪA NÉM",11,-29,Color.web("#fff6da"));
         Text number=centered(String.valueOf(score),46,17,Color.web("#fff9db"));
@@ -144,9 +151,6 @@ public final class DartThrowEffects {
     }
 
     public void dispose() {
-        disposed=true;
-        for(Animation animation:new ArrayList<>(animations))animation.stop();
-        animations.clear();lodged.getChildren().clear();flying.getChildren().clear();feedback.getChildren().clear();scoreAnimation=null;
-        layer.getChildren().clear();
+        disposed=true;cancel();layer.getChildren().clear();
     }
 }
