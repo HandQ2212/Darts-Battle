@@ -54,6 +54,8 @@ public class MatchLayoutTest {
                 detail.updateDetail(new Detail(match,darts,null));
                 for(int width:new int[]{1040,1600}){
                     Main.notifications().root().resize(width,780);Main.notifications().root().applyCss();Main.notifications().root().layout();
+                    check(!((javafx.scene.control.Label)detailRoot.lookup("#summaryLabel")).getTextFill().equals(javafx.scene.paint.Color.web("#ffdf69")),"history card retains original text color");
+                    check(((javafx.scene.control.Label)detailRoot.lookup("#headingLabel")).getTextFill().equals(javafx.scene.paint.Color.web("#ffdf69")),"heading outside history card uses yellow text");
                     GridPane grid=(GridPane)detailRoot.lookup("#matchHistoryGrid");
                     check(grid!=null,"history grid exists");
                     for(int row=1;row<=2;row++){
