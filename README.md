@@ -1,9 +1,10 @@
-**Kết nối Internet v2.1:** xem [mở app, đăng nhập và chơi qua domain](docs/ONE_CLICK_INTERNET.md).
-Client tự kết nối `game-backsite.handq2212.site`; Mac chạy game server và Cloudflare Tunnel nền.
-Domain mới cần được kiểm tra WSS sau khi cấu hình DNS và tunnel.
-File gửi người chơi nằm riêng tại `dist/Player-Downloads/Windows/` (ZIP portable x64)
-và `dist/Player-Downloads/Mac/` (DMG Apple Silicon). Tạo lại bằng
-`python3 scripts/package-player-downloads.py` sau khi build DMG Mac.
+**Client hiện tại: Windows x64, phiên bản 2.5.3.** Việc phát hành client Mac tạm dừng.
+Client tự kết nối `game-backsite.handq2212.site`; xem [kết nối Internet](docs/ONE_CLICK_INTERNET.md).
+Quy trình build, ký manifest và đăng release Windows nằm trong [hướng dẫn tự cập nhật](docs/AUTO_UPDATE.md).
+Gói gửi người chơi và dùng cho updater là `dist/updates/DartsBattle-windows.zip`,
+tạo bằng `python scripts/desktop.py package client --type app-image` rồi
+`python scripts/update-release.py archive`. Release chỉ cần ZIP Windows và `darts-update.txt` đã ký.
+Workflow **Desktop packages** tự chạy khi push lên `lucnvm` và chỉ build Windows; khóa ký vẫn được giữ ngoài Git/CI.
 
 # Darts Battle
 
@@ -14,7 +15,7 @@ python3 scripts/desktop.py build all
 python3 scripts/desktop.py test
 ```
 
-Các client phải build cùng server v2. Cấu hình IP/cổng ngay trên màn đăng nhập; server vẫn dùng MySQL.
+Client phải tương thích giao thức server v2. Domain/cổng và chứng chỉ được đóng gói trong client; server vẫn dùng MySQL.
 Protocol: [PROTOCOL.md](PROTOCOL.md). Phần dưới là hướng dẫn/ảnh của phiên bản trước.
 
 ## I. GIỚI THIỆU VỀ GAME (INTRODUCTION)

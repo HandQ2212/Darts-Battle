@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create platform update archives and sign the release feed on the owner's machine."""
+"""Create update archives and sign the active Windows release on the owner's machine."""
 import argparse
 import base64
 import hashlib
@@ -19,6 +19,8 @@ OUTPUT = ROOT / 'dist' / 'updates'
 KEY = ROOT / '.local' / 'update-signing' / 'private.pem'
 PUBLIC = ROOT / 'DartGame_Client' / 'src' / 'updater' / 'update-public.der'
 BASE = 'https://github.com/HandQ2212/Darts-Battle/releases/latest/download/'
+# macOS client releases are paused. Signing can still run on the owner's Mac.
+RELEASE_PLATFORMS = ('windows',)
 
 
 def run(*args):
@@ -101,9 +103,10 @@ def manifest():
     current_public = subprocess.check_output(['openssl', 'pkey', '-in', str(KEY), '-pubout', '-outform', 'DER'])
     if current_public != PUBLIC.read_bytes():
         raise RuntimeError('Signing key does not match the embedded public key.')
-    paths = {name: OUTPUT / ('DartsBattle-' + name + '.zip') for name in ('mac', 'windows')}
-    if not all(path.is_file() for path in paths.values()):
-        raise RuntimeError('Put both target platform update ZIPs in dist/updates first.')
+    paths = {name: OUTPUT / ('DartsBattle-' + name + '.zip') for name in RELEASE_PLATFORMS}
+    missing = [path.name for path in paths.values() if not path.is_file()]
+    if missing:
+        raise RuntimeError('Missing release archive in dist/updates: ' + ', '.join(missing))
     for name, path in paths.items():
         validate_archive(path, name)
     values = ['version=' + desktop.APP_VERSION]

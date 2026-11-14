@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 jobs:
-  build:
+  windows-x64:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,21 +22,15 @@ jobs:
         run: python scripts/desktop.py test
       - name: Update verification tests
         run: |
+          openssl version
           python scripts/desktop.py updater-test
           python tests/update_release_test.py
-      - name: Build desktop app with bundled Java runtime
+      - name: Build Windows app with bundled Java runtime
         run: python scripts/desktop.py package client --type app-image
       - name: Create update archive
         run: python scripts/update-release.py archive
-      - name: Archive app image (preserves launchers and permissions)
-        shell: python
-        run: |
-          import pathlib, platform, shutil
-          folder = pathlib.Path('dist') / (platform.system().lower() + '-' + platform.machine())
-          shutil.make_archive('dist/DartsBattle-windows-x64', 'zip', folder)
       - uses: actions/upload-artifact@v4
         with:
           name: DartsBattle-windows-x64
-          path: |
-            dist/*.zip
-            dist/updates/*.zip
+          path: dist/updates/DartsBattle-windows.zip
+          if-no-files-found: error

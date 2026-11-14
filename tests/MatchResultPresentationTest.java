@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 
 public class MatchResultPresentationTest {
     private static Stage stage;
@@ -23,6 +24,11 @@ public class MatchResultPresentationTest {
         return result.get(10,TimeUnit.SECONDS);
     }
     private static void check(boolean condition,String message){if(!condition)throw new AssertionError(message);System.out.println("PASS "+message);}
+    private static void awaitFx(BooleanSupplier condition,long timeoutMillis,String failure)throws Exception{
+        long deadline=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        while(System.nanoTime()<deadline){if(fx(condition::getAsBoolean))return;Thread.sleep(25);}
+        throw new AssertionError(failure);
+    }
 
     public static void main(String[] args)throws Exception {
         CompletableFuture<Void> started=new CompletableFuture<>();
@@ -40,7 +46,8 @@ public class MatchResultPresentationTest {
                 check("CHIẾN THẮNG".equals(title.getText()),"victory title text is correct");
                 return null;
             });
-            Thread.sleep(650);
+            awaitFx(()->presentation.lookup("#resultPresentationTitle") instanceof Text title
+                    &&title.getOpacity()>0.9&&title.getScaleX()>0.85,1800,"victory title animation did not become readable");
             fx(()->{
                 if(System.getenv("DARTS_UI_PREVIEW")!=null)ClientUiSmokeTest.preview(root,"result-presentation-victory",680,430);
                 Text revealTitle=(Text)presentation.lookup("#resultPresentationTitle");
@@ -57,7 +64,8 @@ public class MatchResultPresentationTest {
                 check("THUA CUỘC".equals(title.getText()),"defeat title text is correct");
                 return null;
             });
-            Thread.sleep(650);
+            awaitFx(()->presentation.lookup("#resultPresentationTitle") instanceof Text title
+                    &&title.getOpacity()>0.9&&title.getScaleX()>0.85,1800,"defeat title animation did not become readable");
             fx(()->{
                 if(System.getenv("DARTS_UI_PREVIEW")!=null)ClientUiSmokeTest.preview(root,"result-presentation-defeat",680,430);
                 check(((Text)presentation.lookup("#resultPresentationTitle")).getFont().getSize()>40,"defeat title also stays readable");

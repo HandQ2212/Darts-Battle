@@ -96,7 +96,7 @@ public class StartGameController {
                 handleGameAction();event.consume();
             }
         });
-        leftColumn.prefWidthProperty().bind(javafx.beans.binding.Bindings.min(280,javafx.beans.binding.Bindings.max(220,gameMain.widthProperty().subtract(32).multiply(.24))));
+        leftColumn.prefWidthProperty().bind(javafx.beans.binding.Bindings.min(280,javafx.beans.binding.Bindings.max(220,gameMain.widthProperty().subtract(48).multiply(.24))));
         rightColumn.prefWidthProperty().bind(leftColumn.prefWidthProperty());
         bindVideo(localVideoFrame,localVideoView);bindVideo(remoteVideoFrame,remoteVideoView);
         myCard=playerCard(Main.socketHandler.loginUser,"BẠN",myScore);
