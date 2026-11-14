@@ -20,7 +20,7 @@ CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
 WEBRTC_VERSION = '0.20.0'
-APP_VERSION = '2.5.1'
+APP_VERSION = '2.5.2'
 
 
 def tool(name):
@@ -262,7 +262,7 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
+    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'MatchResultPresentationTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
     test_classpath = str(classes) + os.pathsep + str(libs / '*')
     run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases], ROOT / 'tests/UpdaterTest.java'])
     run([tool('java'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', test_classpath, 'updater.UpdaterTest'])
