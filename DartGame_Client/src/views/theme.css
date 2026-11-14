@@ -83,6 +83,10 @@
 .score-value { -fx-font-family: 'Lilita One'; -fx-fill: #75421f; -fx-font-size: 48px; -fx-font-weight: bold; }
 .opponent-card .score-value { -fx-fill: #9b5528; }
 .score-caption { -fx-text-fill: #9b7950; -fx-font-size: 10px; }
+.score-feedback { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #dc7b0c; -fx-padding: 3 8; -fx-background-color: #fff6d7; -fx-background-radius: 10; }
+.score-feedback-bust { -fx-text-fill: #b5452d; -fx-background-color: #ffe0cd; }
+.score-feedback-miss { -fx-text-fill: #857658; }
+.score-feedback-win { -fx-text-fill: #5b8c32; -fx-background-color: #ebf7c7; }
 .versus { -fx-font-family: 'Lilita One'; -fx-font-size: 27px; -fx-text-fill: #fff1c4; -fx-min-width: 36; -fx-max-width: 36; -fx-alignment: CENTER; }
 .dart-chip { -fx-background-color: #fffbeb; -fx-border-color: #d0ab66; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 5 7; -fx-min-width: 38; -fx-max-height: 32; -fx-min-height: 32; -fx-alignment: CENTER; }
 .dart-value { -fx-fill: #825127; -fx-font-size: 15px; -fx-font-weight: bold; }
@@ -101,12 +105,44 @@
 .result-label:bust { -fx-text-fill: #b54d30; }
 .rule-text { -fx-font-size: 12px; -fx-text-fill: #866b42; -fx-line-spacing: 3; }
 .chat-panel { -fx-background-color: #fff7df; -fx-background-radius: 16; -fx-border-color: #b18c53; -fx-border-radius: 16; -fx-padding: 14; }
+.communication-tabs { -fx-background-color: #fff7df; -fx-background-radius: 16; -fx-border-color: #b18c53; -fx-border-radius: 16; -fx-padding: 5; }
+.communication-tabs > .tab-content-area { -fx-background-color: transparent; -fx-padding: 8 4 4 4; }
+.communication-tabs > .tab-header-area .tab-header-background { -fx-background-color: transparent; }
+.communication-tabs .tab { -fx-background-color: #eee2c1; -fx-background-radius: 9 9 0 0; -fx-padding: 4 9; }
+.communication-tabs .tab:selected { -fx-background-color: #ffebc2; }
+.communication-tabs .tab-label { -fx-text-fill: #77552e; -fx-font-size: 11px; -fx-font-weight: bold; }
+.call-panel { -fx-background-color: transparent; -fx-padding: 1; }
+.video-frame { -fx-background-color: #33432c; -fx-background-radius: 10; -fx-border-color: #b18c53; -fx-border-radius: 10; }
+.local-video-frame { -fx-background-color: #536a40; -fx-background-radius: 6; -fx-border-color: #fff1cb; -fx-border-radius: 6; -fx-border-width: 2; }
+.call-panel .combo-box { -fx-font-size: 10px; -fx-background-radius: 8; -fx-border-radius: 8; }
+.call-panel .button { -fx-padding: 4 8; -fx-font-size: 11px; }
 .chat-list { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 6 0; -fx-background-insets: 0; }
 .chat-list .virtual-flow, .chat-list .viewport { -fx-background-color: transparent; }
 .chat-list .list-cell { -fx-background-color: transparent; -fx-text-fill: #775b35; -fx-padding: 9 2; -fx-font-size: 12px; }
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.20); -fx-background-radius: 16; }
 .bot-overlay .label { -fx-text-fill: #e9f7ff; -fx-font-size: 17px; -fx-font-weight: bold; }
 .progress-indicator { -fx-progress-color: #ff8909; }
+.turn-indicator { -fx-text-fill: #fffbea; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: #4f8532; -fx-background-radius: 10; -fx-padding: 6 9; -fx-min-height: 30; -fx-alignment: CENTER; -fx-effect: dropshadow(gaussian, rgba(58,95,30,0.35), 6, 0, 0, 2); }
+.history-button { -fx-background-color: #fff2cb; -fx-background-radius: 11; -fx-border-color: #bd8d49; -fx-border-radius: 11; -fx-text-fill: #75451f; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 9 5; }
+.history-button:hover { -fx-background-color: #ffdf9f; }
+.video-frame { -fx-background-color: #2d422e; -fx-background-radius: 12; -fx-border-color: #d1ae70; -fx-border-radius: 12; -fx-border-width: 2; }
+.video-placeholder { -fx-text-fill: #e6d4a5; -fx-font-size: 12px; -fx-font-weight: bold; -fx-alignment: CENTER; }
+.media-status { -fx-text-fill: #fff4d4; -fx-font-size: 11px; -fx-min-height: 28; }
+.device-button { -fx-background-color: #fff3d2; -fx-background-radius: 12; -fx-border-color: #b7884b; -fx-border-radius: 12; -fx-min-width: 44; -fx-min-height: 42; -fx-padding: 8; }
+.device-button:active { -fx-background-color: #b8df8d; -fx-border-color: #6d9b42; }
+.device-button:pending { -fx-background-color: #ffdc96; -fx-border-color: #e39227; }
+.compact-guidance { -fx-background-color: #fff1cb; -fx-background-radius: 12; -fx-border-color: #b58a4a; -fx-border-radius: 12; -fx-padding: 9 12; -fx-min-height: 38; }
+.match-result-panel { -fx-background-color: linear-gradient(to bottom, #fff7dc, #ffdfaa); -fx-background-radius: 18; -fx-border-color: #c3904c; -fx-border-radius: 18; -fx-border-width: 2 2 4 2; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(33,48,20,0.38), 18, 0, 0, 5); }
+.result-heading { -fx-text-fill: #75421f; -fx-font-size: 26px; -fx-font-weight: bold; -fx-alignment: CENTER; }
+.result-summary { -fx-text-fill: #77542b; -fx-font-size: 13px; -fx-alignment: CENTER; }
+.history-heading { -fx-font-weight: bold; -fx-text-fill: #885125; -fx-font-size: 12px; }
+.bot-difficulty-button { -fx-alignment: CENTER_LEFT; -fx-min-height: 44; }
+.history-row { -fx-background-color: #fff4d3; -fx-background-radius: 9; -fx-padding: 9; -fx-border-color: #ead3a0; -fx-border-radius: 9; }
+.history-row .label { -fx-text-fill: #765331; -fx-font-size: 11px; }
+#historyScroll { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 2; }
+#deviceSettingsPanel .combo-box { -fx-max-width: Infinity; }
+#chatPanel { -fx-padding: 10; }
+.chat-send { -fx-padding: 8 10; -fx-min-width: 50; -fx-pref-width: 50; }
 .dialog-pane { -fx-background-color: #fff0ce; }
 .dialog-pane > .content.label { -fx-text-fill: #765331; }
 .dialog-pane:header .header-panel { -fx-background-color: #ffdb9b; }
@@ -148,3 +184,30 @@
 .result-label { -fx-text-fill: #6d7c32; -fx-font-size: 12px; }
 .result-label:bust { -fx-text-fill: #ae422a; }
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.16); }
+
+/* Notifications stay inside the game window in every window mode. */
+.notification-card {
+    -fx-background-color: linear-gradient(to bottom right, #fff9e7, #fff0c7);
+    -fx-background-radius: 20; -fx-border-radius: 20;
+    -fx-border-color: #b98c4e; -fx-border-width: 2 2 4 2; -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(44,45,16,0.25), 22, 0.12, 0, 8);
+}
+.notice-badge { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5b8138; }
+/* Lilita One lacks Vietnamese glyphs; use one consistent font for notification text. */
+.notice-title { -fx-font-family: 'System'; -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #704723; }
+.notice-body { -fx-font-size: 13px; -fx-text-fill: #805f39; -fx-line-spacing: 3; }
+.notice-error { -fx-border-color: #c66f4e; }
+.notice-error .notice-badge { -fx-text-fill: #b84c30; }
+.notice-success { -fx-border-color: #76a14b; }
+.notice-close { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0 4; -fx-font-size: 22px; }
+.notification-scrim { -fx-background-color: rgba(23,42,18,0.66); -fx-padding: 28; }
+.notification-modal { -fx-padding: 30; -fx-spacing: 18; }
+.notification-modal .notice-title { -fx-font-size: 34px; }
+.notice-victory { -fx-border-color: #e3a029; -fx-background-color: linear-gradient(to bottom right, #fff8d6, #ffe3a0); }
+.notice-victory .notice-badge { -fx-text-fill: #b87814; -fx-font-size: 16px; }
+.notice-secondary { -fx-background-color: #eee4c5; -fx-border-color: #c6b38b; }
+.notice-countdown { -fx-font-size: 12px; -fx-text-fill: #7b6c3c; }
+.notice-scroll, .notice-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
+.notice-scroll { -fx-border-color: transparent; }
+.notice-invite .progress-bar { -fx-accent: #86ad49; }
+.form-error { -fx-background-color: #ffe7d9; -fx-background-radius: 10; -fx-padding: 10 12; -fx-border-color: #e1ad8e; -fx-border-radius: 10; -fx-text-fill: #a1462a; -fx-font-size: 12px; }

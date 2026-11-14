@@ -1,56 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.shape.*?>
-<?import javafx.geometry.*?>
-<?import ui.ArenaBackdrop?>
 <?import javafx.scene.image.*?>
+<?import ui.ArenaBackdrop?>
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.StartGameController" prefWidth="1160" prefHeight="800" stylesheets="@theme.css" styleClass="app-root, game-page">
  <top><HBox alignment="CENTER_LEFT" spacing="12" styleClass="game-header">
   <Button text="← Rời trận" onAction="#handleBack" styleClass="ghost"/>
-  <Label text="DARTS BATTLE" styleClass="brand" wrapText="true"/><Label text="301" styleClass="badge" wrapText="true"/>
+  <Label text="DARTS BATTLE" styleClass="brand"/><Label text="301" styleClass="badge"/>
   <Region HBox.hgrow="ALWAYS"/>
   <Button fx:id="soundButton" text="Nhạc: bật" onAction="#toggleSound" styleClass="ghost"/>
   <Button fx:id="effectSoundButton" text="Hiệu ứng: bật" onAction="#toggleEffectSound" styleClass="ghost"/>
  </HBox></top>
- <center><HBox styleClass="game-main">
-  <VBox spacing="12" HBox.hgrow="ALWAYS" minWidth="560">
-   <HBox fx:id="scoreboardPane" spacing="12" minHeight="128" prefHeight="128"/>
+ <center><StackPane><HBox fx:id="gameMain" styleClass="game-main" alignment="TOP_CENTER">
+  <VBox fx:id="leftColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
+   <VBox fx:id="myScoreSlot"/>
+   <Button fx:id="myHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
+   <StackPane fx:id="localVideoFrame" styleClass="video-frame" minHeight="0">
+    <ImageView fx:id="localVideoView" preserveRatio="true" smooth="true"/>
+    <Label fx:id="localVideoPlaceholder" text="Camera của bạn đang tắt" styleClass="video-placeholder" wrapText="true" mouseTransparent="true"/>
+   </StackPane>
+   <Label fx:id="mediaStatusLabel" text="Đang kết nối mic/video…" styleClass="media-status" wrapText="true"/>
+   <HBox fx:id="mediaControls" spacing="9" alignment="CENTER_LEFT">
+    <Button fx:id="cameraButton" onAction="#toggleCamera" styleClass="device-button"/>
+    <Button fx:id="microphoneButton" onAction="#toggleMicrophone" styleClass="device-button"/>
+    <Button fx:id="deviceSettingsButton" onAction="#showDeviceSettings" styleClass="device-button"/>
+   </HBox>
+  </VBox>
+  <VBox fx:id="centerColumn" spacing="9" minWidth="450" HBox.hgrow="ALWAYS">
    <StackPane styleClass="arena" VBox.vgrow="ALWAYS" minHeight="412">
     <ArenaBackdrop/>
     <StackPane fx:id="boardContainer" minWidth="450" maxWidth="450" minHeight="400" maxHeight="400" prefWidth="450" prefHeight="400">
      <Pane fx:id="gamePane" minWidth="450" maxWidth="450" minHeight="400" maxHeight="400" prefWidth="450" prefHeight="400" styleClass="board-surface"/>
-     <VBox fx:id="botTurnOverlay" alignment="CENTER" spacing="12" visible="false" mouseTransparent="true" styleClass="bot-overlay"><ProgressIndicator fx:id="botLoadingIndicator" prefWidth="36" prefHeight="36" maxWidth="36" maxHeight="36"/><Label text="Bot đang ngắm..." wrapText="true"/></VBox>
+     <VBox fx:id="botTurnOverlay" alignment="CENTER" spacing="12" visible="false" mouseTransparent="true" styleClass="bot-overlay"><ProgressIndicator prefWidth="36" prefHeight="36" maxWidth="36" maxHeight="36"/><Label text="Bot đang ngắm..."/></VBox>
     </StackPane>
+    <VBox fx:id="resultPanel" visible="false" managed="false" alignment="CENTER" spacing="14" maxWidth="380" maxHeight="300" styleClass="match-result-panel">
+     <Label fx:id="resultTitle" text="Kết quả ván đấu" styleClass="result-heading" wrapText="true"/>
+     <Label fx:id="resultScore" styleClass="result-summary" wrapText="true"/>
+     <Label fx:id="rematchStatus" styleClass="result-summary" wrapText="true"/>
+     <HBox alignment="CENTER" spacing="10"><Button fx:id="rematchButton" text="Chơi tiếp" onAction="#toggleRematch" styleClass="primary"/><Button fx:id="exitSessionButton" text="Thoát về sảnh" onAction="#leaveSession" styleClass="ghost"/></HBox>
+    </VBox>
    </StackPane>
-   <VBox styleClass="game-controls">
-    <HBox alignment="CENTER_LEFT" spacing="10">
-     <Label fx:id="phaseLabel" text="CHUẨN BỊ LƯỢT NÉM" styleClass="phase-badge" HBox.hgrow="ALWAYS" maxWidth="Infinity" wrapText="true"/>
-     <TextField fx:id="angleInput" promptText="0–359°" prefWidth="88" maxWidth="88"/>
-     <Button fx:id="rotateButton" text="Xoay bảng" onAction="#handleRotateBoard"/>
-     <Button fx:id="startButton" text="Chờ lượt" onAction="#handleGameAction" styleClass="primary, aim-button"/>
-    </HBox>
-    <Label fx:id="instructionLabel" text="Đang chuẩn bị trận đấu..." styleClass="instruction" maxWidth="Infinity" minHeight="30" wrapText="true"/>
-   </VBox>
+   <HBox alignment="CENTER" styleClass="compact-guidance"><Label fx:id="aimStatusLabel" text="Chờ lượt" styleClass="instruction" wrapText="true"/></HBox>
   </VBox>
-  <VBox spacing="12" minWidth="270" prefWidth="294" maxWidth="320">
-   <VBox styleClass="card, side-card" spacing="10" minHeight="-Infinity">
-    <Label text="TRẠNG THÁI TRẬN" styleClass="eyebrow" wrapText="true"/>
-    <Label fx:id="turnLabel" text="Chuẩn bị vào trận" styleClass="turn-title" wrapText="true"/>
-    <Label text="LẦN NÉM VỪA RỒI" styleClass="eyebrow"/><Label fx:id="lastThrowScoreLabel" text="–" styleClass="last-throw-score"/>
-    <Label fx:id="lastThrowLabel" text="Kết quả ném sẽ xuất hiện tại đây." styleClass="result-label" minHeight="34" wrapText="true"/>
-   </VBox>
-   <VBox styleClass="card, side-card" spacing="8" minHeight="-Infinity">
-    <Label text="LUẬT ĐẤU / 301" styleClass="eyebrow" wrapText="true"/>
-    <Label fx:id="rulesLabel" minHeight="-Infinity" text="01   Xoay bảng từ 0 đến 359°.&#10;02   Dừng X, rồi dừng Y để ném.&#10;03   Mỗi lượt có 3 phi tiêu." styleClass="rule-text" wrapText="true"/>
-    <Region styleClass="divider"/>
-    <Label fx:id="bustRuleLabel" minHeight="-Infinity" text="Về đúng 0 để thắng. Ném vượt điểm còn lại sẽ BUST: không trừ điểm, vẫn mất một phi tiêu." styleClass="rule-text" wrapText="true"/>
-   </VBox>
-   <BorderPane styleClass="chat-panel" VBox.vgrow="ALWAYS" minHeight="160" prefHeight="240">
-    <top><HBox spacing="8" alignment="CENTER_LEFT"><Label text="Trò chuyện" styleClass="section-title" wrapText="true"/><Region HBox.hgrow="ALWAYS"/><Label text="TRONG TRẬN" styleClass="eyebrow" wrapText="true"/></HBox></top>
+  <VBox fx:id="rightColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
+   <VBox fx:id="otherScoreSlot"/>
+   <Button fx:id="otherHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
+   <StackPane fx:id="remoteVideoFrame" styleClass="video-frame" minHeight="0">
+    <ImageView fx:id="remoteVideoView" preserveRatio="true" smooth="true"/>
+    <Label fx:id="remoteVideoPlaceholder" text="Camera đối thủ đang tắt" styleClass="video-placeholder" wrapText="true" mouseTransparent="true"/>
+   </StackPane>
+   <BorderPane fx:id="chatPanel" styleClass="chat-panel" VBox.vgrow="ALWAYS" minHeight="140">
+    <top><Label text="TRÒ CHUYỆN" styleClass="eyebrow"/></top>
     <center><ListView fx:id="chatList" styleClass="chat-list"><placeholder><Label text="Gửi một lời chào đối thủ." styleClass="muted, small" wrapText="true"/></placeholder></ListView></center>
-    <bottom><HBox spacing="8" alignment="CENTER"><TextField fx:id="chatInput" promptText="Nhập tin nhắn..." HBox.hgrow="ALWAYS"/><Button text="Gửi" onAction="#handleSend" styleClass="primary"/></HBox></bottom>
+    <bottom><HBox fx:id="chatComposer" spacing="6" alignment="CENTER"><TextField fx:id="chatInput" promptText="Nhập tin nhắn..." minWidth="0" HBox.hgrow="ALWAYS"/><Button text="Gửi" onAction="#handleSend" styleClass="primary, chat-send"/></HBox></bottom>
    </BorderPane>
   </VBox>
- </HBox></center>
+ </HBox><Pane fx:id="turnMotionLayer" mouseTransparent="true" pickOnBounds="false"/></StackPane></center>
 </BorderPane>

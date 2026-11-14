@@ -15,10 +15,12 @@ import tempfile
 import secrets
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / 'build' / 'desktop'
+BUILD = Path(os.environ.get('DARTS_BUILD_DIR', ROOT / 'build' / 'desktop')).resolve()
 CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
+WEBRTC_VERSION = '0.20.0'
+APP_VERSION = '2.4.1'
 
 
 def tool(name):
@@ -78,6 +80,23 @@ def javafx():
     return files
 
 
+def webrtc():
+    props = subprocess.run([tool('java'), '-XshowSettings:properties', '-version'], capture_output=True, text=True, check=True)
+    arch = re.search(r'os.arch\s*=\s*(\S+)', props.stderr).group(1)
+    system = platform.system()
+    normalized_arch = 'aarch64' if arch in ('aarch64', 'arm64') else 'x86_64' if arch in ('amd64', 'x86_64') else None
+    classifiers = {
+        ('Windows', 'x86_64'): 'windows-x86_64', ('Windows', 'aarch64'): 'windows-aarch64',
+        ('Darwin', 'x86_64'): 'macos-x86_64', ('Darwin', 'aarch64'): 'macos-aarch64',
+        ('Linux', 'x86_64'): 'linux-x86_64', ('Linux', 'aarch64'): 'linux-aarch64',
+    }
+    classifier = classifiers.get((system, normalized_arch))
+    if classifier is None:
+        raise RuntimeError(f'webrtc-java {WEBRTC_VERSION} does not provide a native library for {system}/{arch}.')
+    return [download('dev.onvoid.webrtc', 'webrtc-java', WEBRTC_VERSION),
+            download('dev.onvoid.webrtc', 'webrtc-java', WEBRTC_VERSION, classifier)]
+
+
 def load_release_profile(host=None, port=None, certificate=None, transport=None):
     config = {}
     saved = ROOT / '.local' / 'client-profile.properties'
@@ -114,7 +133,8 @@ def build(target, profile=None, client_libraries=None):
     libraries = ([ROOT / 'DartGame_Server/lib/mysql-connector-j-9.4.0.jar',
                   download('org.java-websocket', 'Java-WebSocket', '1.6.0'),
                   download('org.slf4j', 'slf4j-api', '2.0.13'),
-                  download('org.slf4j', 'slf4j-nop', '2.0.13')] if target == 'server' else (client_libraries if client_libraries is not None else javafx()))
+                  download('org.slf4j', 'slf4j-nop', '2.0.13')] if target == 'server' else
+                 (list(client_libraries) if client_libraries is not None else javafx() + webrtc()))
     # javac @argfile handles Windows command length limits and paths with spaces.
     arguments = ['--release', '17', '-encoding', 'UTF-8', '-cp', os.pathsep.join(map(str, libraries)), '-d', str(classes), *map(str, sources)]
     argfile = directory / 'javac.args'
@@ -149,14 +169,14 @@ def build(target, profile=None, client_libraries=None):
     return package_input, main
 
 
-def package(target, package_type, profile=None):
+def package(target, package_type, profile=None, output_dir=None):
     if target == 'client' and profile is None:
         profile = load_release_profile()
     folder, main = build(target, profile)
-    output = ROOT / 'dist' / (platform.system().lower() + '-' + platform.machine())
+    output = Path(output_dir).resolve() if output_dir else ROOT / 'dist' / (platform.system().lower() + '-' + platform.machine())
     name = 'DartsBattle' if target == 'client' else 'DartsBattleServer'
     args = [tool('jpackage'), '--type', package_type, '--input', folder, '--dest', output,
-            '--name', name, '--app-version', '2.1.0', '--vendor', 'Darts Battle',
+            '--name', name, '--app-version', APP_VERSION, '--vendor', 'Darts Battle',
             '--main-jar', f'darts-{target}.jar', '--main-class', main,
             '--java-options', '-Dfile.encoding=UTF-8']
     if target == 'client':
@@ -186,7 +206,7 @@ def package(target, package_type, profile=None):
             else:
                 installers = staging / 'installers'
                 run([tool('jpackage'), '--type', package_type, '--app-image', app,
-                     '--dest', installers, '--name', name, '--app-version', '2.1.0'])
+                     '--dest', installers, '--name', name, '--app-version', APP_VERSION])
                 artifacts = list(installers.iterdir())
             for artifact in artifacts:
                 destination = output / artifact.name
@@ -204,10 +224,13 @@ def tests(h2_jar):
     build('server')
     h2 = Path(h2_jar).resolve() if h2_jar else download('com.h2database', 'h2', H2_VERSION)
     classes = BUILD / 'server' / 'classes'
-    sources = sorted((ROOT / 'tests').glob('*IntegrationTest.java'))
+    sources = sorted((ROOT / 'tests').glob('*IntegrationTest.java')) + [ROOT / 'tests/BotAimTest.java', ROOT / 'tests/DiagnosticLogTest.java']
     test_cp = str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*')
     run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_cp, '-d', classes, *sources])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'BotAimTest'])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'DiagnosticLogTest'])
     run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'MultiplayerIntegrationTest'])
+    run([tool('java'), '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'SessionIntegrationTest'])
     tls_tests(classes, h2)
 
 
@@ -225,6 +248,7 @@ def tls_tests(classes, h2):
              '-storepass:env', 'DARTS_TEST_TLS_PASSWORD', '-file', directory / 'trusted.pem'],
             env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         run([tool('java'), '-cp', str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*'), 'TlsIntegrationTest', directory / 'trusted.p12', directory / 'trusted.pem', directory / 'other.p12'], env=environment)
+        run([tool('java'), '-cp', str(classes) + os.pathsep + str(BUILD / 'server/input/lib/*'), 'HistoryTransportIntegrationTest', directory / 'trusted.p12', directory / 'trusted.pem'], env=environment)
         environment['DARTS_TEST_TLS_STORE'] = str(directory / 'trusted.p12')
         environment['DARTS_TEST_TLS_CERT'] = str(directory / 'trusted.pem')
         run([tool('java'), '-Ddarts.test.websocket=true', '-cp', os.pathsep.join(map(str, [classes, h2, BUILD / 'server/input/lib/*'])), 'MultiplayerIntegrationTest'], env=environment)
@@ -236,10 +260,42 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    cases = ('ClientUiSmokeTest', 'DartThrowEffectsTest')
-    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', str(classes) + os.pathsep + str(libs / '*'), '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
+    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
+    test_classpath = str(classes) + os.pathsep + str(libs / '*')
+    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
     for case in cases:
-        run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', classes, case])
+        run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', test_classpath, case])
+
+
+def media_server_test(h2_jar):
+    """Exercise actual client media signaling against an isolated in-memory game server."""
+    fx, rtc = javafx(), webrtc()
+    server_libs = [ROOT / 'DartGame_Server/lib/mysql-connector-j-9.4.0.jar',
+                   download('org.java-websocket', 'Java-WebSocket', '1.6.0'),
+                   download('org.slf4j', 'slf4j-api', '2.0.13'),
+                   download('org.slf4j', 'slf4j-nop', '2.0.13')]
+    h2 = Path(h2_jar).resolve() if h2_jar else download('com.h2database', 'h2', H2_VERSION)
+    common = list((ROOT / 'DartGame_Common' / 'src').rglob('*.java'))
+    with tempfile.TemporaryDirectory(prefix='darts-media-e2e-') as temporary:
+        temp = Path(temporary)
+        server_classes, client_classes, test_classes = (temp / name for name in ('server', 'client', 'test'))
+        for directory in (server_classes, client_classes, test_classes):
+            directory.mkdir()
+        def compile_sources(name, sources, destination, classpath):
+            arguments = ['--release', '17', '-encoding', 'UTF-8', '-cp', os.pathsep.join(map(str, classpath)),
+                         '-d', str(destination), *map(str, sources)]
+            argfile = temp / (name + '.args')
+            argfile.write_text('\n'.join('"' + value.replace('\\', '/').replace('"', '\\"') + '"' for value in arguments), encoding='utf-8')
+            run([tool('javac'), '-J-Dfile.encoding=UTF-8', '@' + str(argfile)])
+        server_root = ROOT / 'DartGame_Server' / 'src'
+        server_sources = [p for p in server_root.rglob('*.java') if 'view' not in p.relative_to(server_root).parts]
+        client_sources = list((ROOT / 'DartGame_Client' / 'src').rglob('*.java'))
+        compile_sources('server', common + server_sources, server_classes, server_libs)
+        compile_sources('client', common + client_sources, client_classes, fx + rtc)
+        classpath = [test_classes, server_classes, client_classes, *server_libs, *fx, *rtc, h2]
+        compile_sources('test', [ROOT / 'tests/MediaServerEndToEndTest.java'], test_classes, classpath)
+        run([tool('java'), '--module-path', os.pathsep.join(map(str, fx)), '--add-modules',
+             'javafx.controls,javafx.fxml,javafx.media', '-cp', os.pathsep.join(map(str, classpath)), 'MediaServerEndToEndTest'])
 
 
 def probe(endpoint=None, certificate=None):
@@ -253,7 +309,7 @@ def probe(endpoint=None, certificate=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('build', 'package', 'run', 'test', 'ui-test', 'probe'))
+    parser.add_argument('command', choices=('build', 'package', 'run', 'test', 'ui-test', 'media-test', 'probe'))
     parser.add_argument('target', nargs='?', choices=('client', 'server', 'all'), default='all')
     parser.add_argument('--type', choices=('app-image', 'dmg', 'pkg', 'exe', 'msi', 'deb', 'rpm'), default='app-image')
     parser.add_argument('--endpoint', help='Probe URL, default configured public WSS endpoint')
@@ -261,6 +317,7 @@ def main():
     parser.add_argument('--server-host', help='Public hostname configured once by the server owner')
     parser.add_argument('--server-port', type=int, help='Public TCP port (default 8443)')
     parser.add_argument('--server-cert', help='Public certificate to pin in release clients')
+    parser.add_argument('--output-dir', help='Package destination (defaults to the platform release directory)')
     parser.add_argument('--h2-jar', help='Existing H2 2.3.232 JAR to run tests offline')
     args = parser.parse_args()
     if args.command == 'probe':
@@ -269,11 +326,13 @@ def main():
         tests(args.h2_jar)
     elif args.command == 'ui-test':
         ui_test()
+    elif args.command == 'media-test':
+        media_server_test(args.h2_jar)
     else:
         for target in (('server', 'client') if args.target == 'all' else (args.target,)):
             if args.command == 'package':
                 profile = load_release_profile(args.server_host, args.server_port, args.server_cert, args.transport) if target == 'client' else None
-                package(target, args.type, profile)
+                package(target, args.type, profile, args.output_dir)
             else:
                 profile = load_release_profile(args.server_host, args.server_port, args.server_cert, args.transport) if args.command == 'run' and target == 'client' else None
                 folder, _ = build(target, profile)

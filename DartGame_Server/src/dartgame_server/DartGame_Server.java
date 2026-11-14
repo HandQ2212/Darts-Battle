@@ -8,6 +8,7 @@ import java.net.*;
 import java.util.concurrent.*;
 public class DartGame_Server {
     public static void main(String[] args) throws Exception {
+        network.DiagnosticLog.configure("server");
         DBConnection.getInstance().initialize();
         int port=Integer.parseInt(System.getProperty("darts.port",System.getenv().getOrDefault("DARTS_PORT","8080")));
         String host=System.getProperty("darts.bind",System.getenv().getOrDefault("DARTS_BIND","0.0.0.0"));

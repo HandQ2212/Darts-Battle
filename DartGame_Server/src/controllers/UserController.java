@@ -9,6 +9,7 @@ import java.sql.*;
 public class UserController {
     public void handleMessage(Client client, Message message) {
         if (message.getType() == MessageType.LOGOUT_REQUEST) {
+            network.DiagnosticLog.event("logout_requested","userId="+client.getLoggedInUserId());
             LobbyService.getInstance().logout(client, "FORFEIT");
             client.send(Message.of(MessageType.LOGOUT_RESULT, "SUCCESS"));
             return;
