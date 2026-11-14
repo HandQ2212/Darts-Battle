@@ -8,6 +8,9 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 import java.util.*;
 import java.util.function.Consumer;
@@ -46,12 +49,10 @@ public final class Notifications {
         // Deduplicate repeated network/server errors and cap the visible queue.
         for(Notice notice:toasts)if(message.equals(notice.message))return;
         if(toasts.size()>=3)toasts.get(0).close();
-        VBox card=card(kind.equals("error")?"!":kind.equals("success")?"✓":"i",title,message,kind);
+        VBox card=railCard(title,message,kind);
         card.setId("toast");
         Notice notice=new Notice(card);notice.message=message;toasts.add(notice);
-        Button dismiss=new Button("×");dismiss.getStyleClass().add("notice-close");dismiss.setAccessibleText("Đóng thông báo");
-        dismiss.setOnAction(event->notice.close());
-        ((HBox)card.getChildren().get(0)).getChildren().add(dismiss);
+        addDismissButton((HBox)card.getChildren().get(0),notice,"Đóng thông báo");
         rail.getChildren().add(card);
         PauseTransition expiry=new PauseTransition(Duration.seconds(kind.equals("error")?6:4));
         expiry.setOnFinished(event->notice.close());notice.animations.add(expiry);
@@ -147,7 +148,7 @@ public final class Notifications {
     }
     public Notice invite(String name,long expiresAt,Consumer<Boolean> answer) {
         if(invitation!=null)invitation.close();
-        VBox card=card("THÁCH ĐẤU",name+" mời bạn chơi","Một trận phi tiêu đang chờ bạn. Sẵn sàng vào sân?","invite");
+        VBox card=railCard(name+" mời bạn chơi","Một trận phi tiêu đang chờ bạn. Sẵn sàng vào sân?","invite");
         card.setId("invitationCard");
         Label countdown=label("","notice-countdown");countdown.setId("inviteCountdown");
         ProgressBar progress=new ProgressBar(1);progress.setMaxWidth(Double.MAX_VALUE);
@@ -156,6 +157,7 @@ public final class Notifications {
         HBox actions=new HBox(8,reject,accept);actions.setAlignment(Pos.CENTER_RIGHT);
         card.getChildren().addAll(countdown,progress,actions);
         Notice notice=new Notice(card);invitation=notice;
+        addDismissButton((HBox)card.getChildren().get(0),notice,"Đóng lời mời");
         Consumer<Boolean> respond=value->{
             if(notice.closed)return;
             boolean valid=System.currentTimeMillis()<expiresAt;notice.close();
@@ -175,6 +177,46 @@ public final class Notifications {
     }
     private Label label(String text,String style) {
         Label label=new Label(text);label.getStyleClass().add(style);label.setWrapText(true);label.setMaxWidth(Double.MAX_VALUE);return label;
+    }
+    private VBox railCard(String title,String message,String kind) {
+        StackPane icon=icon(kind);
+        Label heading=label(title,"notice-rail-title");heading.setMinWidth(0);
+        HBox header=new HBox(10,icon,heading);header.setAlignment(Pos.CENTER_LEFT);HBox.setHgrow(heading,Priority.ALWAYS);
+        VBox card=new VBox(9,header);card.getStyleClass().addAll("notification-card","notice-"+kind);
+        if(!message.isBlank())card.getChildren().add(label(message,"notice-body"));
+        card.setMinWidth(0);return card;
+    }
+    private StackPane icon(String kind) {
+        String type=Set.of("success","warning","error").contains(kind)?kind:"info";
+        StackPane icon=new StackPane();icon.getStyleClass().addAll("notice-icon","notice-icon-"+type);
+        icon.setMinSize(28,28);icon.setPrefSize(28,28);icon.setMaxSize(28,28);icon.setMouseTransparent(true);
+        icon.setAccessibleText(switch(type){case "success"->"Thành công";case "warning"->"Cảnh báo";case "error"->"Lỗi";default->"Thông tin";});
+        Circle disc=new Circle(11);disc.getStyleClass().add("notice-icon-disc");icon.getChildren().add(disc);
+        switch(type) {
+            case "success" -> {
+                SVGPath check=new SVGPath();check.setContent("M4 11 L9 16 L20 5 L17.5 2.5 L9 11 L6.5 8.5 Z");check.getStyleClass().add("notice-icon-mark");icon.getChildren().add(check);
+            }
+            case "warning" -> {
+                SVGPath triangle=new SVGPath();triangle.setContent("M12 2 L23 21 H1 Z");triangle.getStyleClass().add("notice-icon-mark");icon.getChildren().add(triangle);
+                Rectangle stem=new Rectangle(2.2,7);stem.getStyleClass().add("notice-icon-cutout");stem.setTranslateY(-2);icon.getChildren().add(stem);
+                Circle dot=new Circle(1.3);dot.getStyleClass().add("notice-icon-cutout");dot.setTranslateY(4.5);icon.getChildren().add(dot);
+            }
+            case "error" -> {
+                SVGPath cross=new SVGPath();cross.setContent("M5 3 L12 10 L19 3 L21 5 L14 12 L21 19 L19 21 L12 14 L5 21 L3 19 L10 12 L3 5 Z");cross.getStyleClass().add("notice-icon-mark");icon.getChildren().add(cross);
+            }
+            default -> {
+                SVGPath bubble=new SVGPath();bubble.setContent("M4 4 H20 Q22 4 22 6 V15 Q22 17 20 17 H12 L6 21 V17 H4 Q2 17 2 15 V6 Q2 4 4 4 Z");
+                bubble.getStyleClass().add("notice-icon-bubble");icon.getChildren().add(bubble);
+                for(double x:new double[]{-4,0,4}) {
+                    Circle dot=new Circle(1.15);dot.getStyleClass().add("notice-icon-mark");dot.setTranslateX(x);dot.setTranslateY(-1);icon.getChildren().add(dot);
+                }
+            }
+        }
+        return icon;
+    }
+    private void addDismissButton(HBox header,Notice notice,String accessibleText) {
+        Button dismiss=new Button("×");dismiss.getStyleClass().add("notice-close");dismiss.setAccessibleText(accessibleText);
+        dismiss.setOnAction(event->notice.close());header.getChildren().add(dismiss);
     }
     private VBox card(String badge,String title,String message,String kind) {
         Label eyebrow=label(badge,"notice-badge");Region gap=new Region();HBox.setHgrow(gap,Priority.ALWAYS);
