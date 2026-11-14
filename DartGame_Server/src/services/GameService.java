@@ -6,49 +6,83 @@ import protocol.*;
 import protocol.dto.*;
 import protocol.dto.GameMessages.*;
 import java.util.*;
+import java.util.concurrent.*;
+import config.TurnRotation;
 
 /** Every transition is atomic under its room monitor. Network writes only enqueue. */
 public class GameService {
     private static final GameService INSTANCE=new GameService();
     private final DartboardScorer scorer=new DartboardScorer();
     private final MatchHistoryController history=new MatchHistoryController();
-    private record AppliedRotation(long actor, RotationRequest request, MatchSnapshot snapshot) {}
+    private final ExecutorService nextMatches=new ThreadPoolExecutor(2,2,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(100),task->{Thread t=new Thread(task,"next-match");t.setDaemon(true);return t;});
+    private final ScheduledExecutorService rotations=Executors.newSingleThreadScheduledExecutor(task->{
+        Thread thread=new Thread(task,"automatic-rotation");thread.setDaemon(true);return thread;
+    });
     private GameService() {}
     public static GameService getInstance() { return INSTANCE; }
     public void startMatch(Room r) {
+        startMatch(r,false);
+    }
+    private void startMatch(Room r,boolean alreadyCreated) {
         synchronized(r) {
             if(r.started) throw new IllegalArgumentException("Trận đã bắt đầu.");
             // Fail before announcing a match when its initial record cannot be created.
-            history.createMatch(r.getMatchId(),r.getMode().name(),r.getPlayer1Id(),r.getPlayer2Id(),r.getPlayer2Type().name());
+            if(!alreadyCreated)history.createMatch(r.getMatchId(),r.getMode().name(),r.getPlayer1Id(),r.getPlayer2Id(),r.getPlayer2Type().name(),r.getSessionId(),r.getRoundIndex(),r.getMode()==MatchMode.PVE?r.getBotDifficulty().name():null);
             r.started=true;
-            GameState s=r.getGameState(); s.setCurrentPlayerId(r.getPlayer1Id()); s.setCurrentActorType(ActorType.HUMAN);
-            s.setStatus(MatchStatus.WAITING_ROTATION); r.version++; resetDeadline(r);
+            GameState s=r.getGameState();
+            boolean secondStarts=r.getMode()==MatchMode.PVP&&r.getRoundIndex()%2==0;
+            s.setCurrentPlayerId(secondStarts?r.getPlayer2Id():r.getPlayer1Id());s.setCurrentActorType(ActorType.HUMAN);
+            prepareRotation(r);
             ClientManager.getInstance().setStatus(r.getPlayer1Id(),PlayerStatus.IN_MATCH);
             if(r.getPlayer2Id()!=null) ClientManager.getInstance().setStatus(r.getPlayer2Id(),PlayerStatus.IN_MATCH);
+            SessionService.broadcast(r,r.isRematchSupported()?"":"Cập nhật cả hai client để chơi tiếp và giữ cuộc gọi.");
             broadcast(r,Message.of(MessageType.MATCH_STARTED,snapshot(r)));
             broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));
+            scheduleRotation(r);
+        }
+    }
+    public void startNextMatch(Room r){
+        synchronized(r){
+            if(!r.isRematchSupported()||!"RESULTS".equals(r.getSessionPhase()))throw invalid("Chưa thể bắt đầu ván tiếp theo.");
+            if(r.startingNext)return;r.startingNext=true;String previous=r.getMatchId(),newId=UUID.randomUUID().toString();
+            int round=r.getRoundIndex()+1;SessionService.broadcast(r,"Đang chuẩn bị ván mới.");
+            try{nextMatches.execute(()->{
+                boolean created=false,started=false;
+                try{
+                    history.createMatch(newId,r.getMode().name(),r.getPlayer1Id(),r.getPlayer2Id(),r.getPlayer2Type().name(),r.getSessionId(),round,r.getMode()==MatchMode.PVE?r.getBotDifficulty().name():null);created=true;
+                    synchronized(r){
+                        if(r.startingNext&&"RESULTS".equals(r.getSessionPhase())&&previous.equals(r.getMatchId())&&RoomManager.getInstance().getSession(r.getSessionId())==r){
+                            RoomManager.getInstance().advanceRoom(r,newId);startMatch(r,true);started=true;
+                        }
+                    }
+                }catch(RuntimeException failure){
+                    synchronized(r){if("RESULTS".equals(r.getSessionPhase())){r.resetReady();SessionService.broadcast(r,"Không tạo được ván mới. Vui lòng thử lại.");}}
+                }finally{if(created&&!started)try{history.discardUnstartedMatch(newId);}catch(RuntimeException ignored){}}
+            });}catch(RejectedExecutionException busy){r.resetReady();SessionService.broadcast(r,"Server đang bận. Vui lòng thử lại.");}
         }
     }
     public void submitRotation(RotationRequest req,long userId) {
-        if(req==null) throw invalid("Thiếu góc xoay.");
-        Room r=room(req.matchId());
-        synchronized(r) {
-            member(r,userId); requestId(req.requestId());
-            Object prior=r.requests.get(req.requestId());
-            if(prior instanceof AppliedRotation old && old.actor()==userId && old.request().equals(req)) {
-                ClientManager.getInstance().sendToUser(userId,Message.of(MessageType.ROTATION_APPLIED,old.snapshot())); return;
-            }
-            if(prior!=null) throw invalid("RequestId đã được sử dụng.");
-            actor(r,userId,req.turnId(),MatchStatus.WAITING_ROTATION);
-            if(req.degrees()<0 || req.degrees()>359) throw invalid("Góc xoay phải là số nguyên từ 0 đến 359.");
-            applyRotation(r,req.degrees());
-            remember(r,req.requestId(),new AppliedRotation(userId,req,snapshot(r)));
-        }
+        throw invalid("Bảng tự động xoay ở đầu mỗi lượt; không cần nhập góc.");
     }
-    private void applyRotation(Room r,int degree) {
-        GameState s=r.getGameState(); s.setRotationDegree(degree); s.setStatus(MatchStatus.PLAYING); r.version++;
-        broadcast(r,Message.of(MessageType.ROTATION_APPLIED,snapshot(r)));
-        broadcast(r,Message.of(MessageType.TURN_STARTED,snapshot(r)));
+    private long rotationDelay() { return Math.max(0,Long.getLong("darts.rotationDelayMillis",TurnRotation.DURATION_MILLIS)); }
+    private void prepareRotation(Room r) {
+        GameState s=r.getGameState();
+        s.setRotationDegree(ThreadLocalRandom.current().nextInt(360));
+        s.setStatus(MatchStatus.WAITING_ROTATION);r.version++;resetDeadline(r);
+        r.deadline+=rotationDelay();
+    }
+    private void scheduleRotation(Room r) {
+        long turn=r.getGameState().getTurnId();String matchId=r.getMatchId();
+        rotations.schedule(()->{
+            synchronized(r) {
+                if(RoomManager.getInstance().getRoom(matchId)!=r || r.getGameState().getTurnId()!=turn
+                        || r.getGameState().getStatus()!=MatchStatus.WAITING_ROTATION)return;
+                r.getGameState().setStatus(MatchStatus.PLAYING);r.version++;resetDeadline(r);
+                broadcast(r,Message.of(MessageType.ROTATION_APPLIED,snapshot(r)));
+                broadcast(r,Message.of(MessageType.TURN_STARTED,snapshot(r)));
+                if(r.getGameState().getCurrentActorType()==ActorType.BOT)BotService.getInstance().playTurn(r.getMatchId(),turn);
+            }
+        },rotationDelay(),TimeUnit.MILLISECONDS);
     }
     public ThrowResolvedResponse submitThrow(ThrowCoordinateRequest req,Long userId) {
         if(req==null || userId==null) throw invalid("Lệnh ném không hợp lệ.");
@@ -93,6 +127,7 @@ public class GameService {
         log.setDartIndex(res.getDartIndex()); log.setX(res.getX()); log.setY(res.getY());
         log.setRotationDegree(res.getRotationDegree()); log.setHitArea(res.getHitArea());
         log.setDartScore(res.getDartScore()); log.setRemainingScoreAfter(res.getRemainingScoreAfter());
+        log.setBust(res.isBust());
         HistoryWriter.submit(r.getMatchId(),()->history.saveThrow(log,userId));
         broadcast(r,Message.of(MessageType.THROW_RESOLVED,res));
         if(res.isMatchFinished()) complete(r);
@@ -103,18 +138,25 @@ public class GameService {
         GameState s=r.getGameState(); boolean wasP1=Objects.equals(s.getCurrentPlayerId(),r.getPlayer1Id());
         s.setCurrentPlayerId(wasP1?r.getPlayer2Id():Long.valueOf(r.getPlayer1Id()));
         s.setCurrentActorType(wasP1?r.getPlayer2Type():ActorType.HUMAN);
-        s.setTurnId(s.getTurnId()+1); s.setDartsThrown(0); s.setStatus(MatchStatus.WAITING_ROTATION);
-        r.version++; resetDeadline(r); broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));
-        if(s.getCurrentActorType()==ActorType.BOT) BotService.getInstance().playTurn(r.getMatchId(),s.getTurnId());
+        s.setTurnId(s.getTurnId()+1); s.setDartsThrown(0);prepareRotation(r);
+        broadcast(r,Message.of(MessageType.TURN_PREPARING,snapshot(r)));scheduleRotation(r);
     }
-    public void playBotStep(String matchId,long turnId,int dartIndex,int degree,double x,double y) {
+    public void playBotStep(String matchId,long turnId,int dartIndex,double x,double y) {
         Room r=RoomManager.getInstance().getRoom(matchId); if(r==null) return;
         synchronized(r) {
             GameState s=r.getGameState();
             if(s.getTurnId()!=turnId || s.getCurrentActorType()!=ActorType.BOT || s.getStatus()==MatchStatus.FINISHED) return;
-            if(dartIndex==0) { if(s.getStatus()==MatchStatus.WAITING_ROTATION) applyRotation(r,degree); return; }
             if(s.getStatus()!=MatchStatus.PLAYING || dartIndex!=s.getDartsThrown()+1) return;
             resolveThrow(r,new ThrowCoordinateRequest(matchId,turnId,dartIndex,"bot-"+turnId+"-"+dartIndex,x,y),null);
+        }
+    }
+    public void playBotStep(String matchId,long turnId,int dartIndex) {
+        Room r=RoomManager.getInstance().getRoom(matchId);if(r==null)return;
+        synchronized(r) {
+            GameState s=r.getGameState();
+            if(s.getTurnId()!=turnId||s.getCurrentActorType()!=ActorType.BOT||s.getStatus()!=MatchStatus.PLAYING||dartIndex!=s.getDartsThrown()+1)return;
+            BotAim.Target target=BotAim.choose(r.getBotDifficulty(),s.getPlayer2RemainingScore(),s.getRotationDegree(),ThreadLocalRandom.current());
+            resolveThrow(r,new ThrowCoordinateRequest(matchId,turnId,dartIndex,"bot-"+turnId+"-"+dartIndex,target.x(),target.y()),null);
         }
     }
     public void leaveMatch(String matchId,long userId,String reason) {
@@ -124,6 +166,14 @@ public class GameService {
             if(r.getGameState().getStatus()==MatchStatus.FINISHED) return;
             Long opponent=r.getOpponentUserId(userId);
             markFinished(r,opponent,opponent==null?ActorType.BOT:ActorType.HUMAN,reason); r.version++; complete(r);
+        }
+    }
+    public void leaveSession(Room room,long userId,String reason){
+        synchronized(room){
+            if(!room.containsUser(userId))throw invalid("Bạn không thuộc phiên chơi.");
+            if("CLOSED".equals(room.getSessionPhase()))return;
+            if(room.getGameState().getStatus()!=MatchStatus.FINISHED)leaveMatch(room.getMatchId(),userId,reason);
+            else closeSession(room,reason);
         }
     }
     public void expireTurns() {
@@ -140,8 +190,19 @@ public class GameService {
     }
     private void complete(Room r) {
         BotService.getInstance().cancel(r.getMatchId());
-        HistoryWriter.submit(r.getMatchId(),()->history.finishMatch(r.getMatchId(),r.winnerId,r.winnerType.name(),r.endReason));
+        String completedMatch=r.getMatchId();Long winner=r.winnerId;String winnerType=r.winnerType.name(),reason=r.endReason;
+        int p1=r.getGameState().getPlayer1RemainingScore(),p2=r.getGameState().getPlayer2RemainingScore();
+        HistoryWriter.submit(completedMatch,()->history.finishMatch(completedMatch,winner,winnerType,reason,p1,p2));
+        boolean stay=r.isRematchSupported()&&!"FORFEIT".equals(r.endReason)&&!"DISCONNECT".equals(r.endReason)&&!"LOGOUT".equals(r.endReason);
+        if(stay){r.setSessionPhase("RESULTS");SessionService.broadcast(r,"Ván đã kết thúc.");}
+        else MediaSignalingService.getInstance().roomEnded(r.getSessionId());
         broadcast(r,Message.of(MessageType.MATCH_FINISHED,snapshot(r)));
+        if(!stay)closeSession(r,r.endReason);
+    }
+    private void closeSession(Room r,String reason) {
+        r.setSessionPhase("CLOSED");
+        MediaSignalingService.getInstance().roomEnded(r.getSessionId());
+        SessionService.broadcast(r,"Phiên chơi đã kết thúc.");
         RoomManager.getInstance().removeRoom(r.getMatchId());
         ClientManager.getInstance().setStatus(r.getPlayer1Id(),PlayerStatus.IDLE);
         if(r.getPlayer2Id()!=null) ClientManager.getInstance().setStatus(r.getPlayer2Id(),PlayerStatus.IDLE);

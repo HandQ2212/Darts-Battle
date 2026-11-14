@@ -4,6 +4,11 @@
 
 # Darts Battle v2 — chạy server Mac và client Windows/macOS
 
+> Cập nhật gameplay: bảng tự động phóng lên, xoay nhiều vòng và thu lại ở đầu mỗi
+> lượt (2,8 giây). Không nhập góc hoặc bấm Xoay. Chờ bảng dừng, click chuột trái
+> trong vùng bảng để chốt X, rồi click lần nữa để chốt Y và ném; không dùng nút Dừng.
+> Cần build lại cả Client và Server cho luồng này.
+
 ## Những gì đã thay đổi
 
 - Server quyết định điểm/lượt, xác minh thành viên phòng và thứ tự phi tiêu, chống lệnh lặp.
