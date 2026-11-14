@@ -85,7 +85,7 @@ def main():
             '2. Mo thu muc DartsBattle, nhap dup DartsBattle.cmd de choi.\n'
             '3. Dang ky/dang nhap. Hai nguoi dung hai tai khoan rieng de moi nhau.\n\n'
             'Khong can cai Java/MySQL/Cloudflare. Giu nguyen thu muc app va runtime.\n'
-            'Tu ket noi game.handq2212.site. May chu Mac phai bat va khong sleep.\n'
+            'Tu ket noi game-backsite.handq2212.site. May chu Mac phai bat va khong sleep.\n'
             'Ban portable chua duoc chay thu tren may Windows thuc te.\n', encoding='utf-8')
         (app / 'runtime-source.json').write_text(json.dumps(runtime_metadata, indent=2) + '\n')
         shutil.make_archive(str(windows / 'DartsBattle-2.1.0-Windows-x64'), 'zip', staging, 'DartsBattle')
@@ -95,7 +95,7 @@ def main():
         'DARTS BATTLE 2.1 - macOS APPLE SILICON\n\n'
         'Danh cho Mac chip Apple Silicon. Khong dung cho Mac Intel.\n'
         'Mo DMG, keo DartsBattle vao Applications, mo app va dang ky/dang nhap.\n'
-        'Tu ket noi game.handq2212.site, khong can cai Java/MySQL/Cloudflare.\n'
+        'Tu ket noi game-backsite.handq2212.site, khong can cai Java/MySQL/Cloudflare.\n'
         'Ban thu nghiem chua Developer ID/notarization; macOS co the chan ban tai ve.\n', encoding='utf-8')
     (output / 'DOC-TRUOC.txt').write_text(
         'CAC FILE GUI CHO NGUOI CHOI\n\n'
