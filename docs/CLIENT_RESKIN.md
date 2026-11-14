@@ -18,6 +18,26 @@ Màn thi đấu có hai thẻ điểm lớn, đánh dấu người đang có lư
 cho mỗi người, trạng thái xoay/ngắm/chờ xác nhận, phản hồi Bust và hướng dẫn luật.
 Chat xuống dòng và tách khỏi vùng ngắm.
 
+Đầu mỗi lượt, server tự chọn góc đích và khóa ném trong 2,8 giây. Client phóng
+bảng lên 118%, xoay ít nhất ba vòng và giảm tốc, rồi thu bảng về kích thước gốc.
+Không còn ô nhập góc hoặc nút Xoay. Cả hai người chơi và lượt Bot dùng cùng luồng;
+chỉ mở ngắm khi hiệu ứng kết thúc và server báo PLAYING. Rời trận hủy hiệu ứng.
+
+Ngắm bằng click chuột trái trong vùng bảng 450×400: click đầu chốt X, click tiếp
+chốt Y và gửi tọa độ. Không còn nút Dừng X/Dừng Y. Click ngoài bảng, chuột phải,
+click khi xoay, chờ xác nhận hoặc đang lượt đối thủ không thực hiện lệnh ném.
+
+Thông báo dùng `ui/Notifications.java`, được gắn vào một StackPane cố định trong
+Scene chính. Toast ở góc trên phải tự ẩn sau 4 giây (lỗi: 6 giây), tạm dừng khi
+di chuột lên, chống lặp và giới hạn ba thẻ. Lỗi tài khoản hiện trong form và xóa
+khi sửa dữ liệu. Lời mời là thẻ không chặn thao tác, có đếm ngược và nút trả lời;
+hết hạn/đóng bằng code không tự chấp nhận hoặc từ chối lời mời.
+Xác nhận rời trận, đăng xuất, thoát và kết quả trận dùng lớp phủ nền tối trong app.
+Xác nhận khóa input nền, giữ focus bàn phím trong hộp và hỗ trợ Escape/Tab/Enter.
+Chuyển trang đóng xác nhận cũ mà không chạy hành động. Không mở cửa sổ Alert riêng.
+Tiêu đề thông báo dùng font hệ thống in đậm để hỗ trợ đầy đủ dấu tiếng Việt;
+không dùng Lilita One vì file font đóng kèm thiếu một số ký tự tiếng Việt.
+
 Điểm từng phi tiêu hiện ở hai nơi: popup to xuất hiện sau 280 ms khi phi tiêu
 chạm bảng và số lớn **Lần ném vừa rồi** ở cột bên. Popup giữ khoảng 1,6 giây,
 kết quả mới thay kết quả cũ; không nhận input và không chặn việc ngắm tiếp.
