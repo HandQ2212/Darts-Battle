@@ -1,6 +1,9 @@
 name: Desktop packages
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - lucnvm
 permissions:
   contents: read
 jobs:
