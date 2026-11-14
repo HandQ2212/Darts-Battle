@@ -31,6 +31,7 @@
    <Label fx:id="connectionStatusLabel" text="Đang kết nối máy chủ..." maxWidth="380" styleClass="status-box" wrapText="true"/>
    <Hyperlink text="Chưa có tài khoản? Đăng ký" onAction="#goToRegister"/>
  <Hyperlink text="Thử kết nối lại" onAction="#handleRetry" styleClass="muted, small"/>
+ <Hyperlink text="Kiểm tra cập nhật" onAction="#handleUpdate" styleClass="muted, small"/>
  </VBox>
  </HBox>
 </AnchorPane>

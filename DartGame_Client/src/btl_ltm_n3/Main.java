@@ -25,6 +25,8 @@ public class Main extends Application {
     public static SocketHandler socketHandler;
     public static GameViewState gameViewState = new GameViewState();
     private static Scene scene;
+    private static String currentPage = "login";
+    public static boolean isLoginPage() { return "login".equals(currentPage); }
     private static ui.Notifications notifications;
     public static ui.Notifications notifications() {
         if(notifications==null)notifications=new ui.Notifications();
@@ -58,6 +60,7 @@ public class Main extends Application {
         stage.setMinWidth(1040);
         stage.setMinHeight(780);
         stage.show();
+        updater.Updater.check(false);
 
         // Phát nhạc nền
         playBackgroundMusic();
@@ -90,6 +93,7 @@ public class Main extends Application {
         matchDetailController = null;
         FXMLLoader loader = new FXMLLoader(Main.class.getResource("/views/" + fxml + ".fxml"));
         Parent root = loader.load();
+        currentPage = fxml;
 
         if (fxml.equals("chooseOpponent") || fxml.equals("choosecomponent")) {
             chooseOpponentController = loader.getController();

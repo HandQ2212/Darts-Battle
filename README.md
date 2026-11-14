@@ -1,6 +1,6 @@
 **Kết nối Internet v2.1:** xem [mở app, đăng nhập và chơi qua domain](docs/ONE_CLICK_INTERNET.md).
-Client tự kết nối `game.handq2212.site`; Mac chạy game server và Cloudflare Tunnel nền.
-Đã xác thực Cloudflare và kiểm chứng WSS qua domain bằng TLS được ghim + game PONG ngày 23/10/2026.
+Client tự kết nối `game-backsite.handq2212.site`; Mac chạy game server và Cloudflare Tunnel nền.
+Domain mới cần được kiểm tra WSS sau khi cấu hình DNS và tunnel.
 File gửi người chơi nằm riêng tại `dist/Player-Downloads/Windows/` (ZIP portable x64)
 và `dist/Player-Downloads/Mac/` (DMG Apple Silicon). Tạo lại bằng
 `python3 scripts/package-player-downloads.py` sau khi build DMG Mac.

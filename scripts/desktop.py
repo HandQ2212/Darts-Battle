@@ -20,7 +20,7 @@ CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
 WEBRTC_VERSION = '0.20.0'
-APP_VERSION = '2.4.1'
+APP_VERSION = '2.5.1'
 
 
 def tool(name):
@@ -146,6 +146,7 @@ def build(target, profile=None, client_libraries=None):
                 destination = classes / resource.relative_to(source_root)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(resource, destination)
+        (classes / 'updater' / 'build.properties').write_text('version=' + APP_VERSION + '\n', encoding='ascii')
     if target == 'client' and profile:
         (classes / 'server.properties').write_text('server.host=' + profile['host'] + '\nserver.port=' + str(profile['port']) + '\nserver.tls=true\nserver.transport=' + profile['transport'] + '\n', encoding='utf-8')
         shutil.copy2(profile['certificate'], classes / 'server-cert.pem')
@@ -178,6 +179,7 @@ def package(target, package_type, profile=None, output_dir=None):
     args = [tool('jpackage'), '--type', package_type, '--input', folder, '--dest', output,
             '--name', name, '--app-version', APP_VERSION, '--vendor', 'Darts Battle',
             '--main-jar', f'darts-{target}.jar', '--main-class', main,
+            '--add-modules', 'java.se,jdk.crypto.ec,jdk.unsupported,jdk.naming.dns',
             '--java-options', '-Dfile.encoding=UTF-8']
     if target == 'client':
         args += ['--java-options', '--module-path=$APPDIR/lib', '--java-options', '--add-modules=javafx.controls,javafx.fxml,javafx.media']
@@ -262,9 +264,19 @@ def ui_test():
     libs = BUILD / 'client' / 'input' / 'lib'
     cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
     test_classpath = str(classes) + os.pathsep + str(libs / '*')
-    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
+    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases], ROOT / 'tests/UpdaterTest.java'])
+    run([tool('java'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', test_classpath, 'updater.UpdaterTest'])
     for case in cases:
         run([tool('java'), '-Djavafx.cachedir=' + str(BUILD / 'javafx-cache'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', test_classpath, case])
+
+
+def updater_test():
+    build('client')
+    classes = BUILD / 'client' / 'classes'
+    libs = BUILD / 'client' / 'input' / 'lib'
+    cp = str(classes) + os.pathsep + str(libs / '*')
+    run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', cp, '-d', classes, ROOT / 'tests/UpdaterTest.java'])
+    run([tool('java'), '--module-path', libs, '--add-modules', 'javafx.controls,javafx.fxml,javafx.media', '-cp', cp, 'updater.UpdaterTest'])
 
 
 def media_server_test(h2_jar):
@@ -309,7 +321,7 @@ def probe(endpoint=None, certificate=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('build', 'package', 'run', 'test', 'ui-test', 'media-test', 'probe'))
+    parser.add_argument('command', choices=('build', 'package', 'run', 'test', 'ui-test', 'updater-test', 'media-test', 'probe'))
     parser.add_argument('target', nargs='?', choices=('client', 'server', 'all'), default='all')
     parser.add_argument('--type', choices=('app-image', 'dmg', 'pkg', 'exe', 'msi', 'deb', 'rpm'), default='app-image')
     parser.add_argument('--endpoint', help='Probe URL, default configured public WSS endpoint')
@@ -326,6 +338,8 @@ def main():
         tests(args.h2_jar)
     elif args.command == 'ui-test':
         ui_test()
+    elif args.command == 'updater-test':
+        updater_test()
     elif args.command == 'media-test':
         media_server_test(args.h2_jar)
     else:

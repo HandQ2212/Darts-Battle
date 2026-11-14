@@ -1,13 +1,14 @@
 # Mở app, đăng nhập và chơi qua Internet
 
 Client v2.1 giữ đăng nhập, tự kết nối và không yêu cầu người chơi nhập IP/cổng.
-Endpoint được chủ server cài sẵn: `wss://game.handq2212.site/play`.
+Endpoint được cấu hình cho client: `wss://game-backsite.handq2212.site/play`.
+Domain mới cần được kiểm tra sau khi thiết lập DNS và tunnel.
 
 ## Tên miền kết nối với Mac như thế nào?
 
 ```mermaid
 flowchart LR
-    A[App Windows/macOS] -->|WSS qua Internet| B[game.handq2212.site trên Cloudflare]
+    A[App Windows/macOS] -->|WSS qua Internet| B[game-backsite.handq2212.site trên Cloudflare]
     C[cloudflared trên Mac] -->|Đường hầm đi ra ngoài| B
     C --> D[WebSocket bridge 127.0.0.1:8444]
     D --> E[Game server TLS 127.0.0.1:8443]
@@ -16,7 +17,7 @@ flowchart LR
 
 Namecheap là nơi mua tên miền. DNS hiện đã dùng nameserver Cloudflare, vì vậy phần
 DNS/tunnel được quản lý trong Cloudflare, không cần đổi nameserver ở Namecheap.
-Subdomain `game` dành riêng cho game; không thay website/tunnel đang dùng domain gốc.
+Subdomain `game-backsite` dành riêng cho game; không thay website/tunnel đang dùng domain gốc.
 
 Mac chủ động kết nối tới Cloudflare Tunnel. Khi người chơi mở app, Cloudflare chuyển
 kết nối về Mac qua tunnel này. Không cần IP Internet cố định hay mở cổng router.
@@ -37,16 +38,16 @@ cloudflared, JDK, Python hay MySQL khi dùng bộ cài đã đóng kèm runtime.
 - Kiểm chứng dịch vụ đã cài qua `ws://127.0.0.1:8444/play` với TLS được ghim và game PONG.
 - Chuẩn bị client v2.1 tự kết nối tới domain, hiển thị trạng thái và thử lại khi server chưa sẵn sàng.
 
-- Đã xác thực Cloudflare, tạo tunnel `darts-battle-handq2212` và DNS `game.handq2212.site`.
+- Đã xác thực Cloudflare và tạo tunnel `darts-battle-handq2212` cho cấu hình trước đây.
 - Đã cài dịch vụ `com.dartsbattle.cloudflared` chạy khi đăng nhập Mac.
-- Ngày 23/10/2026, probe qua `wss://game.handq2212.site:443/play` thành công:
+- Ngày 23/10/2026, probe qua domain cũ thành công:
   `pinned TLSv1.3, game PONG received`. Đây là kiểm tra qua endpoint Internet từ Mac
   chủ; chưa thay thế việc chơi thử bằng hai máy ở hai mạng khác nhau.
 
 Không phát hành bản v2.0 cũ cho luồng này; v2.0 dùng cấu hình kết nối thủ công
 và chưa có WebSocket.
 
-Các bước thiết lập dưới đây đã thực hiện trên Mac này; giữ lại để tham khảo khi cài lại:
+Các bước sau dùng để thiết lập domain mới; cần xác minh DNS và tunnel trước khi chạy:
 
 ```sh
 cloudflared tunnel login
@@ -61,7 +62,7 @@ python3 scripts/desktop.py probe
 ```
 
 Script tạo hoặc dùng lại tunnel riêng `darts-battle-handq2212`, thêm DNS cho
-`game.handq2212.site`, rồi cài dịch vụ `com.dartsbattle.cloudflared`. Nó không ghi đè
+`game-backsite.handq2212.site`, rồi cài dịch vụ `com.dartsbattle.cloudflared`. Nó không ghi đè
 DNS đã tồn tại và không sửa cấu hình tunnel/website cũ. Nếu subdomain đang dùng cho
 mục đích khác, script dừng để kiểm tra thay vì thay nó âm thầm.
 
@@ -140,8 +141,8 @@ nội bộ; phát hành cho các Mac khác qua Internet vẫn cần Developer ID
 để vượt kiểm tra Gatekeeper mặc định. Không tắt Gatekeeper toàn máy.
 
 Máy chủ đã cài dịch vụ chạy nền thì không cần mở thêm `DartsBattleServer.app`.
-Người chơi mở `DartsBattle.app`. Tunnel trên Mac này đã được thiết lập và kiểm tra
-thành công qua domain; khi chuyển server sang máy khác cần thực hiện lại phần cài đặt.
+Người chơi mở `DartsBattle.app`. Tunnel cũ trên Mac này cần được cấu hình lại nếu server vẫn chạy trên máy này;
+cần kiểm tra kết nối qua domain mới sau khi thiết lập.
 
 Nếu sau này đổi domain, cập nhật profile rồi build lại client. Nếu chỉ đổi IP/mạng nhà,
 Cloudflare Tunnel giữ endpoint nên không cần đổi client. Nếu thay private key/chứng chỉ,

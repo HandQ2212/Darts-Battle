@@ -26,5 +26,6 @@ public class LoginController {
     }
     private void clearError(){formErrorLabel.setVisible(false);formErrorLabel.setManaged(false);formErrorLabel.setText("");}
     @FXML public void handleRetry(){Main.socketHandler.ensureConnected(null);}
+    @FXML public void handleUpdate(){updater.Updater.check(true);}
     @FXML public void goToRegister(){try{Main.setRoot("register");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
 }
