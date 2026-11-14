@@ -20,7 +20,7 @@ CACHE = ROOT / 'build' / 'dependencies'
 FX_VERSION = '17.0.12'
 H2_VERSION = '2.3.232'
 WEBRTC_VERSION = '0.20.0'
-APP_VERSION = '2.5.2'
+APP_VERSION = '2.5.3'
 
 
 def tool(name):
