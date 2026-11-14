@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:controller="controllers.MatchDetailController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:controller="controllers.MatchDetailController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root, records-page">
  <VBox spacing="14" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
   <HBox alignment="CENTER_LEFT"><Button text="← Lịch sử" onAction="#handleBack" styleClass="ghost"/><Region HBox.hgrow="ALWAYS"/><Label text="DARTS / BATTLE" styleClass="brand"/></HBox><Region styleClass="divider"/>
   <Label text="CHI TIẾT VÁN ĐẤU" styleClass="eyebrow"/><Label fx:id="headingLabel" text="Đang tải..." styleClass="title"/>

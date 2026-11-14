@@ -260,7 +260,7 @@ def ui_test():
     build('client')
     classes = BUILD / 'client' / 'classes'
     libs = BUILD / 'client' / 'input' / 'lib'
-    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
+    cases = ('ClientUiSmokeTest', 'MatchLayoutTest', 'ScoreEffectTest', 'TurnMotionTest', 'DartThrowEffectsTest', 'MatchResultPresentationTest', 'WindowNavigationTest', 'AutomaticRotationTest', 'NotificationsTest', 'NativeWebRtcSmokeTest', 'MediaCallSessionTest')
     test_classpath = str(classes) + os.pathsep + str(libs / '*')
     run([tool('javac'), '--release', '17', '-encoding', 'UTF-8', '-cp', test_classpath, '-d', classes, *[ROOT / ('tests/' + case + '.java') for case in cases]])
     for case in cases:

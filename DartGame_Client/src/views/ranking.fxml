@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.RankingController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+<AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.RankingController" prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root, records-page">
  <VBox spacing="18" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
   <HBox alignment="CENTER_LEFT"><Button text="← Sảnh chính" onAction="#handleBack" styleClass="ghost"/><Region HBox.hgrow="ALWAYS"/><Label text="DARTS / BATTLE" styleClass="brand"/></HBox><Region styleClass="divider"/>
   <HBox alignment="CENTER_LEFT" spacing="22"><VBox spacing="7" HBox.hgrow="ALWAYS"><Label text="THÀNH TÍCH" styleClass="eyebrow"/><Label text="Bảng xếp hạng." styleClass="title"/><Label text="Những người chơi dẫn đầu đường đua." styleClass="muted"/></VBox><VBox alignment="CENTER_RIGHT" spacing="6"><Label fx:id="userRankLabel" text="Hạng của bạn: --" styleClass="section-title"/><Label fx:id="userStatsLabel" text="Số trận thắng: --" styleClass="muted"/></VBox><Button text="Làm mới" onAction="#handleRefresh"/></HBox>
