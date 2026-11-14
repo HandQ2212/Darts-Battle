@@ -1,5 +1,9 @@
 # Mở app, đăng nhập và chơi qua Internet
 
+**Phát hành client hiện tại: Windows x64 2.5.3.** Xem [AUTO_UPDATE.md](AUTO_UPDATE.md)
+để build ZIP Windows, ký manifest và đăng GitHub Release với hai file. Việc phát hành client Mac tạm dừng;
+các bước triển khai server Mac bên dưới được giữ làm tài liệu vận hành.
+
 Client v2.1 giữ đăng nhập, tự kết nối và không yêu cầu người chơi nhập IP/cổng.
 Endpoint được cấu hình cho client: `wss://game-backsite.handq2212.site/play`.
 Domain mới cần được kiểm tra sau khi thiết lập DNS và tunnel.
