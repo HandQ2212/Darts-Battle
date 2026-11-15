@@ -140,7 +140,7 @@ py scripts/desktop.py package client --type app-image
 ```
 
 Gửi **toàn bộ thư mục** `dist/windows-AMD64/DartsBattle`, không chỉ file EXE.
-Người chơi giải nén, tạo shortcut tới `DartsBattle.exe`, mở app và nhập IP Mac server.
+Người chơi giải nén, tạo shortcut tới `DartsBattle.exe`, mở app; domain và chứng chỉ server được đóng gói sẵn.
 Gói chứa runtime, không cần IDE/JDK/Python ở máy người chơi.
 
 Muốn bộ cài `.exe`/`.msi`, cài thêm WiX Toolset tương thích jpackage của JDK đang dùng
@@ -152,9 +152,11 @@ py scripts/desktop.py package client --type exe
 ```
 
 Không thể tạo bộ cài Windows bằng jpackage trên Mac. Workflow
-`.github/workflows/desktop-build.yml` đã được chuẩn bị để chạy thủ công trên GitHub Actions:
-Actions → Desktop packages → Run workflow; nó chạy test, build macOS `.dmg` theo kiến trúc runner và
-Windows x64 app-image ZIP. Workflow chưa được chạy/publish bởi lần sửa này.
+`.github/workflows/desktop-build.yml` tự chạy khi push lên `lucnvm` trên GitHub Actions:
+Actions → Desktop packages → lần chạy tương ứng với commit vừa push; hiện chỉ chạy test và build Windows x64 app-image,
+tạo `dist/updates/DartsBattle-windows.zip` trong artifact `DartsBattle-windows-x64`.
+Việc phát hành client Mac tạm dừng. Quy trình phát hành hiện tại dùng ZIP Windows và manifest đã ký;
+xem [AUTO_UPDATE.md](AUTO_UPDATE.md) để ký và đăng GitHub Release. Workflow không tự ký hay publish.
 
 Script không ghi đè bộ cài/app cùng tên đã có trong `dist`: đổi chỗ/xóa đúng artifact cũ
 nếu chủ động muốn tạo lại. Reskin có thể làm riêng trong FXML/CSS mà không đổi luật/protocol.

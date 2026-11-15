@@ -4,16 +4,16 @@
 <?import javafx.scene.shape.*?>
 <?import javafx.geometry.*?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.ChooseOpponentController"
- prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root">
+ prefWidth="1100" prefHeight="740" stylesheets="@theme.css" styleClass="app-root, opponent-page">
  <VBox spacing="18" styleClass="page" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
   <HBox alignment="CENTER_LEFT" spacing="18"><Button text="← Sảnh chính" onAction="#handleBack" styleClass="ghost"/><Region HBox.hgrow="ALWAYS"/><Label text="DARTS / BATTLE" styleClass="brand" wrapText="true"/></HBox>
   <Region styleClass="divider"/>
-  <VBox spacing="7"><Label text="CHƠI CÙNG BẠN BÈ" styleClass="eyebrow" wrapText="true"/><Label text="Chọn người thách đấu." styleClass="title" wrapText="true"/><Label text="Chọn một người đang sẵn sàng, rồi gửi lời mời. Trận đấu bắt đầu khi đối thủ đồng ý." styleClass="muted" wrapText="true"/></VBox>
+  <VBox spacing="7" styleClass="challenge-intro"><Label text="CHƠI CÙNG BẠN BÈ" styleClass="eyebrow" wrapText="true"/><Label text="Chọn người thách đấu." styleClass="title" wrapText="true"/><Label text="Chọn một người đang sẵn sàng, rồi gửi lời mời. Trận đấu bắt đầu khi đối thủ đồng ý." styleClass="muted" wrapText="true"/></VBox>
   <Label fx:id="lobbyStatusLabel" text="Đang tải danh sách người chơi..." styleClass="status-box" maxWidth="Infinity" wrapText="true"/>
   <TableView fx:id="userTable" VBox.vgrow="ALWAYS">
    <columns><TableColumn fx:id="colId" text="ID" prefWidth="100" maxWidth="130"/><TableColumn fx:id="colUsername" text="NGƯỜI CHƠI" prefWidth="480"/><TableColumn fx:id="colStatus" text="TRẠNG THÁI" prefWidth="260"/></columns>
    <placeholder><VBox alignment="CENTER" spacing="10"><Label text="Chưa có đối thủ trong sảnh" styleClass="section-title" wrapText="true"/><Label text="Mời bạn bè đăng nhập hoặc quay lại sảnh chính để đấu với bot." styleClass="muted" wrapText="true"/></VBox></placeholder>
   </TableView>
-  <HBox alignment="CENTER_LEFT" spacing="12"><Label text="Chỉ người chơi đang sẵn sàng mới nhận được lời mời." styleClass="muted" wrapText="true"/><Region HBox.hgrow="ALWAYS"/><Button text="Làm mới" onAction="#handleReload"/><Button text="Gửi lời mời  →" onAction="#handleConfirm" styleClass="primary"/></HBox>
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="opponent-guidance"><Label text="Chỉ người chơi đang sẵn sàng mới nhận được lời mời." styleClass="muted" wrapText="true"/><Region HBox.hgrow="ALWAYS"/><Button text="Làm mới" onAction="#handleReload"/><Button text="Gửi lời mời  →" onAction="#handleConfirm" styleClass="primary"/></HBox>
  </VBox>
 </AnchorPane>

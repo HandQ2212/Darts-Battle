@@ -9,6 +9,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 
 /** Checks callbacks, focus, form errors and expiry on real JavaFX controls. */
 public class NotificationsTest {
@@ -20,6 +21,11 @@ public class NotificationsTest {
         CompletableFuture<T> result=new CompletableFuture<>();
         Platform.runLater(()->{try{result.complete(action.call());}catch(Throwable e){result.completeExceptionally(e);}});
         return result.get(15,TimeUnit.SECONDS);
+    }
+    private static void awaitFx(BooleanSupplier condition,long timeoutMillis,String failure)throws Exception{
+        long deadline=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        while(System.nanoTime()<deadline){if(fx(condition::getAsBoolean))return;Thread.sleep(25);}
+        throw new AssertionError(failure);
     }
     private static void check(boolean condition,String message){ClientUiSmokeTest.check(condition,message);}
     private static Button button(String id){return (Button)notices.root().lookup(id);}
@@ -36,6 +42,9 @@ public class NotificationsTest {
                 notices.toast("Sẵn sàng vào sân","Đã tạo tài khoản. Chúc bạn có một trận đấu vui!","success");
                 check(Window.getWindows().size()==windows,"toast opens no native popup window");
                 check(stage.getScene().getFocusOwner()==username,"toast preserves typing focus");
+                VBox successToast=(VBox)notices.root().lookup("#toast");
+                check(successToast.lookup(".notice-icon-success")!=null&&successToast.lookup(".notice-badge")==null,
+                        "success toast uses an icon instead of the old top-row badge");
                 Main.socketHandler.showError("Tên đăng nhập hoặc mật khẩu chưa đúng.");
                 Label error=(Label)login.lookup("#formErrorLabel");
                 check(error.isVisible()&&error.isManaged()&&error.getText().contains("mật khẩu"),"authentication error stays in form");
@@ -59,18 +68,23 @@ public class NotificationsTest {
                 notices.invite("Bobby",System.currentTimeMillis()+30000,value->{if(value)accepted++;else rejected++;});
                 check(!login.isDisabled(),"invitation does not block page or chat");
                 check(notices.root().lookup("#inviteCountdown")!=null,"invitation shows countdown");
+                check(notices.root().lookup("#invitationCard .notice-icon-info")!=null&&notices.root().lookup("#invitationCard .notice-badge")==null,
+                        "invitation uses an icon header without a badge row");
                 preview("notification-invitation");
                 Button join=button("#inviteAccept");join.fire();join.fire();check(accepted==1&&rejected==0,"accept invitation once");
                 notices.invite("Carol",System.currentTimeMillis()+30000,value->{if(value)accepted++;else rejected++;});
                 button("#inviteReject").fire();check(rejected==1,"explicit reject sends one response");
+                notices.invite("Eve",System.currentTimeMillis()+30000,value->{if(value)accepted++;else rejected++;});
+                ((Button)notices.root().lookup("#invitationCard .notice-close")).fire();
+                check(accepted==1&&rejected==1,"closing invitation does not send an accept or reject response");
                 var silent=notices.invite("David",System.currentTimeMillis()+30000,value->{if(value)accepted++;else rejected++;});silent.close();
                 check(accepted==1&&rejected==1,"programmatic invitation close never sends a response");
                 notices.invite("Expired",System.currentTimeMillis()+150,value->{if(value)accepted++;else rejected++;});
                 return null;
             });
-            Thread.sleep(400);
+            awaitFx(()->notices.root().lookup("#invitationCard")==null,3000,"expired invitation did not close within its deadline");
             fx(()->{
-                check(notices.root().lookup("#invitationCard")==null&&accepted==1&&rejected==1,"expired invitation removes itself without accepting or rejecting");
+                check(accepted==1&&rejected==1,"expired invitation removes itself without accepting or rejecting");
                 notices.result(true,"Về 0 điểm · Alice 0 — 151 Bobby",()->confirmed++);
                 preview("notification-victory");
                 Label resultTitle=(Label)notices.root().lookup(".notification-modal .notice-title");
@@ -80,7 +94,14 @@ public class NotificationsTest {
                 VBox rail=(VBox)notices.root().lookup("#notificationRail");
                 long count=rail.getChildren().stream().filter(n->n instanceof VBox box&&box.getChildren().stream().anyMatch(child->child instanceof Label label&&label.getText().equals("Nội dung không bị lặp lại."))).count();
                 check(count==1,"repeated notifications are deduplicated");
-                notices.dispose();notices.toast("Thông báo ngắn","Thẻ sẽ tự ẩn.","success");
+                notices.dispose();
+                for(String kind:new String[]{"info","warning","error"}){
+                    notices.toast("Thông báo "+kind,"Nội dung kiểu "+kind,kind);
+                    VBox toast=(VBox)notices.root().lookup("#toast");
+                    check(toast.lookup(".notice-icon-"+kind)!=null&&toast.lookup(".notice-badge")==null,kind+" toast has a type icon and no badge row");
+                    ((Button)toast.lookup(".notice-close")).fire();
+                }
+                notices.toast("Thông báo ngắn","Thẻ sẽ tự ẩn.","success");
                 // Keep the real desktop pointer from pausing this expiry check on hover.
                 var toast=notices.root().lookup("#toast");toast.setMouseTransparent(true);toast.getOnMouseExited().handle(null);return null;
             });
