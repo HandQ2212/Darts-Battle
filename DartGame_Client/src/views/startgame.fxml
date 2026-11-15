@@ -3,6 +3,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.image.*?>
 <?import ui.ArenaBackdrop?>
+<?import ui.MatchResultPresentation?>
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:id="rootPane" fx:controller="controllers.StartGameController" prefWidth="1160" prefHeight="800" stylesheets="@theme.css" styleClass="app-root, game-page">
  <top><HBox alignment="CENTER_LEFT" spacing="12" styleClass="game-header">
   <Button text="← Rời trận" onAction="#handleBack" styleClass="ghost"/>
@@ -13,7 +14,7 @@
  </HBox></top>
  <center><StackPane><HBox fx:id="gameMain" styleClass="game-main" alignment="TOP_CENTER">
   <VBox fx:id="leftColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
-   <VBox fx:id="myScoreSlot"/>
+   <VBox fx:id="myScoreSlot" styleClass="score-slot"/>
    <Button fx:id="myHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
    <StackPane fx:id="localVideoFrame" styleClass="video-frame" minHeight="0">
     <ImageView fx:id="localVideoView" preserveRatio="true" smooth="true"/>
@@ -39,11 +40,12 @@
      <Label fx:id="rematchStatus" styleClass="result-summary" wrapText="true"/>
      <HBox alignment="CENTER" spacing="10"><Button fx:id="rematchButton" text="Chơi tiếp" onAction="#toggleRematch" styleClass="primary"/><Button fx:id="exitSessionButton" text="Thoát về sảnh" onAction="#leaveSession" styleClass="ghost"/></HBox>
     </VBox>
+    <MatchResultPresentation fx:id="resultPresentation" visible="false" managed="false" minWidth="0" minHeight="0"/>
    </StackPane>
    <HBox alignment="CENTER" styleClass="compact-guidance"><Label fx:id="aimStatusLabel" text="Chờ lượt" styleClass="instruction" wrapText="true"/></HBox>
   </VBox>
   <VBox fx:id="rightColumn" spacing="9" minWidth="220" prefWidth="240" maxWidth="280">
-   <VBox fx:id="otherScoreSlot"/>
+   <VBox fx:id="otherScoreSlot" styleClass="score-slot"/>
    <Button fx:id="otherHistoryButton" text="Hiện lịch sử các lượt" onAction="#showHistory" maxWidth="Infinity" styleClass="history-button"/>
    <StackPane fx:id="remoteVideoFrame" styleClass="video-frame" minHeight="0">
     <ImageView fx:id="remoteVideoView" preserveRatio="true" smooth="true"/>

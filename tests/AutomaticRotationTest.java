@@ -10,6 +10,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Scale;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 
 /** Real FX pulses verify zoom, multiple turns, input gating and cancellation. */
 public class AutomaticRotationTest {
@@ -26,6 +27,11 @@ public class AutomaticRotationTest {
         return result.get(10,TimeUnit.SECONDS);
     }
     private static void check(boolean condition,String message) {ClientUiSmokeTest.check(condition,message);}
+    private static void awaitFx(BooleanSupplier condition,long timeoutMillis,String failure)throws Exception{
+        long deadline=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        while(System.nanoTime()<deadline){if(fx(condition::getAsBoolean))return;Thread.sleep(25);}
+        throw new AssertionError(failure);
+    }
     public static void main(String[] args) throws Exception {
         CompletableFuture<Void> ready=new CompletableFuture<>();Platform.startup(()->ready.complete(null));ready.get(10,TimeUnit.SECONDS);
         try {
@@ -43,7 +49,7 @@ public class AutomaticRotationTest {
                 socket.last=null;ClientUiSmokeTest.clickBoard(root.lookup("#gamePane"),javafx.scene.input.MouseButton.PRIMARY);check(socket.last==null,"board clicks during rotation cannot submit a throw");
                 return null;
             });
-            Thread.sleep(500);
+            awaitFx(()->scale.getX()>1.15&&scale.getY()>1.15&&socket.mediaJoins==1,2000,"board did not start its turn animation and media join");
             fx(()->{
                 check(socket.mediaJoins==1,"PvP automatically sends exactly one media join");
                 check(scale.getX()>1.15&&scale.getY()>1.15,"board enlarges before spinning");
@@ -52,9 +58,9 @@ public class AutomaticRotationTest {
                 check(aim.isDisabled(),"early server readiness does not skip animation or unlock aiming");
                 return null;
             });
-            Thread.sleep(1000);
+            awaitFx(()->maximumAngle>360,2200,"board did not rotate through the first full circles");
             fx(()->{check(maximumAngle>360,"board rotates multiple full circles");ClientUiSmokeTest.preview(root,"auto-rotation-zoom",1160,800);return null;});
-            Thread.sleep(1700);
+            awaitFx(()->!aim.isDisabled(),3000,"board rotation did not finish");
             fx(()->{
                 check(Math.abs(scale.getX()-1)<0.001&&Math.abs(scale.getY()-1)<0.001,"board returns to original size");
                 check(Math.abs(rotation.getAngle()-90)<0.001,"board stops at server-confirmed angle");
@@ -65,7 +71,7 @@ public class AutomaticRotationTest {
                 var other=ClientUiSmokeTest.snap(3,2,0,MatchStatus.WAITING_ROTATION,2L);Main.gameViewState.apply(other);controller.render(other);
                 check(aim.isDisabled(),"opponent turn also rotates with local aiming locked");return null;
             });
-            Thread.sleep(500);
+            awaitFx(()->scale.getX()>1.15,2000,"board did not zoom into the opponent turn");
             fx(()->{check(scale.getX()>1.15,"opponent sees the same zoom effect");controller.dispose();check(scale.getX()==1,"leaving during rotation restores scale");return null;});
             Thread.sleep(2900);
             fx(()->{controller.handleGameAction();check(socket.last==null&&aim.isDisabled(),"disposed rotation never restarts aiming or sends commands");return null;});

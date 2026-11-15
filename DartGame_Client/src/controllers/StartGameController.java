@@ -31,6 +31,7 @@ public class StartGameController {
     @FXML private StackPane boardContainer;
     @FXML private VBox resultPanel;
     @FXML private Label resultTitle,resultScore,rematchStatus;
+    @FXML private ui.MatchResultPresentation resultPresentation;
     @FXML private Button rematchButton,exitSessionButton;
     @FXML private BorderPane chatPanel;
     @FXML private Label mediaStatusLabel;
@@ -54,6 +55,9 @@ public class StartGameController {
     private Line lineX,lineY;
     private Timeline xAnimation,yAnimation;
     private boolean xRunning,yRunning,pending,disposed,finished,sound=true,effects=true;
+    private boolean sessionEnded,leavingSession,resultWon;
+    private String presentedMatchId,resultReason,sessionEndNotice;
+    private MatchSnapshot resultSnapshot;
     private ui.MediaCallSession mediaCall;
     private boolean pvpMedia,callJoined,microphoneEnabled,cameraEnabled,peerInCall;
     private boolean microphoneRequested,cameraRequested,mediaStarted,historyOpen;
@@ -92,7 +96,7 @@ public class StartGameController {
                 handleGameAction();event.consume();
             }
         });
-        leftColumn.prefWidthProperty().bind(javafx.beans.binding.Bindings.min(280,javafx.beans.binding.Bindings.max(220,gameMain.widthProperty().subtract(32).multiply(.24))));
+        leftColumn.prefWidthProperty().bind(javafx.beans.binding.Bindings.min(280,javafx.beans.binding.Bindings.max(220,gameMain.widthProperty().subtract(48).multiply(.24))));
         rightColumn.prefWidthProperty().bind(leftColumn.prefWidthProperty());
         bindVideo(localVideoFrame,localVideoView);bindVideo(remoteVideoFrame,remoteVideoView);
         myCard=playerCard(Main.socketHandler.loginUser,"BẠN",myScore);
@@ -147,7 +151,7 @@ public class StartGameController {
         score.getStyleClass().add("score-value");
         Label remaining=new Label(caption+" / CÒN LẠI");remaining.getStyleClass().add("score-caption");
         StackPane scoreRow=new StackPane();scoreRow.setMinWidth(0);scoreRow.setMaxWidth(Double.MAX_VALUE);
-        ui.ScoreEffect effect=new ui.ScoreEffect(score,scoreRow);
+        ui.ScoreEffect effect=new ui.ScoreEffect(score,scoreRow,score==myScore);
         if(score==myScore)myScoreEffect=effect;else otherScoreEffect=effect;
         Label tag=new Label("Đến lượt");tag.setId(score==myScore?"myTurnTag":"otherTurnTag");tag.getStyleClass().add("turn-indicator");
         tag.setVisible(false);tag.setMouseTransparent(true);
@@ -249,17 +253,20 @@ public class StartGameController {
     private void stopAim() {if(xAnimation!=null)xAnimation.stop();if(yAnimation!=null)yAnimation.stop();xRunning=false;yRunning=false;if(lineX!=null)lineX.setVisible(false);if(lineY!=null)lineY.setVisible(false);}
     public void commandFailed() {if(disposed)return;pending=false;if(finished&&canRematch())sessionChanged(Main.socketHandler.sessionState);render(Main.gameViewState.getSnapshot());}
     public void finish(MatchSnapshot s) {
-        if(disposed||finished)return;finished=true;pending=false;stopAim();render(s);
-        boolean won=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
-        playEffect(won?"win":"loose");
-        String reason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
-        if(canRematch()){
-            if(historyNotice!=null)historyNotice.close();if(settingsNotice!=null)settingsNotice.close();
-            resultTitle.setText(won?"Bạn thắng rồi!":"Ván đấu đã kết thúc");
-            resultScore.setText(reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name());
-            boardContainer.setVisible(false);boardContainer.setManaged(false);resultPanel.setVisible(true);resultPanel.setManaged(true);
-            sessionChanged(Main.socketHandler.sessionState);updateMediaButtons();
-        } else {stopMedia(false);Main.notifications().result(won,reason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name(),this::goHome);}
+        if(disposed||finished||java.util.Objects.equals(presentedMatchId,s.matchId()))return;
+        finished=true;pending=false;stopAim();render(s);dartEffects.cancel();if(dartImpact!=null)dartImpact.stop();
+        presentedMatchId=s.matchId();resultSnapshot=s;
+        resultWon=java.util.Objects.equals(s.winnerId(),Main.socketHandler.loggedInUserId);
+        resultReason=switch(s.endReason()) {case "DISCONNECT"->"Mất kết nối";case "FORFEIT"->"Bỏ cuộc";case "TURN_TIMEOUT"->"Hết thời gian lượt";default->"Về 0 điểm";};
+        if(historyNotice!=null)historyNotice.close();if(settingsNotice!=null)settingsNotice.close();
+        resultTitle.setText(resultWon?"Bạn thắng rồi!":"Ván đấu đã kết thúc");
+        resultScore.setText(resultReason+" · "+s.player1Name()+" "+s.player1Score()+" — "+s.player2Score()+" "+s.player2Name());
+        resultPanel.setVisible(false);resultPanel.setManaged(false);
+        boardContainer.setVisible(true);boardContainer.setManaged(true);
+        if(!canRematch())stopMedia(false);
+        String matchId=s.matchId();
+        resultPresentation.play(resultWon,effects,()->showFinishedResult(matchId));
+        if(canRematch()){sessionChanged(Main.socketHandler.sessionState);updateMediaButtons();}
     }
     @FXML public void handleBack() {
         if(finished&&!canRematch()){goHome();return;}
@@ -269,7 +276,7 @@ public class StartGameController {
             if(canRematch())Main.socketHandler.leaveSession();else {stopMedia(true);Main.socketHandler.leaveGame();}
         });
     }
-    private boolean canRematch(){return Main.socketHandler.sessionState!=null&&Main.socketHandler.sessionState.rematchSupported()&&!"CLOSED".equals(Main.socketHandler.sessionState.phase());}
+    private boolean canRematch(){return !sessionEnded&&Main.socketHandler.sessionState!=null&&Main.socketHandler.sessionState.rematchSupported()&&!"CLOSED".equals(Main.socketHandler.sessionState.phase());}
     private String mediaSessionId(){return Main.socketHandler.sessionIdPresent!=null?Main.socketHandler.sessionIdPresent:Main.gameViewState.getMatchId();}
     @FXML private void toggleRematch(){
         if(disposed||!finished||!canRematch())return;
@@ -277,7 +284,11 @@ public class StartGameController {
         boolean ready=Main.gameViewState.isPlayer1()?state.player1Ready():state.player2Ready();
         rematchButton.setDisable(true);Main.socketHandler.setRematchReady(!ready);
     }
-    @FXML private void leaveSession(){if(!disposed&&canRematch()){exitSessionButton.setDisable(true);rematchButton.setDisable(true);Main.socketHandler.leaveSession();}}
+    @FXML private void leaveSession(){
+        if(disposed)return;
+        if(!canRematch()){goHome();return;}
+        leavingSession=true;exitSessionButton.setDisable(true);rematchButton.setDisable(true);Main.socketHandler.leaveSession();
+    }
     public void sessionChanged(protocol.dto.SessionMessages.State state){
         if(disposed||state==null||!state.rematchSupported()||!finished||!"RESULTS".equals(state.phase()))return;
         boolean ready=Main.gameViewState.isPlayer1()?state.player1Ready():state.player2Ready();
@@ -288,12 +299,37 @@ public class StartGameController {
     }
     public void nextMatch(MatchSnapshot snapshot){
         if(disposed)return;if(historyNotice!=null)historyNotice.close();if(settingsNotice!=null)settingsNotice.close();
+        resultPresentation.cancel();sessionEnded=false;leavingSession=false;sessionEndNotice=null;presentedMatchId=null;resultSnapshot=null;resultReason=null;
         finished=false;pending=false;historyOpen=false;displayedTurn=-1;animatedTurn=-1;turnMotion.clear();myScoreEffect.reset(301);otherScoreEffect.reset(301);
         resultPanel.setVisible(false);resultPanel.setManaged(false);boardContainer.setVisible(true);boardContainer.setManaged(true);
+        rematchButton.setVisible(true);rematchButton.setManaged(true);exitSessionButton.setText("Thoát về sảnh");
         rematchButton.setDisable(false);exitSessionButton.setDisable(false);render(snapshot);
     }
     public void sessionClosed(String notice){
-        if(disposed)return;stopMedia(false);goHome();Main.notifications().toast("Phiên chơi",notice==null?"Phiên chơi đã kết thúc.":notice,"info");
+        if(disposed)return;
+        sessionEnded=true;sessionEndNotice=notice;stopMedia(false);
+        if(finished&&!leavingSession){
+            if(resultPresentation.isPresenting())return;
+            showFinishedResult(presentedMatchId);return;
+        }
+        goHome();Main.notifications().toast("Phiên chơi",notice==null?"Phiên chơi đã kết thúc.":notice,"info");
+    }
+    private void showFinishedResult(String matchId){
+        if(disposed||!finished||!java.util.Objects.equals(matchId,presentedMatchId)||resultSnapshot==null)return;
+        boardContainer.setVisible(false);boardContainer.setManaged(false);
+        resultPanel.setVisible(true);resultPanel.setManaged(true);
+        if(canRematch()){
+            resultTitle.setText(resultWon?"Bạn thắng rồi!":"Ván đấu đã kết thúc");
+            rematchButton.setVisible(true);rematchButton.setManaged(true);exitSessionButton.setText("Thoát về sảnh");
+            sessionChanged(Main.socketHandler.sessionState);updateMediaButtons();
+        }else{
+            stopMedia(false);
+            resultTitle.setText(resultWon?"Bạn thắng rồi!":"Thua cuộc");
+            rematchButton.setVisible(false);rematchButton.setManaged(false);
+            rematchStatus.setText(sessionEndNotice==null?"Phiên chơi đã kết thúc.":sessionEndNotice);
+            exitSessionButton.setText("Về sảnh");exitSessionButton.setDisable(false);
+        }
+        if(canRematch()&&!rematchButton.isDisabled())rematchButton.requestFocus();else exitSessionButton.requestFocus();
     }
     private void goHome() {if(disposed)return;try{Main.setRoot("home");}catch(java.io.IOException e){Main.socketHandler.showError(e.getMessage());}}
     @FXML public void handleSend() {
@@ -455,7 +491,7 @@ public class StartGameController {
         if(localVideoView!=null)localVideoView.setImage(null);if(remoteVideoView!=null)remoteVideoView.setImage(null);
         if(localVideoPlaceholder!=null)localVideoPlaceholder.setVisible(true);if(remoteVideoPlaceholder!=null)remoteVideoPlaceholder.setVisible(true);
     }
-    public void dispose() {if(mediaCall!=null)mediaCall.close(!finished&&Main.socketHandler!=null&&Main.socketHandler.isConnected());disposed=true;remoteVideoExpiry.stop();if(turnMotion!=null)turnMotion.clear();stopAim();rotationEffect.cancel();dartEffects.dispose();if(myScoreEffect!=null)myScoreEffect.dispose();if(otherScoreEffect!=null)otherScoreEffect.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
+    public void dispose() {if(mediaCall!=null)mediaCall.close(!finished&&Main.socketHandler!=null&&Main.socketHandler.isConnected());disposed=true;resultPresentation.cancel();remoteVideoExpiry.stop();if(turnMotion!=null)turnMotion.clear();stopAim();rotationEffect.cancel();dartEffects.dispose();if(myScoreEffect!=null)myScoreEffect.dispose();if(otherScoreEffect!=null)otherScoreEffect.dispose();if(dartImpact!=null)dartImpact.stop();players.forEach(javafx.scene.media.MediaPlayer::dispose);players.clear();}
     @FXML private void toggleSound() {sound=!sound;soundButton.setText(sound?"Nhạc: bật":"Nhạc: tắt");if(sound)Main.playBackgroundMusic();else Main.stopBackgroundMusic();}
-    @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
+    @FXML private void toggleEffectSound() {effects=!effects;if(!effects&&dartImpact!=null)dartImpact.stop();resultPresentation.setEffectSoundEnabled(effects);effectSoundButton.setText(effects?"Hiệu ứng: bật":"Hiệu ứng: tắt");}
 }

@@ -16,7 +16,11 @@ public final class ScoreEffect {
     private Animation count,feedbackAnimation,emphasis;
     private int target;
     public ScoreEffect(Text score,StackPane row){
+        this(score,row,true);
+    }
+    public ScoreEffect(Text score,StackPane row,boolean own){
         this.score=score;this.row=row;feedback.setId("scoreFeedback");feedback.getStyleClass().add("score-feedback");
+        feedback.getStyleClass().add(own?"score-feedback-own":"score-feedback-opponent");
         feedback.setMouseTransparent(true);feedback.setVisible(false);
         StackPane.setAlignment(score,Pos.CENTER_LEFT);StackPane.setAlignment(feedback,Pos.CENTER_RIGHT);
         row.getChildren().addAll(score,feedback);
