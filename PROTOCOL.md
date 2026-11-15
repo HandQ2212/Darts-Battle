@@ -23,7 +23,7 @@ không mã hóa khi TLS lỗi. Plain TCP chỉ dành cho cấu hình phát tri�
 Chủ server cần endpoint TCP công khai/port forwarding hoặc TCP tunnel; ứng dụng
 không tự vượt NAT/CGNAT chỉ bằng biết địa chỉ LAN của Mac.
 
-Với Cloudflare Tunnel: client mở `wss://game.handq2212.site/play`, dùng các frame
+Với Cloudflare Tunnel: client mở `wss://game-backsite.handq2212.site/play`, dùng các frame
 binary không phân mảnh để chuyển một byte stream TLS bên trong. Bridge HTTP/WebSocket
 chỉ bind 127.0.0.1:8444, chuyển byte tới TLS game server 127.0.0.1:8443. Chứng chỉ
 game vẫn được ghim ở client; Cloudflare chuyển tiếp dữ liệu TLS đã mã hóa. Client

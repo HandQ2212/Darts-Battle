@@ -32,7 +32,7 @@ def private_file(path,data):
 
 def connect(hostname):
     if not re.fullmatch(r'[a-zA-Z0-9.-]+',hostname) or '.' not in hostname:
-        raise RuntimeError('Use a hostname such as game.handq2212.site, without https:// or a path.')
+        raise RuntimeError('Use a hostname such as game-backsite.handq2212.site, without https:// or a path.')
     if not Path(CLOUDFLARED).exists():raise RuntimeError('Install cloudflared first: brew install cloudflared')
     if not (Path.home()/'.cloudflared/cert.pem').exists():
         raise RuntimeError('Finish Cloudflare authorization first: cloudflared tunnel login')
@@ -80,6 +80,7 @@ def connect(hostname):
     fd=os.open(str(PLIST),os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
     with os.fdopen(fd,'wb') as file:plistlib.dump(agent,file)
     subprocess.run(['/bin/launchctl','bootstrap',f'gui/{os.getuid()}',str(PLIST)],check=True)
+    private_file(metadata,json.dumps({'id':tunnel_id,'hostname':hostname})+'\n')
     private_file(ROOT/'.local/client-profile.properties',f'server.host={hostname}\nserver.port=443\nserver.transport=websocket\n')
     print('Game endpoint:',f'wss://{hostname}/play')
     print('Tunnel starts at login. Existing websites/tunnels were not edited.')
@@ -87,7 +88,7 @@ def connect(hostname):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--hostname',default='game.handq2212.site')
+    parser.add_argument('--hostname',default='game-backsite.handq2212.site')
     args=parser.parse_args()
     try:connect(args.hostname)
     except (OSError,RuntimeError,subprocess.CalledProcessError,ValueError) as error:

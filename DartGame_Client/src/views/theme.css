@@ -70,9 +70,10 @@
 .scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-background-color: transparent; -fx-padding: 3; }
 .online-status { -fx-fill: #ff8909; }
 .busy-status { -fx-fill: #a85b2c; }
-.game-page { -fx-padding: 14 20 18 20; }
+.game-page { -fx-padding: 14 24 18 24; }
 .game-header { -fx-padding: 0 0 12 0; }
-.game-main { -fx-spacing: 16; }
+.game-main { -fx-spacing: 24; }
+.score-slot { -fx-padding: 8 10; }
 .score-card { -fx-background-color: linear-gradient(to bottom, #fff0bf, #ffe0a2); -fx-background-radius: 16; -fx-border-color: #bf914c; -fx-border-width: 1 1 3 1; -fx-border-radius: 16; -fx-padding: 11 15; -fx-spacing: 4; }
 .score-card:active { -fx-background-color: linear-gradient(to bottom right, #fff8da, #ffe9a9); -fx-border-color: #6d9b42; -fx-border-width: 1 1 3 1; -fx-effect: dropshadow(gaussian, rgba(82,120,39,0.18), 10, 0, 0, 0); }
 .opponent-card { -fx-background-color: linear-gradient(to bottom, #fff0d7, #ffdeb2); -fx-border-color: #c5915a; }
@@ -122,7 +123,7 @@
 .bot-overlay { -fx-background-color: rgba(38,82,34,0.20); -fx-background-radius: 16; }
 .bot-overlay .label { -fx-text-fill: #e9f7ff; -fx-font-size: 17px; -fx-font-weight: bold; }
 .progress-indicator { -fx-progress-color: #ff8909; }
-.turn-indicator { -fx-text-fill: #fffbea; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: #4f8532; -fx-background-radius: 10; -fx-padding: 6 9; -fx-min-height: 30; -fx-alignment: CENTER; -fx-effect: dropshadow(gaussian, rgba(58,95,30,0.35), 6, 0, 0, 2); }
+.turn-indicator { -fx-text-fill: #fffbea; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-color: #b86a0b; -fx-background-radius: 11; -fx-border-color: #ffe5a2; -fx-border-radius: 11; -fx-border-width: 1; -fx-padding: 6 11; -fx-min-height: 34; -fx-alignment: CENTER; -fx-effect: dropshadow(gaussian, rgba(95,58,14,0.42), 8, 0, 0, 2); }
 .history-button { -fx-background-color: #fff2cb; -fx-background-radius: 11; -fx-border-color: #bd8d49; -fx-border-radius: 11; -fx-text-fill: #75451f; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 9 5; }
 .history-button:hover { -fx-background-color: #ffdf9f; }
 .video-frame { -fx-background-color: #2d422e; -fx-background-radius: 12; -fx-border-color: #d1ae70; -fx-border-radius: 12; -fx-border-width: 2; }
@@ -133,6 +134,13 @@
 .device-button:pending { -fx-background-color: #ffdc96; -fx-border-color: #e39227; }
 .compact-guidance { -fx-background-color: #fff1cb; -fx-background-radius: 12; -fx-border-color: #b58a4a; -fx-border-radius: 12; -fx-padding: 9 12; -fx-min-height: 38; }
 .match-result-panel { -fx-background-color: linear-gradient(to bottom, #fff7dc, #ffdfaa); -fx-background-radius: 18; -fx-border-color: #c3904c; -fx-border-radius: 18; -fx-border-width: 2 2 4 2; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(33,48,20,0.38), 18, 0, 0, 5); }
+.result-presentation { -fx-background-color: transparent; }
+.result-presentation-title { -fx-font-family: 'System'; -fx-font-size: 88px; -fx-font-weight: bold; }
+.result-presentation-title.win { -fx-fill: linear-gradient(to bottom, #fff7be, #ffd04e, #fff29a); }
+.result-presentation-title.loss { -fx-fill: linear-gradient(to bottom, #ffffff, #cce8f5, #a9cce0); }
+.result-skip-button { -fx-background-color: rgba(24,34,20,0.72); -fx-text-fill: #fff4ce; -fx-border-color: rgba(255,239,190,0.75); -fx-border-radius: 18; -fx-background-radius: 18; -fx-padding: 8 16; -fx-font-weight: bold; -fx-cursor: hand; }
+.result-skip-button:hover { -fx-background-color: rgba(65,83,42,0.92); }
+.result-skip-button:focused { -fx-border-color: #fff5a8; -fx-border-width: 2; }
 .result-heading { -fx-text-fill: #75421f; -fx-font-size: 26px; -fx-font-weight: bold; -fx-alignment: CENTER; }
 .result-summary { -fx-text-fill: #77542b; -fx-font-size: 13px; -fx-alignment: CENTER; }
 .history-heading { -fx-font-weight: bold; -fx-text-fill: #885125; -fx-font-size: 12px; }
@@ -165,6 +173,7 @@
 .menu-bot:hover { -fx-background-color: #8bc65b; }
 .menu-title { -fx-text-fill: #6b4224; }
 .menu-art { -fx-background-color: transparent; -fx-border-color: transparent; }
+.menu-art-slogan { -fx-font-family: 'System'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #fff2ba; -fx-effect: dropshadow(gaussian, #354d25, 3, 0.8, 0, 1); }
 .menu-play { -fx-font-size: 19px; }
 .menu-screen .section-title, .menu-screen .muted { -fx-text-fill: #fff6d9; -fx-effect: dropshadow(gaussian, #405729, 2, 1, 1, 1); }
 .menu-foot { -fx-background-radius: 18; -fx-border-radius: 18; -fx-border-color: #b89051; -fx-border-width: 2; }
@@ -175,7 +184,14 @@
 .ghost:hover { -fx-background-color: #759746; }
 .text-field, .password-field { -fx-background-radius: 10; -fx-border-radius: 10; }
 .score-card { -fx-border-width: 2 2 4 2; -fx-padding: 10 14; }
-.score-card:active { -fx-border-width: 2 2 4 2; }
+.score-card:active, .opponent-card:active {
+    -fx-background-color: linear-gradient(to bottom right, #fffbe6, #ffda74);
+    -fx-border-color: #f3a719;
+    -fx-border-width: 3 3 5 3;
+    -fx-effect: dropshadow(gaussian, rgba(255,187,50,0.76), 24, 0.24, 0, 0);
+}
+.score-card:active .score-value, .opponent-card:active .score-value { -fx-fill: #713c12; }
+.score-card:active .player-name, .opponent-card:active .player-name { -fx-text-fill: #573212; }
 .turn-tag { -fx-text-fill: #4d812d; }
 .phase-badge { -fx-text-fill: #538036; }
 .dart-value { -fx-font-size: 15px; }
@@ -193,6 +209,25 @@
     -fx-effect: dropshadow(gaussian, rgba(44,45,16,0.25), 22, 0.12, 0, 8);
 }
 .notice-badge { -fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5b8138; }
+.notice-rail-title { -fx-font-family: 'System'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #704723; }
+.notice-icon-disc { -fx-fill: #edf5dc; -fx-stroke: #6e9745; -fx-stroke-width: 1.5; }
+.notice-icon-mark { -fx-fill: #5e8d39; }
+.notice-icon-bubble { -fx-fill: transparent; -fx-stroke: #47788f; -fx-stroke-width: 1.8; }
+.notice-icon-warning .notice-icon-disc { -fx-fill: #d88717; -fx-stroke: #c57913; }
+.notice-icon-warning .notice-icon-mark { -fx-fill: #d88717; }
+.notice-icon-warning .notice-icon-cutout { -fx-fill: #fff5dd; }
+.notice-icon-error .notice-icon-disc { -fx-fill: #fae4d9; -fx-stroke: #bf563b; }
+.notice-icon-error .notice-icon-mark { -fx-fill: #b84c30; }
+.notice-icon-success .notice-icon-disc { -fx-fill: #e5f1d5; -fx-stroke: #5d8a38; }
+.notice-icon-success .notice-icon-mark { -fx-fill: #538031; }
+.notice-icon-info .notice-icon-disc { -fx-fill: #e4eff3; -fx-stroke: #54829a; }
+.notice-icon-info .notice-icon-mark { -fx-fill: #47788f; }
+.notice-icon-info .notice-icon-bubble { -fx-stroke: #47788f; }
+.notice-invite .notice-icon-disc { -fx-fill: #fff0d3; -fx-stroke: #df9028; }
+.notice-invite .notice-icon-mark { -fx-fill: #b86a0b; }
+.notice-invite .notice-icon-bubble { -fx-stroke: #b86a0b; }
+.notice-warning { -fx-border-color: #d89828; }
+.notice-info { -fx-border-color: #7896a1; }
 /* Lilita One lacks Vietnamese glyphs; use one consistent font for notification text. */
 .notice-title { -fx-font-family: 'System'; -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #704723; }
 .notice-body { -fx-font-size: 13px; -fx-text-fill: #805f39; -fx-line-spacing: 3; }
@@ -210,4 +245,18 @@
 .notice-scroll, .notice-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
 .notice-scroll { -fx-border-color: transparent; }
 .notice-invite .progress-bar { -fx-accent: #86ad49; }
+.records-page .page > .label, .records-page .page > HBox .label {
+    -fx-text-fill: #ffdf69;
+    -fx-effect: dropshadow(gaussian, #182c19, 2, 0.9, 0, 1);
+}
+.opponent-page .challenge-intro .eyebrow,
+.opponent-page .challenge-intro .title,
+.opponent-page .challenge-intro .muted,
+.opponent-page .opponent-guidance .muted {
+    -fx-text-fill: #ffdf69;
+    -fx-effect: dropshadow(gaussian, #182c19, 2, 0.9, 0, 1);
+}
+.score-feedback.score-feedback-own { -fx-text-fill: #195c91; -fx-background-color: #e3f2ff; }
+.score-feedback.score-feedback-opponent { -fx-text-fill: #99501a; -fx-background-color: #ffedce; }
+.score-feedback.score-feedback-bust { -fx-border-color: #b64c30; -fx-border-radius: 10; -fx-border-width: 2; }
 .form-error { -fx-background-color: #ffe7d9; -fx-background-radius: 10; -fx-padding: 10 12; -fx-border-color: #e1ad8e; -fx-border-radius: 10; -fx-text-fill: #a1462a; -fx-font-size: 12px; }

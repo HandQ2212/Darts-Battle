@@ -60,6 +60,8 @@ public class ClientUiSmokeTest {
             try {
                 FXMLLoader loginLoader=new FXMLLoader(Main.class.getResource("/views/login.fxml"));Parent login=loginLoader.load();
                 check(login.lookup("#serverHostField")==null&&login.lookup("#serverPortField")==null,"login asks for no IP or port");
+                Label loginSlogan=(Label)login.lookup("#menuArtworkSlogan");
+                check(loginSlogan!=null&&loginSlogan.getText().equals("NGẮM CHUẨN · NÉM TRÚNG!"),"login slogan is a Vietnamese system-font label");
                 Button loginButton=(Button)login.lookup("#loginButton");check(loginButton.isDisabled(),"login waits for connection");
                 check(socket.last==null,"opening app never submits credentials automatically");
                 socket.listener.accept(true,"Đã kết nối");check(!loginButton.isDisabled(),"connected state enables login");
@@ -68,11 +70,12 @@ public class ClientUiSmokeTest {
                 preview(login,"login",1080,740);
                 for(String page:new String[]{"register","home","chooseOpponent","choosecomponent","ranking","match_history","match_detail","notificationdialog"}) {
                     Parent p=FXMLLoader.load(Main.class.getResource("/views/"+page+".fxml"));check(p!=null,"FXML "+page);
+                    if(page.equals("register")||page.equals("home"))check(p.lookup("#menuArtworkSlogan") instanceof Label,"shared slogan appears on "+page);
                     preview(p,page,page.equals("notificationdialog")?420:1100,page.equals("notificationdialog")?220:740);
                 }
                 MatchSnapshot initial=snap(1,1,0,MatchStatus.PLAYING,1L);Main.gameViewState.begin(initial,1);
                 FXMLLoader loader=new FXMLLoader(Main.class.getResource("/views/startgame.fxml"));Parent root=loader.load();StartGameController game=loader.getController();
-                Main.notifications().setPage(root);new Scene(Main.notifications().root(),1024,741);
+                Main.notifications().setPage(root);new Scene(Main.notifications().root(),1040,780);
                 check(root.lookup("#communicationTabs")==null&&root.lookup("#joinCallButton")==null,"chat and video use the three-column layout without a join button");
                 ((Button)root.lookup("#effectSoundButton")).fire();
                 Label start=(Label)root.lookup("#aimStatusLabel");
@@ -82,7 +85,7 @@ public class ClientUiSmokeTest {
                 check(surface.getWidth()==450&&surface.getHeight()==400,"board coordinate surface remains 450 by 400");
                 check(root.lookup("#myTurnTag").isVisible()&&!root.lookup("#otherTurnTag").isVisible(),"only the active player's turn is shown");
                 check(root.lookupAll(".score-value").size()==2,"both remaining scores visible");
-                preview(root,"game-minimum",1024,741);
+                preview(root,"game-minimum",1040,780);
                 for(String id:new String[]{"#gamePane","#leftColumn","#rightColumn","#aimStatusLabel","#chatInput","#localVideoFrame","#remoteVideoFrame","#microphoneButton","#cameraButton"})fits(root,id);
                 var left=(javafx.scene.layout.Region)root.lookup("#leftColumn");var right=(javafx.scene.layout.Region)root.lookup("#rightColumn");
                 check(Math.abs(left.getWidth()-right.getWidth())<1,"side columns have equal width");
@@ -141,8 +144,14 @@ public class ClientUiSmokeTest {
                 check(socket.last==null,"board clicks on opponent turn are ignored");
                 ((Button)root.lookup("#otherHistoryButton")).fire();
                 MatchSnapshot finished=new MatchSnapshot("ui-match",MatchMode.PVP,1,"Alice",2L,"Bobby",1L,ActorType.HUMAN,3,1,0,0,281,MatchStatus.FINISHED,6,1L,ActorType.HUMAN,"ZERO_SCORE",0);
+                socket.sessionIdPresent="ui-session";socket.sessionState=new protocol.dto.SessionMessages.State("ui-session","ui-match","RESULTS",1,true,false,false,null,"");
                 Main.gameViewState.apply(finished);game.finish(finished);
-                check(Main.notifications().root().lookup("#historyScroll")==null&&Main.notifications().root().lookup("#notificationDialog")!=null,"match result replaces an open history modal");
+                check(Main.notifications().root().lookup("#historyScroll")==null&&root.lookup("#matchResultPresentation").isVisible(),"match result replaces an open history modal with its reveal");
+                game.sessionClosed("Đối thủ đã rời phiên.");
+                check(root.lookup("#matchResultPresentation").isVisible(),"session closure does not interrupt the result reveal");
+                ((Button)root.lookup("#resultPresentationSkip")).fire();
+                check(root.lookup("#resultPanel").isVisible()&&!root.lookup("#rematchButton").isManaged()
+                        &&((Button)root.lookup("#exitSessionButton")).getText().equals("Về sảnh"),"closed session shows a return-to-lobby result");
                 Main.notifications().setPage(root);
                 game.dispose();socket.last=null;game.handleGameAction();check(socket.last==null,"disposed controller sends nothing");
                 Main.gameViewState.begin(initial,1);check(Main.gameViewState.history(true).isEmpty(),"new match clears turn history");
@@ -159,7 +168,9 @@ public class ClientUiSmokeTest {
                 var mediaField=StartGameController.class.getDeclaredField("mediaCall");mediaField.setAccessible(true);Object sameMedia=mediaField.get(replayGame);
                 MatchSnapshot result=new MatchSnapshot("ui-match",MatchMode.PVP,1,"Alice",2L,"Bobby",1L,ActorType.HUMAN,1,1,0,0,301,MatchStatus.FINISHED,2,1L,ActorType.HUMAN,"WIN",0);
                 Main.gameViewState.apply(result);replayGame.finish(result);
-                check(replayRoot.lookup("#resultPanel").isVisible()&&!replayRoot.lookup("#boardContainer").isVisible(),"result replaces board and preserves game page");
+                check(replayRoot.lookup("#matchResultPresentation").isVisible()&&!replayRoot.lookup("#resultPanel").isVisible()&&replayRoot.lookup("#boardContainer").isVisible(),"result reveal starts over the board and preserves the game page");
+                ((Button)replayRoot.lookup("#resultPresentationSkip")).fire();
+                check(replayRoot.lookup("#resultPanel").isVisible()&&!replayRoot.lookup("#boardContainer").isVisible(),"result panel appears after the reveal is skipped");
                 socket.last=null;((Button)replayRoot.lookup("#rematchButton")).fire();
                 check(socket.last!=null&&socket.last.getType()==MessageType.SESSION_READY,"rematch button sends readiness");
                 ((TextField)replayRoot.lookup("#chatInput")).setText("hello");replayGame.handleSend();
