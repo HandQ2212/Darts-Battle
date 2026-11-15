@@ -1,19 +1,14 @@
 name: Desktop packages
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - lucnvm
 permissions:
   contents: read
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            name: mac-native
-          - os: windows-latest
-            name: windows-x64
-    runs-on: ${{ matrix.os }}
+  windows-x64:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,22 +18,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Integration tests
+      - name: Server integration tests (Windows)
         run: python scripts/desktop.py test
-      - name: Build desktop app with bundled Java runtime
-        run: python scripts/desktop.py package client --type app-image
-      - name: Make macOS installer
-        if: runner.os == 'macOS'
-        run: python scripts/desktop.py package client --type dmg
-      - name: Archive app image (preserves launchers and permissions)
-        shell: python
+      - name: Update verification tests
         run: |
-          import pathlib, platform, shutil
-          folder = pathlib.Path('dist') / (platform.system().lower() + '-' + platform.machine())
-          shutil.make_archive('dist/DartsBattle-${{ matrix.name }}', 'zip', folder)
+          openssl version
+          python scripts/desktop.py updater-test
+          python tests/update_release_test.py
+      - name: Build Windows app with bundled Java runtime
+        run: python scripts/desktop.py package client --type app-image
+      - name: Create update archive
+        run: python scripts/update-release.py archive
       - uses: actions/upload-artifact@v4
         with:
-          name: DartsBattle-${{ matrix.name }}
-          path: |
-            dist/*.zip
-            dist/**/*.dmg
+          name: DartsBattle-windows-x64
+          path: dist/updates/DartsBattle-windows.zip
+          if-no-files-found: error
