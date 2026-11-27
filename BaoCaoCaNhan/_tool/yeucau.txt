@@ -1,0 +1,64 @@
+Yêu cầu đối với Quyển báo cáo BTL (cá nhân) môn Lập trình mạng 
+
+------***------
+
+Báo cáo dài khoảng 15 trang, có đầy đủ các thông tin như sau:
+
+1.  Họ tên, MSSV, Lớp, Tên đầy đủ của đề tài BTL, các thành viên trong
+    nhóm (bôi đậm thành viên cá nhân) – trình bầy tại Trang bìa.
+
+2.  Tạo riêng 01 trang có phân công công việc của các thành viên trong
+    nhóm và Tỉ lệ Đóng góp của mỗi thành viên đối với dự án
+
+3.  Phần mở đầu và chương thiết kế cần đầy đủ thông tin:
+
+    - Giới thiệu ứng dụng và Phân tích yêu cầu ứng dụng/hệ thống
+
+    - Giới thiệu và phân tích nội dung của cá nhân phải đảm nhận trong
+      tổng thể nội dung.
+
+4.  Phân tích thiết kế tổng quan ứng dụng và Phân tích thiết kế chi tiết
+    chức năng cá nhân đảm nhận:
+
+Phần chung
+
++ Kiến trúc tổng quan,
+
++ Sơ đồ khối các chức năng của Client và của Server,
+
++ Biểu đồ Usercase tổng quan của hệ thống
+
+Phần cá nhân:
+
+  + Usercase chi tiết,
+
+  + Biểu đồ lớp,
+
+  + Biểu đồ tuần tự,
+
+  + Sơ đồ thực thể quan hệ (ER)
+
+5.  Kết quả (ứng dụng) ở chương cuối được cần mô tả rõ:
+
+    - Kiến trúc ứng dụng (có thể thể hiện bằng các khối: Server, Client,
+      các User tham gia)
+
+    - Cài đặt và triển khai ứng dụng
+
+    - Các kết quả thực hiện được: tính năng/ chức năng của ứng dụng, kết
+      quả thử nghiệm/triển khai
+
+    - Tài liệu tham khảo
+
+TRÌNH BẦY
+
+- Trình bầy rõ ràng sáng sủa, khoa học
+
+- Font chữ Times New Roman cỡ 13
+
+- Cần có đầy đủ: Mục lục, từ viết tắt, danh sách hình vẽ, danh sách bảng
+  biểu
+
+- Căn lề 2 bên
+
+- Các chương mục rõ ràng

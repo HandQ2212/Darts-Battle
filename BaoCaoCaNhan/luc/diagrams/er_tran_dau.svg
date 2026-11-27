@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="373" viewBox="0 0 1060 520"><defs>
+<marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#000" stroke-width="1.4"/></marker>
+<marker id="filled" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#000"/></marker>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="#fff" stroke="#000" stroke-width="1.3"/></marker>
+<marker id="diamond" viewBox="0 0 16 10" refX="1" refY="5" markerWidth="16" markerHeight="10" orient="auto"><path d="M1,5 L8,1 L15,5 L8,9 z" fill="#000"/></marker>
+</defs><rect x="0" y="0" width="1060" height="520" fill="#ffffff"/><rect x="15.0" y="60.0" width="265.0" height="148.0" rx="0" fill="#fff" stroke="#000" stroke-width="1.6"/>
+<rect x="15.0" y="60.0" width="265.0" height="34.0" rx="0" fill="#dbe9f7" stroke="#000" stroke-width="1.6"/>
+<text x="147.5" y="84.0" font-family="Times New Roman" font-size="18" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">users</text>
+<text x="23.0" y="120.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#8a1c1c">PK</text>
+<text x="59.0" y="120.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">id</text>
+<text x="272.0" y="120.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT AI</text>
+<text x="23.0" y="146.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">UQ</text>
+<text x="59.0" y="146.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">username</text>
+<text x="272.0" y="146.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(50)</text>
+<text x="59.0" y="172.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">password_hash</text>
+<text x="272.0" y="172.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(255)</text>
+<text x="59.0" y="198.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="272.0" y="198.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">TIMESTAMP</text>
+<rect x="345.0" y="20.0" width="330.0" height="434.0" rx="0" fill="#fff" stroke="#000" stroke-width="1.6"/>
+<rect x="345.0" y="20.0" width="330.0" height="34.0" rx="0" fill="#dbe9f7" stroke="#000" stroke-width="1.6"/>
+<text x="510.0" y="44.0" font-family="Times New Roman" font-size="18" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">matches</text>
+<text x="353.0" y="80.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#8a1c1c">PK</text>
+<text x="389.0" y="80.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">id</text>
+<text x="667.0" y="80.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(255)</text>
+<text x="389.0" y="106.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">mode</text>
+<text x="667.0" y="106.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(20)</text>
+<text x="353.0" y="132.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">FK</text>
+<text x="389.0" y="132.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player1_id</text>
+<text x="667.0" y="132.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT</text>
+<text x="353.0" y="158.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">FK</text>
+<text x="389.0" y="158.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player2_id</text>
+<text x="667.0" y="158.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT NULL</text>
+<text x="389.0" y="184.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player2_type</text>
+<text x="667.0" y="184.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(20)</text>
+<text x="389.0" y="210.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">winner_id</text>
+<text x="667.0" y="210.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT</text>
+<text x="389.0" y="236.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">winner_type</text>
+<text x="667.0" y="236.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(20)</text>
+<text x="389.0" y="262.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">end_reason</text>
+<text x="667.0" y="262.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(50)</text>
+<text x="389.0" y="288.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">started_at</text>
+<text x="667.0" y="288.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">TIMESTAMP</text>
+<text x="389.0" y="314.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">ended_at</text>
+<text x="667.0" y="314.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">TIMESTAMP</text>
+<text x="389.0" y="340.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">session_id</text>
+<text x="667.0" y="340.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(255)</text>
+<text x="389.0" y="366.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">round_index</text>
+<text x="667.0" y="366.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="389.0" y="392.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">bot_difficulty</text>
+<text x="667.0" y="392.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(20)</text>
+<text x="389.0" y="418.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player1_final_score</text>
+<text x="667.0" y="418.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="389.0" y="444.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player2_final_score</text>
+<text x="667.0" y="444.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<rect x="735.0" y="20.0" width="315.0" height="414.0" rx="0" fill="#fff" stroke="#000" stroke-width="1.6"/>
+<rect x="735.0" y="20.0" width="315.0" height="34.0" rx="0" fill="#dbe9f7" stroke="#000" stroke-width="1.6"/>
+<text x="892.5" y="44.0" font-family="Times New Roman" font-size="18" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">match_throws</text>
+<text x="743.0" y="80.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#8a1c1c">PK</text>
+<text x="779.0" y="80.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">id</text>
+<text x="1042.0" y="80.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT AI</text>
+<text x="743.0" y="106.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">FK</text>
+<text x="779.0" y="106.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">match_id</text>
+<text x="1042.0" y="106.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(255)</text>
+<text x="743.0" y="132.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">FK</text>
+<text x="779.0" y="132.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">player_id</text>
+<text x="1042.0" y="132.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT NULL</text>
+<text x="779.0" y="158.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">actor_type</text>
+<text x="1042.0" y="158.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(20)</text>
+<text x="779.0" y="184.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">turn_number</text>
+<text x="1042.0" y="184.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BIGINT</text>
+<text x="779.0" y="210.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">dart_number</text>
+<text x="1042.0" y="210.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="779.0" y="236.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">x, y</text>
+<text x="1042.0" y="236.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">DOUBLE</text>
+<text x="779.0" y="262.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">rotation_degree</text>
+<text x="1042.0" y="262.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="779.0" y="288.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">hit_area</text>
+<text x="1042.0" y="288.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">VARCHAR(50)</text>
+<text x="779.0" y="314.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">dart_score</text>
+<text x="1042.0" y="314.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="779.0" y="340.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">remaining_score_after</text>
+<text x="1042.0" y="340.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">INT</text>
+<text x="779.0" y="366.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">is_bust</text>
+<text x="1042.0" y="366.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">BOOLEAN</text>
+<text x="779.0" y="392.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="1042.0" y="392.0" font-family="Times New Roman" font-size="15" text-anchor="end" font-weight="normal" font-style="normal" fill="#444">TIMESTAMP</text>
+<line x1="735.0" y1="398.0" x2="1050.0" y2="398.0" stroke="#000" stroke-width="1"/>
+<text x="743.0" y="425.0" font-family="Times New Roman" font-size="14.5" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">UNIQUE(match_id, turn_number, dart_number)</text>
+<polyline points="280.0,115.0 312.0,115.0 312.0,127.0 345.0,127.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<polyline points="312.0,127.0 312.0,153.0 345.0,153.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<text x="286.0" y="109.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">1</text>
+<text x="340.0" y="121.0" font-family="Times New Roman" font-size="16" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">N</text>
+<text x="340.0" y="171.0" font-family="Times New Roman" font-size="16" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">N</text>
+<text x="312.0" y="85.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">tham gia</text>
+<polyline points="675.0,75.0 705.0,75.0 705.0,101.0 735.0,101.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<text x="681.0" y="69.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">1</text>
+<text x="730.0" y="95.0" font-family="Times New Roman" font-size="16" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">N</text>
+<text x="705.0" y="52.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">gồm</text>
+<polyline points="140.0,208.0 140.0,500.0 715.0,500.0 715.0,127.0 735.0,127.0" fill="none" stroke="#000" stroke-width="1.4"/>
+<text x="148.0" y="228.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">1</text>
+<text x="730.0" y="145.0" font-family="Times New Roman" font-size="16" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">N</text>
+<rect x="372.0" y="478.0" width="276.0" height="18.0" fill="#fff"/>
+<text x="510.0" y="492.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">ném (player_id = NULL khi Bot ném)</text></svg>

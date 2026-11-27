@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="611" viewBox="0 0 1010 812"><defs>
+<marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#000" stroke-width="1.4"/></marker>
+<marker id="filled" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#000"/></marker>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="#fff" stroke="#000" stroke-width="1.3"/></marker>
+<marker id="diamond" viewBox="0 0 16 10" refX="1" refY="5" markerWidth="16" markerHeight="10" orient="auto"><path d="M1,5 L8,1 L15,5 L8,9 z" fill="#000"/></marker>
+</defs><rect x="0" y="0" width="1010" height="812" fill="#ffffff"/><rect x="37.6" y="15.0" width="94.7" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="85.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Client A</text>
+<line x1="85.0" y1="48.0" x2="85.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<rect x="231.5" y="15.0" width="77.0" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="270.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Server</text>
+<line x1="270.0" y1="48.0" x2="270.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<rect x="404.4" y="15.0" width="121.2" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="465.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">GameService</text>
+<line x1="465.0" y1="48.0" x2="465.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<rect x="570.5" y="15.0" width="138.9" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="640.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Luồng bảo trì</text>
+<line x1="640.0" y1="48.0" x2="640.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<rect x="730.5" y="15.0" width="138.9" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="800.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">HistoryWriter</text>
+<line x1="800.0" y1="48.0" x2="800.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<rect x="892.6" y="15.0" width="94.7" height="33.0" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="940.0" y="34.0" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Client B</text>
+<line x1="940.0" y1="48.0" x2="940.0" y2="802.0" stroke="#555" stroke-width="1" stroke-dasharray="6,4"/>
+<text x="270.0" y="66.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">(GameController,</text>
+<text x="270.0" y="82.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">LobbyService)</text>
+<text x="640.0" y="66.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">(mỗi 1 giây)</text>
+<text x="800.0" y="66.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">/ MySQL</text>
+<rect x="15.0" y="100.0" width="985.0" height="300.0" rx="0" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M15.0,100.0 h46.6 v15.0 l-8,8 h-38.6 z" fill="#eef4fb" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="118.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">alt</text>
+<text x="71.6" y="120.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">[người chơi bấm Rời trận]</text>
+<line x1="15.0" y1="183.0" x2="1000.0" y2="183.0" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4"/>
+<text x="25.0" y="204.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">[mất kết nối / đăng xuất]</text>
+<line x1="15.0" y1="307.0" x2="1000.0" y2="307.0" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4"/>
+<text x="25.0" y="328.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">[hết 120 giây mà chưa ném xong]</text>
+<line x1="85.0" y1="166.0" x2="270.0" y2="166.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="95.5" y="146.0" width="164.0" height="18.0" fill="#fff"/>
+<text x="177.5" y="160.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">LEAVE_MATCH(matchId)</text>
+<line x1="270.0" y1="166.0" x2="465.0" y2="166.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="269.5" y="146.0" width="196.0" height="18.0" fill="#fff"/>
+<text x="367.5" y="160.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">leaveMatch(…, &quot;FORFEIT&quot;)</text>
+<polyline points="270.0,212.0 306.0,212.0 306.0,248.0 273.0,248.0" fill="none" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="312.0" y="211.5" width="132.0" height="18.0" fill="#fff"/>
+<text x="314.0" y="225.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">socket đóng hoặc</text>
+<rect x="312.0" y="230.5" width="180.0" height="18.0" fill="#fff"/>
+<text x="314.0" y="244.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">quá 45 s không có PING</text>
+<line x1="270.0" y1="286.0" x2="465.0" y2="286.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="256.8" y="267.0" width="221.5" height="17.0" fill="#fff"/>
+<text x="367.5" y="280.0" font-family="Times New Roman" font-size="15" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">leaveSession(…, &quot;DISCONNECT&quot;)</text>
+<line x1="640.0" y1="370.0" x2="465.0" y2="370.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="498.5" y="350.0" width="108.0" height="18.0" fill="#fff"/>
+<text x="552.5" y="364.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">expireTurns()</text>
+<rect x="648.0" y="377.0" width="236.5" height="17.0" fill="#fff"/>
+<text x="650.0" y="390.0" font-family="Times New Roman" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">deadline &lt; now → &quot;TURN_TIMEOUT&quot;</text>
+<polyline points="465.0,422.0 501.0,422.0 501.0,460.0 468.0,460.0" fill="none" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="507.0" y="422.5" width="340.0" height="18.0" fill="#fff"/>
+<text x="509.0" y="436.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">markFinished(winner = đối thủ, endReason);</text>
+<rect x="507.0" y="441.5" width="228.0" height="18.0" fill="#fff"/>
+<text x="509.0" y="455.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">status = FINISHED, version++</text>
+<line x1="465.0" y1="520.0" x2="800.0" y2="520.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="562.0" y="481.0" width="156.0" height="18.0" fill="#fff"/>
+<text x="640.0" y="495.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">submit(finishMatch)</text>
+<rect x="574.0" y="500.0" width="132.0" height="18.0" fill="#fff"/>
+<text x="640.0" y="514.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">→ UPDATE matches</text>
+<line x1="465.0" y1="570.0" x2="85.0" y2="570.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="138.0" y="550.0" width="284.0" height="18.0" fill="#fff"/>
+<text x="280.0" y="564.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">MATCH_FINISHED(winnerId, endReason)</text>
+<line x1="465.0" y1="570.0" x2="940.0" y2="570.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="647.0" y="550.0" width="116.0" height="18.0" fill="#fff"/>
+<text x="705.0" y="564.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">MATCH_FINISHED</text>
+<polyline points="940.0,582.0 904.0,582.0 904.0,606.0 937.0,606.0" fill="none" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="718.0" y="586.0" width="180.0" height="18.0" fill="#fff"/>
+<text x="896.0" y="600.0" font-family="Times New Roman" font-size="16" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">finish(): hiện kết quả</text>
+<rect x="15.0" y="630.0" width="985.0" height="172.0" rx="0" fill="none" stroke="#000" stroke-width="1.3"/>
+<path d="M15.0,630.0 h46.6 v15.0 l-8,8 h-38.6 z" fill="#eef4fb" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="648.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="bold" font-style="normal" fill="#000">opt</text>
+<text x="71.6" y="650.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">[FORFEIT / DISCONNECT / LOGOUT hoặc client không hỗ trợ chơi tiếp]</text>
+<polyline points="465.0,666.0 501.0,666.0 501.0,704.0 468.0,704.0" fill="none" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="507.0" y="666.5" width="204.0" height="18.0" fill="#fff"/>
+<text x="509.0" y="680.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">closeSession(): xóa Room,</text>
+<rect x="507.0" y="685.5" width="228.0" height="18.0" fill="#fff"/>
+<text x="509.0" y="699.5" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">hai người về trạng thái IDLE</text>
+<line x1="465.0" y1="770.0" x2="85.0" y2="770.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="186.0" y="731.0" width="188.0" height="18.0" fill="#fff"/>
+<text x="280.0" y="745.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">SESSION_STATUS(CLOSED),</text>
+<rect x="234.0" y="750.0" width="92.0" height="18.0" fill="#fff"/>
+<text x="280.0" y="764.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">ONLINE_LIST</text>
+<line x1="465.0" y1="770.0" x2="940.0" y2="770.0" stroke="#000" stroke-width="1.4" marker-end="url(#filled)"/>
+<rect x="595.0" y="750.0" width="220.0" height="18.0" fill="#fff"/>
+<text x="705.0" y="764.0" font-family="Times New Roman" font-size="16" text-anchor="middle" font-weight="normal" font-style="normal" fill="#000">SESSION_STATUS, ONLINE_LIST</text></svg>

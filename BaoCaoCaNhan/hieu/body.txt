@@ -1,0 +1,143 @@
+// Báo cáo cá nhân – Giáp Minh Hiếu (B23DCCN299)
+// Phần phụ trách: F05 Chơi với Bot, F08 Xếp hạng, F09 Lịch sử, F10 Cập nhật
+
+@H0 LỜI MỞ ĐẦU
+Lập trình mạng giúp sinh viên nắm vững cách các tiến trình trên những máy tính khác nhau trao đổi dữ liệu: mô hình client – server, socket, giao thức tầng ứng dụng, đa luồng và bảo mật đường truyền. Để vận dụng các kiến thức đó, nhóm 04 thực hiện đề tài **“Darts Battle – Game ném phi tiêu đối kháng online”** bằng Java, JavaFX, socket TCP có mã hóa TLS và MySQL.
+Trong nhóm, em phụ trách phần **Bot, kết quả, xếp hạng, lịch sử và phát hành**: chế độ chơi với Bot bốn mức độ khó, lưu kết quả từng trận và từng phi tiêu cùng cơ chế nâng cấp CSDL, bảng xếp hạng PvP, lịch sử đấu, màn hình kết quả cuối trận, đóng gói bản Windows và tự cập nhật có chữ ký số. Chương 1 giới thiệu ứng dụng, yêu cầu và nội dung cá nhân; Chương 2 trình bày thiết kế tổng quan và thiết kế chi tiết phần cá nhân; Chương 3 trình bày kết quả triển khai, phát hành và kiểm thử.
+Em xin chân thành cảm ơn giảng viên bộ môn đã hướng dẫn trong suốt quá trình thực hiện và rất mong nhận được góp ý để hoàn thiện báo cáo.
+
+# GIỚI THIỆU VÀ PHÂN TÍCH YÊU CẦU
+## Giới thiệu ứng dụng
+### Bối cảnh và mục tiêu
+Darts Battle mô phỏng môn ném phi tiêu, cho phép hai người chơi ở hai máy khác nhau thi đấu qua mạng (PvP) hoặc một người đấu với Bot do máy chủ điều khiển (PvE); ngoài ra có danh sách người online, mời đấu, trò chuyện, gọi thoại/video, bảng xếp hạng và lịch sử chi tiết đến từng phi tiêu. Về kỹ thuật, hệ thống theo mô hình **server toàn quyền** (authoritative server): client chỉ gửi “ý định” (ném vào tọa độ x, y), còn kiểm tra lượt, tính điểm, đổi lượt và xác định thắng thua đều do server thực hiện rồi gửi kết quả đã xác thực cho mọi client, giúp chống gian lận và bảo đảm hai bên thấy cùng một trạng thái.
+### Luật chơi
+Trò chơi áp dụng thể thức **301 straight-out** kết hợp bàn xoay. Mỗi người chơi bắt đầu với 301 điểm, mỗi lượt ném tối đa 3 phi tiêu. Đầu mỗi lượt, server chọn ngẫu nhiên góc xoay 0–359°, bàn xoay khoảng 2,8 giây rồi dừng; người chơi nhấp chuột để chốt tọa độ X rồi Y. Điểm: Single bằng điểm ô (1–20), Double gấp đôi, Triple gấp ba, Outer bull 25, Bullseye 50. Nếu điểm vượt quá điểm còn lại (BUST) thì không được tính nhưng vẫn mất một lần ném. Người về đúng 0 điểm thắng; người rời trận, mất kết nối hoặc hết 120 giây cho một lượt bị xử thua.
+### Công nghệ sử dụng
+Ứng dụng dùng **Java 17** cho cả Client, Server và thư viện Common; **JavaFX** (FXML, CSS) cho giao diện; **socket TCP** với Java Object Serialization để trao đổi đối tượng Message; **TLS 1.2/1.3** có ghim chứng chỉ và **PBKDF2** cho bảo mật; **WebSocket (WSS) qua Cloudflare Tunnel** để chơi qua Internet; **WebRTC** cho gọi thoại/video; **MySQL 8, JDBC** để lưu trữ; **H2, jpackage, GitHub Actions** cho kiểm thử và đóng gói.
+## Phân tích yêu cầu hệ thống
+### Tác nhân của hệ thống
+@ORIG 66-68
+### Yêu cầu chức năng
+Hệ thống có mười nhóm yêu cầu chức năng (Bảng dưới); các dòng in đậm thuộc phần cá nhân em đảm nhận.
+@TABLE Danh sách yêu cầu chức năng | 2.2,6.5
+| Mã – nhóm chức năng | Mô tả |
+| F01 Tài khoản | Đăng ký, đăng nhập, đăng xuất; mỗi tài khoản một phiên |
+| F02 Kết nối | Tự kết nối, tự kết nối lại, không phải nhập IP/cổng |
+| F03 Sảnh chờ | Danh sách người online kèm trạng thái theo thời gian thực |
+| F04 Mời đấu PvP | Gửi, chấp nhận, từ chối lời mời; hết hạn sau 30 giây |
+| **F05 Chơi với Bot** | **Trận PvE với 4 mức độ khó: Dễ, Trung bình, Khó, Cực khó** |
+| F06 Thi đấu | Bàn xoay, ngắm X/Y, ném; server tính điểm, xác định thắng thua |
+| F07 Tương tác | Chat, gọi thoại/video, rời trận, chơi lại nhiều ván |
+| **F08 Xếp hạng** | **Bảng xếp hạng PvP sắp xếp theo số trận thắng** |
+| **F09 Lịch sử** | **Lịch sử PvP/PvE, chi tiết từng lượt và từng phi tiêu** |
+| **F10 Cập nhật** | **Kiểm tra, tải bản cập nhật, xác minh chữ ký trước khi cài** |
+### Yêu cầu phi chức năng
+Hệ thống phải bảo đảm **tính nhất quán** (server là nơi duy nhất thay đổi trạng thái trận, lệnh trùng requestId không xử lý hai lần), **đồng thời** (nhiều trận chạy độc lập), **tin cậy** (heartbeat; trận luôn kết thúc đúng một lần với lý do rõ ràng), **bảo mật** (TLS ghim chứng chỉ, PBKDF2, PreparedStatement), **hiệu năng** (giao diện không treo, ghi lịch sử bất đồng bộ) và **dễ triển khai** (client đóng gói kèm Java).
+## Nội dung cá nhân đảm nhận
+Em đảm nhận bốn nhóm chức năng **F05 Chơi với Bot, F08 Xếp hạng, F09 Lịch sử và F10 Cập nhật** – phần nối trận đấu với dữ liệu lâu dài và với người dùng cuối:
+- **Chơi với Bot (PvE):** bốn mức Dễ, Trung bình, Khó, Cực khó (BotDifficulty). Bot chạy trên server (BotService, BotAim), chờ bàn tự xoay như người chơi rồi ném ba phi tiêu. Bot chỉ sinh tọa độ (x, y); kiểm tra lượt, tính điểm, BUST và thắng thua vẫn do GameService thực hiện như với người thật.
+- **Lưu kết quả và nâng cấp CSDL:** thiết kế bảng matches, match_throws; ghi trận, từng phi tiêu và kết quả cuối qua hàng đợi ghi bất đồng bộ HistoryWriter; tự bổ sung cột, ràng buộc và chỉ mục cho CSDL cũ khi server khởi động.
+- **Xếp hạng và lịch sử:** xếp hạng chỉ tính trận PvP theo số trận thắng; lịch sử PvP/PvE phân trang; chi tiết từng phi tiêu của một trận (HistoryQueryService).
+- **Kết quả cuối trận:** màn hình kết quả có hiệu ứng, âm thanh thắng/thua, tạm giảm nhạc nền (MatchResultPresentation).
+- **Phát hành và tự cập nhật:** đóng gói Windows bằng jpackage trên GitHub Actions, phát hành trên GitHub Releases kèm tệp kê khai ký Ed25519, lớp Updater xác minh trước khi cài; cùng các kiểm thử tương ứng.
+
+# PHÂN TÍCH THIẾT KẾ HỆ THỐNG
+## Kiến trúc tổng quan
+@ORIG 84-89
+Mỗi client giữ một kết nối TCP (TLS) lâu dài nên server có thể chủ động đẩy sự kiện xuống. Server dùng mô hình thread-per-client với luồng đọc và luồng ghi riêng cho mỗi kết nối; mọi thay đổi trạng thái của một trận nằm trong khối synchronized(room) – luồng hẹn giờ của Bot cũng phải vào khối này như một người chơi.
+## Giao thức truyền thông
+Đơn vị truyền là đối tượng **Message { type, requestId, payload }**, type thuộc MessageType, payload là một DTO tuần tự hóa được. Bảng dưới liệt kê các bản tin liên quan đến phần cá nhân.
+@TABLE Các bản tin liên quan đến phần Bot, kết quả, xếp hạng và lịch sử | 3.3,1,4.3
+| Bản tin | Chiều | Payload và ý nghĩa |
+| CREATE_BOT_MATCH | C → S | BotMatchRequest(difficulty): tạo trận PvE |
+| MATCH_STARTED, TURN_PREPARING, ROTATION_APPLIED, TURN_STARTED | S → C | MatchSnapshot: bắt đầu trận, góc xoay, cho phép ném (cả lượt Bot) |
+| THROW_RESOLVED, MATCH_FINISHED | S → C | Kết quả từng phi tiêu (Bot có actorType = BOT); kết thúc trận kèm winnerType, endReason |
+| RANKING_V2_REQUEST / _RESULT | C ↔ S | Rankings: danh sách Rank(userId, name, wins, rank) |
+| PLAYER_MATCHES_REQUEST / _RESULT | C ↔ S | PageRequest(playerId, page, publicOnly) và Page tối đa 25 trận |
+| MATCH_DETAIL_REQUEST / _RESULT | C ↔ S | DetailRequest(matchId) và Detail(match, darts) |
+## Sơ đồ khối chức năng của Client
+@ORIG 101-103
+## Sơ đồ khối chức năng của Server
+Server gồm sáu khối: Mạng & kết nối (định tuyến bản tin theo MessageType), Xác thực & phiên, Sảnh & phòng, Xử lý trận đấu (luật chơi và điều khiển Bot), Dữ liệu & thống kê (ghi và truy vấn MySQL – phần của em) và Đa phương tiện; một luồng bảo trì chạy mỗi giây để hủy lời mời quá hạn và xử thua người hết thời gian lượt.
+@ORIG 106-107
+## Biểu đồ Use case tổng quan
+@ORIG 109-111
+## Phân tích thiết kế chi tiết chức năng cá nhân
+### Use case chi tiết
+Trong biểu đồ use case chi tiết (hình ngay sau bảng kịch bản), “Chơi với Bot” bao gồm chọn mức độ khó, lượt ném tự động của Bot và xem kết quả; “Xem lịch sử người chơi khác” mở rộng bảng xếp hạng; “Cập nhật ứng dụng” dành cho cả Khách. Kịch bản use case chính như sau:
+@TABLE Kịch bản use case “Chơi với Bot (PvE)” | 1.5,6.2
+| Mục | Nội dung |
+| Tác nhân | Người chơi (Bot là thành phần của server) |
+| Tiền điều kiện | Đã đăng nhập, đang ở sảnh chính và ở trạng thái rảnh |
+| Luồng chính | 1. Người chơi chọn “Chơi với bot” và một mức độ khó; client gửi CREATE_BOT_MATCH.<br>2. Server tạo phòng PvE (player2Id = null, player2Type = BOT), ghi bản ghi trận, gửi MATCH_STARTED.<br>3. Người chơi đi trước; ném xong 3 phi tiêu thì server chuyển lượt cho Bot và chọn góc xoay mới.<br>4. Khi bàn dừng, BotService lên lịch 3 phi tiêu cách nhau 700 ms; mỗi phi tiêu BotAim chọn tọa độ, GameService tính điểm, lưu và gửi THROW_RESOLVED.<br>5. Khi một bên về đúng 0 điểm, server lưu kết quả, gửi MATCH_FINISHED; client hiện màn hình kết quả và âm thanh. |
+| Luồng phụ | 1a. Người chơi đang bận hoặc độ khó không hợp lệ: server trả ERROR.<br>2a. Không ghi được bản ghi trận: hủy phòng, trận không bắt đầu.<br>5a. Người chơi rời trận, mất kết nối hoặc hết giờ: Bot thắng (FORFEIT, DISCONNECT, TURN_TIMEOUT). |
+| Hậu điều kiện | Trận và mọi phi tiêu được lưu; trận có trong lịch sử nhưng không tính vào xếp hạng PvP |
+@IMG diagrams/uc_chi_tiet.png | 14 | Biểu đồ Use case chi tiết phần Bot, xếp hạng, lịch sử và cập nhật
+### Biểu đồ lớp
+Nhóm lớp thứ nhất phục vụ chơi với Bot. LobbyService kiểm tra trạng thái, RoomManager tạo phòng PvE, GameService điều khiển lượt, BotService hẹn giờ từng phi tiêu bằng ScheduledExecutorService. BotAim không trạng thái: với xác suất randomProbability() của mức độ khó (1,0; 0,75; 0,5; 0,25) Bot ném ngẫu nhiên, ngược lại nhắm vào ô điểm cao nhất không vượt điểm còn lại theo góc xoay hiện tại, nên phi tiêu nhắm tối ưu không bao giờ BUST.
+@IMG diagrams/class_bot.png | 14.5 | Biểu đồ lớp chức năng chơi với Bot
+Nhóm thứ hai phục vụ lưu trữ, truy vấn và cập nhật. createMatch() được gọi đồng bộ khi bắt đầu trận; saveThrow() và finishMatch() đưa vào HistoryWriter – một luồng duy nhất giữ thứ tự ghi, thử lại tối đa ba lần. HistoryQueryService gọi drain() trước khi truy vấn để thấy cả trận vừa kết thúc. Updater ở client đọc tệp kê khai trên GitHub Releases, kiểm tra chữ ký và phiên bản.
+@IMG diagrams/class_history.png | 14.5 | Biểu đồ lớp chức năng lưu trữ, xếp hạng, lịch sử và cập nhật
+### Biểu đồ tuần tự
+Bot đi qua đúng đường xử lý của người chơi: BotService gọi playBotStep(), hàm này kiểm tra lại lượt và số thứ tự phi tiêu trong synchronized(room) rồi gọi resolveThrow() với requestId “bot-turnId-dartIndex”. Khi trận kết thúc, BotService.cancel() hủy các phi tiêu còn chờ.
+@IMG diagrams/seq_bot.png | 14.5 | Biểu đồ tuần tự tạo trận PvE và lượt ném của Bot
+Ba thao tác xem xếp hạng, lịch sử và chi tiết trận theo cùng một mẫu: luồng đọc của server chỉ chuyển yêu cầu cho nhóm luồng của HistoryQueryService, truy vấn MySQL bằng PreparedStatement rồi trả kết quả; client cập nhật giao diện trong Platform.runLater. Với chi tiết trận, server kiểm tra quyền xem (trận PvE chỉ người tham gia được xem).
+@IMG diagrams/seq_history.png | 14 | Biểu đồ tuần tự xem xếp hạng, lịch sử và chi tiết trận
+### Sơ đồ thực thể quan hệ (ER)
+@IMG diagrams/er.png | 16 | Sơ đồ thực thể quan hệ users – matches – match_throws
+- **users – matches:** 1–n qua player1_id và 0..1–n qua player2_id; trận PvE có player2_id NULL, player2_type = BOT; winner_id NULL khi Bot thắng, winner_type cho biết HUMAN hay BOT. Khóa chính matches là UUID dùng chung làm matchId trong giao thức.
+- **matches – match_throws:** 1–n; UNIQUE(match_id, turn_number, dart_number) chống ghi trùng khi hàng đợi thử lại; phi tiêu của Bot có player_id NULL, actor_type = BOT.
+- **Kết thúc và nâng cấp:** ended_at chỉ gán một lần (UPDATE ... WHERE ended_at IS NULL), end_reason nhận ZERO_SCORE, FORFEIT, DISCONNECT, TURN_TIMEOUT hoặc LOGOUT. Khi khởi động, DBConnection đọc siêu dữ liệu để thêm các cột mới (màu đỏ), ràng buộc và chỉ mục còn thiếu; chỉ thêm, không xóa dữ liệu.
+
+# KẾT QUẢ THỰC HIỆN
+## Kiến trúc ứng dụng triển khai
+Hệ thống chạy trên một máy chủ macOS nằm sau NAT và các máy người chơi Windows. Client kết nối wss://game-backsite.handq2212.site/play tới Cloudflare, qua Cloudflare Tunnel về WebSocketBridge rồi tới Game Server; bên trong vẫn là phiên TLS đầu-cuối có ghim chứng chỉ, MySQL chỉ truy cập qua localhost. Bản cập nhật client được phát hành trên GitHub Releases.
+@ORIG 125-126
+## Cài đặt và triển khai ứng dụng
+### Cài đặt máy chủ
+Máy chủ cần JDK 17+, Python 3, MySQL 8 và cloudflared; máy người chơi chỉ cần Windows 10/11 x64. Các bước: tạo CSDL dart_socket_game và tài khoản riêng (các bảng, cột nâng cấp do server tự tạo); biên dịch bằng python3 scripts/desktop.py build; cấu hình qua biến môi trường DARTS_DB_URL, DARTS_DB_USER, DARTS_DB_PASSWORD, DARTS_PORT, DARTS_TLS_KEYSTORE, DARTS_TLS_PASSWORD; chạy kiểm thử bằng python3 scripts/desktop.py test; khởi động bằng python3 scripts/desktop.py run server và đưa ra Internet qua Cloudflare Tunnel.
+### Đóng gói, phát hành và cài đặt Client
+**Đóng gói:** workflow Desktop packages tự chạy khi đẩy mã lên nhánh phát triển, trên windows-latest với JDK 17: chạy kiểm thử server và bộ cập nhật, đóng gói bằng jpackage (app-image kèm JRE), nén DartsBattle-windows.zip và lưu làm artifact. Khóa ký không bao giờ đưa lên CI.
+**Ký và phát hành:** trên máy giữ khóa, scripts/update-release.py manifest kiểm tra gói rồi tạo darts-update.txt chứa phiên bản, URL, SHA-256 của gói và chữ ký Ed25519; hai tệp được đăng lên GitHub Releases.
+@IMG media_comb/release.png | 15.5 | Workflow đóng gói trên GitHub Actions (a) và bản phát hành 2.5.3 trên GitHub Releases (b)
+**Cài đặt và cập nhật:** người chơi giải nén ZIP và mở DartsBattle.exe, không cần cài Java. Ứng dụng tự kiểm tra cập nhật khi mở hoặc khi bấm “Kiểm tra cập nhật”: Updater tải tệp kê khai qua HTTPS, xác minh chữ ký bằng khóa công khai nhúng sẵn, so sánh phiên bản, tải gói, kiểm tra SHA-256 rồi cài và mở lại; nếu cài lỗi thì cố gắng khôi phục bản cũ.
+## Các kết quả thực hiện được
+### Các chức năng đã hoàn thành
+Toàn bộ các nhóm chức năng đã hoàn thành; các dòng in đậm là phần do em thực hiện.
+@TABLE Kết quả thực hiện các chức năng | 3,3.4
+| Chức năng | Kết quả |
+| Tài khoản, kết nối, sảnh chờ, mời đấu | Hoàn thành; TLS + WSS qua Cloudflare Tunnel |
+| Trận PvP, chat, gọi thoại/video, chơi lại | Hoàn thành; server tính điểm, chống lệnh trùng |
+| **Trận PvE với Bot 4 mức độ khó** | **Hoàn thành; Bot ném theo đúng luật qua GameService** |
+| **Lưu trận, từng phi tiêu; nâng cấp CSDL** | **Hoàn thành; ghi bất đồng bộ có thử lại, không mất dữ liệu** |
+| **Xếp hạng, lịch sử, chi tiết trận** | **Hoàn thành; xếp hạng chỉ tính PvP, lịch sử phân trang** |
+| **Kết quả cuối trận, âm thanh; đóng gói, tự cập nhật** | **Hoàn thành; client Windows phiên bản 2.5.3** |
+### Giao diện các chức năng cá nhân
+**Chơi với Bot.** Người chơi chọn một trong bốn mức độ khó; trong trận, tên đối thủ hiển thị kèm mức (“BOT · Trung bình”), lượt của Bot diễn ra tự động sau khi bàn dừng xoay.
+@IMG media_comb/bot.png | 15.5 | Hộp thoại chọn độ khó (a) và trận đấu với Bot mức Trung bình (b)
+**Xếp hạng và lịch sử.** Bảng xếp hạng hiển thị tối đa 100 người theo số trận thắng PvP; “Chi tiết” mở lịch sử PvP công khai của người đó. Lịch sử của chính mình gồm cả PvP và PvE, mới nhất trước, 25 trận mỗi trang.
+@IMG media_comb/rank_hist.png | 15.5 | Bảng xếp hạng PvP (a) và lịch sử đấu của người chơi (b)
+**Kết quả và chi tiết trận.** Khi nhận MATCH_FINISHED, client phát hiệu ứng, âm thanh thắng/thua rồi hiện lý do kết thúc và điểm cuối; màn hình chi tiết hiện điểm từng phi tiêu của mỗi lượt.
+@IMG media_comb/result_detail.png | 15.5 | Màn hình kết quả khi đối thủ bỏ cuộc (a) và chi tiết một trận với Bot (b)
+### Kết quả kiểm thử
+Bộ kiểm thử tự động khởi động server thật với CSDL H2 trong bộ nhớ và socket TCP loopback thật; bộ này chạy trên GitHub Actions trước mỗi lần đóng gói. Các kiểm thử liên quan đến phần cá nhân:
+@TABLE Kết quả kiểm thử phần Bot, lịch sử, nâng cấp CSDL và cập nhật | 2.4,5.2,1.4
+| Kiểm thử | Nội dung | Kết quả |
+| BotAimTest | Ngưỡng ném ngẫu nhiên/tối ưu của 4 mức; với mọi điểm còn lại 1–301 và 7 góc xoay, mục tiêu tối ưu đạt điểm lớn nhất không vượt điểm còn lại | Đạt |
+| MultiplayerIntegrationTest (phần Bot) | Bot ném đủ 3 phi tiêu rồi trả lượt; phi tiêu Bot lưu với player_id NULL, actor_type BOT | Đạt (trong 359/359) |
+| SessionIntegrationTest, HistoryTransportIntegrationTest | Xếp hạng, lịch sử, chi tiết trận; người khác không xem được trận Bot; 100 trang lịch sử qua TLS với client đọc chậm | Đạt |
+| MigrationIntegrationTest | Nâng cấp hai lần trên bản sao CSDL MySQL: không mất dòng, đủ cột mới | Đạt (chạy thủ công) |
+| UpdaterTest, update_release_test.py | Chấp nhận tệp kê khai đúng chữ ký; từ chối tệp bị sửa, sai khóa, sai phiên bản; so sánh phiên bản | Đạt |
+## Đánh giá và hướng phát triển
+**Ưu điểm:** Bot dùng chung luật và kiểm tra của server; bốn mức độ khó được kiểm thử tất định; ghi lịch sử không chặn trận, có thử lại và chống ghi trùng; nâng cấp CSDL tự động; khóa ký tách khỏi CI, bản cập nhật được xác minh trước khi cài. **Hạn chế:** hàng đợi ghi lịch sử nằm trong bộ nhớ nên có thể mất bản ghi khi server dừng đột ngột; Bot chưa mô phỏng sai số quanh mục tiêu; bản Windows chưa có chứng thư ký mã. **Hướng phát triển:** hàng đợi ghi bền vững (outbox), Bot ngắm theo phân bố sai số, xếp hạng Elo, phát hành bản macOS đã ký.
+
+@H0 KẾT LUẬN
+Qua đề tài Darts Battle, nhóm đã xây dựng một trò chơi đối kháng trực tuyến hoàn chỉnh theo mô hình client – server, vận dụng socket TCP, giao thức tầng ứng dụng, đa luồng, TLS và đường hầm Internet. Phần việc của em đã hoàn thành: chế độ chơi với Bot bốn mức độ khó chạy trên server, lưu trữ kết quả đến từng phi tiêu cùng cơ chế nâng cấp CSDL, bảng xếp hạng, lịch sử và chi tiết trận, màn hình kết quả có âm thanh, quy trình đóng gói trên GitHub Actions và tự cập nhật có chữ ký số. Qua đó em hiểu sâu hơn về server toàn quyền, xử lý bất đồng bộ tách khỏi luồng mạng, thiết kế CSDL có thể nâng cấp và phát hành phần mềm an toàn.
+
+@H0 TÀI LIỆU THAM KHẢO
+@REF Oracle, “Java Platform, Standard Edition 17 API Specification”, https://docs.oracle.com/en/java/javase/17/docs/api/
+@REF Oracle, “The jpackage Command (JDK 17)”, https://docs.oracle.com/en/java/javase/17/docs/specs/man/jpackage.html
+@REF J. F. Kurose, K. W. Ross, Computer Networking: A Top-Down Approach, 8th ed., Pearson, 2021.
+@REF S. Josefsson, I. Liusvaara, “Edwards-Curve Digital Signature Algorithm (EdDSA)”, RFC 8032, IETF, 2017.
+@REF GitHub, “GitHub Actions documentation”, https://docs.github.com/en/actions
+@REF Oracle, “MySQL 8.4 Reference Manual”, https://dev.mysql.com/doc/refman/8.4/en/

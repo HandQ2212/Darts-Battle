@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="534" viewBox="0 0 1060 745"><defs>
+<marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#000" stroke-width="1.4"/></marker>
+<marker id="filled" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#000"/></marker>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1,1 L13,7 L1,13 z" fill="#fff" stroke="#000" stroke-width="1.3"/></marker>
+<marker id="diamond" viewBox="0 0 16 10" refX="1" refY="5" markerWidth="16" markerHeight="10" orient="auto"><path d="M1,5 L8,1 L15,5 L8,9 z" fill="#000"/></marker>
+</defs><rect x="0" y="0" width="1060" height="745" fill="#ffffff"/><text x="15.0" y="24.0" font-family="Times New Roman" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#1f3b5c">DartGame_Server</text>
+<rect x="15.0" y="40.0" width="290.0" height="86.4" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="15.0" y="40.0" width="290.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="160.0" y="60.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">GameController</text>
+<line x1="15.0" y1="68.8" x2="305.0" y2="68.8" stroke="#000" stroke-width="1.2"/>
+<line x1="15.0" y1="101.6" x2="305.0" y2="101.6" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="122.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ handleMessage(c, m)</text>
+<rect x="15.0" y="175.0" width="290.0" height="148.8" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="15.0" y="175.0" width="290.0" height="49.6" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="160.0" y="195.8" font-family="Times New Roman" font-size="15" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">«singleton»</text>
+<text x="160.0" y="216.6" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">RoomManager</text>
+<line x1="15.0" y1="224.6" x2="305.0" y2="224.6" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="245.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- rooms: Map&lt;String, Room&gt;</text>
+<line x1="15.0" y1="257.4" x2="305.0" y2="257.4" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="278.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ getRoom(matchId): Room</text>
+<text x="21.0" y="299.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ allRooms(): List&lt;Room&gt;</text>
+<text x="21.0" y="319.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ removeRoom(matchId)</text>
+<rect x="15.0" y="440.0" width="290.0" height="232.0" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="15.0" y="440.0" width="290.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="160.0" y="460.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Room</text>
+<line x1="15.0" y1="468.8" x2="305.0" y2="468.8" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="489.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ player1Id, player2Id</text>
+<text x="21.0" y="510.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ mode, player2Type</text>
+<text x="21.0" y="531.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ version: long</text>
+<text x="21.0" y="552.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ deadline: long</text>
+<text x="21.0" y="572.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ winnerId, endReason</text>
+<text x="21.0" y="593.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ requests: Map&lt;String,Object&gt;</text>
+<line x1="15.0" y1="605.6" x2="305.0" y2="605.6" stroke="#000" stroke-width="1.2"/>
+<text x="21.0" y="626.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ getGameState(): GameState</text>
+<text x="21.0" y="647.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ containsUser(id): boolean</text>
+<text x="21.0" y="668.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ getOpponentUserId(id)</text>
+<rect x="370.0" y="40.0" width="330.0" height="377.6" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="370.0" y="40.0" width="330.0" height="49.6" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="535.0" y="60.8" font-family="Times New Roman" font-size="15" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">«singleton»</text>
+<text x="535.0" y="81.6" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">GameService</text>
+<line x1="370.0" y1="89.6" x2="700.0" y2="89.6" stroke="#000" stroke-width="1.2"/>
+<text x="376.0" y="110.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- scorer: DartboardScorer</text>
+<text x="376.0" y="131.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- history: MatchHistoryController</text>
+<text x="376.0" y="152.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- rotations: ScheduledExecutor</text>
+<line x1="370.0" y1="164.0" x2="700.0" y2="164.0" stroke="#000" stroke-width="1.2"/>
+<text x="376.0" y="184.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ startMatch(r)</text>
+<text x="376.0" y="205.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ submitThrow(req, userId)</text>
+<text x="376.0" y="226.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- resolveThrow(r, req, userId)</text>
+<text x="376.0" y="247.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- prepareRotation(r)</text>
+<text x="376.0" y="268.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- scheduleRotation(r)</text>
+<text x="376.0" y="288.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- switchTurn(r)</text>
+<text x="376.0" y="309.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ leaveMatch(matchId, userId, reason)</text>
+<text x="376.0" y="330.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ expireTurns()</text>
+<text x="376.0" y="351.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- markFinished(r, winner, type, reason)</text>
+<text x="376.0" y="372.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- complete(r)</text>
+<text x="376.0" y="392.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ snapshot(r): MatchSnapshot</text>
+<text x="376.0" y="413.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ broadcast(r, m)</text>
+<rect x="370.0" y="520.0" width="330.0" height="211.2" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="370.0" y="520.0" width="330.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="535.0" y="540.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">GameState</text>
+<line x1="370.0" y1="548.8" x2="700.0" y2="548.8" stroke="#000" stroke-width="1.2"/>
+<text x="376.0" y="569.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- player1RemainingScore = 301</text>
+<text x="376.0" y="590.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- player2RemainingScore = 301</text>
+<text x="376.0" y="611.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- currentPlayerId: Long</text>
+<text x="376.0" y="632.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- currentActorType: ActorType</text>
+<text x="376.0" y="652.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- turnId: long, dartsThrown: int</text>
+<text x="376.0" y="673.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- rotationDegree: int</text>
+<text x="376.0" y="694.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- status: MatchStatus</text>
+<line x1="370.0" y1="706.4" x2="700.0" y2="706.4" stroke="#000" stroke-width="1.2"/>
+<text x="376.0" y="727.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ get/set…() (synchronized)</text>
+<rect x="765.0" y="40.0" width="280.0" height="107.2" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="765.0" y="40.0" width="280.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="905.0" y="60.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">DartboardScorer</text>
+<line x1="765.0" y1="68.8" x2="1045.0" y2="68.8" stroke="#000" stroke-width="1.2"/>
+<line x1="765.0" y1="101.6" x2="1045.0" y2="101.6" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="122.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ calculateHitArea(x, y, rot)</text>
+<text x="771.0" y="143.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ calculateDartScore(x, y, rot)</text>
+<rect x="765.0" y="185.0" width="280.0" height="128.0" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="765.0" y="185.0" width="280.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="905.0" y="205.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">MatchHistoryController</text>
+<line x1="765.0" y1="213.8" x2="1045.0" y2="213.8" stroke="#000" stroke-width="1.2"/>
+<line x1="765.0" y1="246.6" x2="1045.0" y2="246.6" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="267.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ createMatch(id, mode, …)</text>
+<text x="771.0" y="288.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ saveThrow(t, playerId)</text>
+<text x="771.0" y="309.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ finishMatch(id, winner, …)</text>
+<rect x="765.0" y="350.0" width="280.0" height="107.2" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="765.0" y="350.0" width="280.0" height="49.6" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="905.0" y="370.8" font-family="Times New Roman" font-size="15" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">«utility»</text>
+<text x="905.0" y="391.6" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">HistoryWriter</text>
+<line x1="765.0" y1="399.6" x2="1045.0" y2="399.6" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="420.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- WRITER: 1 luồng ghi</text>
+<line x1="765.0" y1="432.4" x2="1045.0" y2="432.4" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="453.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ submit(matchId, task)</text>
+<rect x="765.0" y="520.0" width="280.0" height="190.4" rx="0" fill="#fff" stroke="#000" stroke-width="1.5"/>
+<rect x="765.0" y="520.0" width="280.0" height="28.8" rx="0" fill="#fdf6e3" stroke="#000" stroke-width="1.5"/>
+<text x="905.0" y="540.8" font-family="Times New Roman" font-size="17" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">ThrowResult</text>
+<line x1="765.0" y1="548.8" x2="1045.0" y2="548.8" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="569.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- matchId, turnId, dartIndex</text>
+<text x="771.0" y="590.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- actorType</text>
+<text x="771.0" y="611.2" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- x, y, rotationDegree</text>
+<text x="771.0" y="632.0" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- hitArea, dartScore</text>
+<text x="771.0" y="652.8" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- remainingScoreAfter</text>
+<text x="771.0" y="673.6" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">- isBust</text>
+<line x1="765.0" y1="685.6" x2="1045.0" y2="685.6" stroke="#000" stroke-width="1.2"/>
+<text x="771.0" y="706.4" font-family="Times New Roman" font-size="16" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">+ get/set…()</text>
+<line x1="305.0" y1="70.0" x2="370.0" y2="70.0" stroke="#000" stroke-width="1.4" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="324.5" y="50.0" width="25.0" height="16.0" fill="#fff"/>
+<text x="337.0" y="62.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">gọi</text>
+<line x1="370.0" y1="255.0" x2="305.0" y2="255.0" stroke="#000" stroke-width="1.4" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="310.5" y="235.0" width="53.0" height="16.0" fill="#fff"/>
+<text x="337.0" y="247.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">getRoom</text>
+<line x1="700.0" y1="85.0" x2="765.0" y2="85.0" stroke="#000" stroke-width="1.4" marker-end="url(#open)"/>
+<rect x="709.0" y="65.0" width="46.0" height="16.0" fill="#fff"/>
+<text x="732.0" y="77.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">scorer</text>
+<line x1="700.0" y1="240.0" x2="765.0" y2="240.0" stroke="#000" stroke-width="1.4" marker-end="url(#open)"/>
+<rect x="705.5" y="220.0" width="53.0" height="16.0" fill="#fff"/>
+<text x="732.0" y="232.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">history</text>
+<line x1="700.0" y1="390.0" x2="765.0" y2="390.0" stroke="#000" stroke-width="1.4" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="709.0" y="370.0" width="46.0" height="16.0" fill="#fff"/>
+<text x="732.0" y="382.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">submit</text>
+<line x1="160.0" y1="343.8" x2="160.0" y2="440.0" stroke="#000" stroke-width="1.4"/>
+<path d="M160,323.8 l-7,10 l7,10 l7,-10 z" fill="#fff" stroke="#000" stroke-width="1.3"/>
+<text x="168.0" y="434.0" font-family="Times New Roman" font-size="14" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">0..*</text>
+<line x1="305.0" y1="600.0" x2="370.0" y2="600.0" stroke="#000" stroke-width="1.4"/>
+<path d="M305,600 l10,-7 l10,7 l-10,7 z" fill="#000"/>
+<text x="364.0" y="592.0" font-family="Times New Roman" font-size="14" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">1</text>
+<line x1="535.0" y1="417.6" x2="535.0" y2="520.0" stroke="#000" stroke-width="1.4" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="543.0" y="461.8" width="60.0" height="16.0" fill="#fff"/>
+<text x="545.0" y="473.8" font-family="Times New Roman" font-size="14" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">cập nhật</text>
+<polyline points="700.0,408.0 735.0,408.0 735.0,600.0 765.0,600.0" fill="none" stroke="#000" stroke-width="1.4" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="705.0" y="458.0" width="60.0" height="16.0" fill="#fff"/>
+<text x="735.0" y="470.0" font-family="Times New Roman" font-size="14" text-anchor="middle" font-weight="normal" font-style="italic" fill="#000">«create»</text></svg>

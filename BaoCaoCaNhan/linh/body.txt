@@ -1,0 +1,137 @@
+// Báo cáo cá nhân – Văn Thị Mai Linh (B23DCCN489): F01 Tài khoản, F02 Kết nối
+@H0 LỜI MỞ ĐẦU
+Lập trình mạng là học phần giúp sinh viên nắm vững cách các tiến trình trên những máy tính khác nhau trao đổi dữ liệu qua mạng: mô hình client – server, socket TCP, giao thức tầng ứng dụng, đa luồng và bảo mật đường truyền. Nhóm 04 vận dụng các kiến thức đó trong đề tài **“Darts Battle – Game ném phi tiêu đối kháng online”**, viết bằng Java/JavaFX, truyền thông qua socket TCP có mã hóa TLS, lưu trữ trên MySQL và đã được đưa ra Internet.
+Trong nhóm, em phụ trách phần **kết nối mạng, xác thực và khung ứng dụng** (F01 Tài khoản, F02 Kết nối) – nền móng mà mọi chức năng khác dựa vào: kênh TCP/TLS ghim chứng chỉ, server đa luồng, đăng ký – đăng nhập – đăng xuất, heartbeat và tự kết nối lại, đưa server ra Internet qua WebSocket và Cloudflare Tunnel, cùng khung cửa sổ và các màn hình đăng nhập, đăng ký, trang chủ.
+Báo cáo gồm ba chương: Chương 1 giới thiệu ứng dụng, phân tích yêu cầu và nội dung cá nhân đảm nhận; Chương 2 trình bày thiết kế tổng quan và thiết kế chi tiết phần cá nhân; Chương 3 trình bày triển khai, cài đặt và kết quả. Em xin chân thành cảm ơn giảng viên bộ môn đã tận tình hướng dẫn.
+
+# GIỚI THIỆU VÀ PHÂN TÍCH YÊU CẦU
+## Giới thiệu ứng dụng
+### Bối cảnh và mục tiêu
+@ORIG 50-51
+### Luật chơi
+Trò chơi áp dụng thể thức **301 straight-out** kết hợp bàn xoay: mỗi người bắt đầu với 301 điểm, luân phiên ném tối đa 3 phi tiêu mỗi lượt; đầu lượt server chọn ngẫu nhiên góc xoay của bàn, người chơi ngắm bằng hai vạch chạy X, Y. Điểm phi tiêu (Single, Double, Triple, 25, 50) được trừ dần; vượt quá điểm còn lại là BUST và không được tính. Người về đúng 0 điểm thắng; rời trận, mất kết nối hoặc hết 120 giây của lượt bị xử thua.
+### Công nghệ sử dụng
+@ORIG 61-62
+## Phân tích yêu cầu hệ thống
+### Tác nhân của hệ thống
+@ORIG 66-68
+### Yêu cầu chức năng
+@ORIG 70-71
+### Yêu cầu phi chức năng
+@ORIG 74-77
+## Nội dung cá nhân đảm nhận
+Mọi bản tin của sảnh chờ, trận đấu hay lịch sử đều đi qua kênh kết nối và chỉ được xử lý sau khi người dùng đã xác thực, vì vậy phần việc của em là nền móng của hệ thống, gồm:
+- **Khung dự án và bản tin dùng chung:** ba project Client/Server/Common; lớp Message { type, requestId, payload }, MessageType, DTO LoginRequest, AuthResponse và bộ lọc giải tuần tự hóa WireFilter.
+- **Kênh truyền bảo mật:** TransportSecurity tạo SSLContext server từ kho khóa PKCS12 và SSLContext client ghim chứng chỉ máy chủ (TLS 1.3/1.2); ConnectionSettings đọc sẵn địa chỉ máy chủ từ bộ cài.
+- **Server đa luồng:** mỗi socket một luồng Client với luồng đọc và luồng ghi riêng qua hàng đợi BlockingQueue.
+- **Tài khoản (F01):** UserController, PasswordHasher (PBKDF2WithHmacSHA256, salt 16 byte, 210 000 vòng), chặn đăng nhập trùng qua ClientManager; thiết kế bảng users.
+- **Kết nối (F02):** SocketHandler tự kết nối, PING 5 giây/lần, tự kết nối lại; WebSocketSocket/WebSocketBridge đi qua Cloudflare Tunnel; cài server thành dịch vụ nền.
+- **Khung giao diện và kiểm thử:** Main.setRoot() điều hướng các màn hình FXML trong một cửa sổ; màn hình đăng nhập, đăng ký, trang chủ; kiểm thử TLS, đăng nhập, điều hướng.
+
+# PHÂN TÍCH THIẾT KẾ HỆ THỐNG
+## Kiến trúc tổng quan
+@ORIG 84-87
+@IMG img/image3.png | 14.5 | Kiến trúc tổng quan của hệ thống Darts Battle
+Mỗi client duy trì **một kết nối TCP lâu dài** với server trong suốt phiên chơi, nhờ đó server có thể chủ động đẩy dữ liệu xuống (lời mời, nước ném của đối thủ, danh sách online) thay vì chờ client hỏi. Server áp dụng mô hình **thread-per-client**: mỗi kết nối có một luồng đọc và một luồng ghi lấy dữ liệu từ hàng đợi, nên nhiều luồng (đối thủ, Bot, bộ hẹn giờ) có thể cùng gửi cho một client mà không làm lẫn byte trên socket, và một client mạng chậm không làm chậm cả server.
+@ORIG 91
+## Giao thức truyền thông
+Đơn vị truyền là đối tượng **Message { type, requestId, payload }**; type thuộc MessageType, payload là DTO tương ứng. Bảng dưới liệt kê các bản tin thuộc phần tài khoản và kết nối; các bản tin của sảnh chờ, trận đấu, lịch sử dùng chung định dạng này.
+@TABLE Các bản tin thuộc phần tài khoản và kết nối | 3,1.3,4.5
+| Bản tin | Chiều | Payload / ý nghĩa |
+| REGISTER_REQUEST | C → S | LoginRequest(username, password): đăng ký tài khoản |
+| REGISTER_RESULT | S → C | AuthResponse(success, userId = -1, username, message) |
+| LOGIN_REQUEST | C → S | LoginRequest(username, password): đăng nhập |
+| LOGIN_RESULT | S → C | AuthResponse(success, userId, username, message) |
+| LOGOUT_REQUEST / LOGOUT_RESULT | C → S / S → C | Đăng xuất; server trả "SUCCESS" |
+| ONLINE_LIST | S → C | Danh sách người online, phát lại sau mỗi lần đăng nhập/đăng xuất |
+| PING / PONG | C → S / S → C | Heartbeat 5 giây/lần, giữ kết nối và phát hiện rớt mạng |
+| ERROR | S → C | Báo lỗi, ví dụ “Bạn cần đăng nhập.”, “Tài khoản đang đăng nhập ở máy khác.” |
+Trước khi đăng nhập, server chỉ chấp nhận PING, REGISTER_REQUEST, LOGIN_REQUEST và LOGOUT_REQUEST; mọi bản tin khác bị trả ERROR “Bạn cần đăng nhập.”. Ngoài ra luồng đọc chỉ giải tuần tự hóa các lớp nằm trong danh sách trắng của WireFilter, giới hạn độ sâu đối tượng và kích thước mảng để chống tấn công qua dữ liệu tuần tự hóa.
+## Sơ đồ khối chức năng của Client
+@ORIG 101
+@IMG img/image5.png | 13 | Sơ đồ khối chức năng của Client
+## Sơ đồ khối chức năng của Server
+Server gồm sáu khối: **Mạng & kết nối** nhận kết nối và định tuyến bản tin theo MessageType; **Xác thực & phiên** quản lý tài khoản và danh sách online (phần em phụ trách); **Sảnh & phòng**; **Xử lý trận đấu** thực thi luật chơi và điều khiển Bot; **Dữ liệu & thống kê** ghi, truy vấn MySQL; **Đa phương tiện** chuyển tiếp tín hiệu cuộc gọi. Một luồng bảo trì chạy mỗi giây để hủy lời mời quá hạn và xử thua người hết giờ.
+@IMG img/image6.png | 13.5 | Sơ đồ khối chức năng của Server
+## Biểu đồ Use case tổng quan
+@ORIG 109
+@IMG img/image7.png | 11 | Biểu đồ Use case tổng quan của hệ thống
+## Phân tích thiết kế chi tiết chức năng cá nhân
+### Use case chi tiết
+Khách thực hiện Đăng ký và Đăng nhập; cả hai bao gồm (include) Kết nối máy chủ qua TLS có ghim chứng chỉ – được ứng dụng tự thực hiện khi mở. Kết nối máy chủ bao gồm duy trì heartbeat và được mở rộng (extend) bởi Tự kết nối lại. Đăng nhập bao gồm Kiểm tra mật khẩu PBKDF2 và được mở rộng bởi Từ chối đăng nhập trùng. Người chơi có thêm Đăng xuất và Xem trang chủ.
+@IMG diagrams/usecase_chitiet.png | 14 | Biểu đồ use case chi tiết nhóm chức năng Tài khoản và Kết nối
+@TABLE Kịch bản use case Đăng nhập | 2.2,7.8
+| Mục | Nội dung |
+| Tác nhân | Khách |
+| Tiền điều kiện | Ứng dụng đã kết nối, bắt tay TLS thành công (trạng thái “Đã kết nối”); khách đã có tài khoản. |
+| Luồng chính | 1. Khách nhập tên, mật khẩu, nhấn Đăng nhập; client gửi LOGIN_REQUEST và khóa nút chờ phản hồi.<br>2. Server kiểm tra định dạng (tên 3–32 ký tự chữ, số, “_”; mật khẩu 6–128 ký tự).<br>3. Server tìm username trong bảng users, so khớp mật khẩu bằng PasswordHasher.verify().<br>4. LobbyService.login() thêm phiên vào ClientManager, trả LOGIN_RESULT kèm userId, phát ONLINE_LIST.<br>5. Client ghi nhớ tên đăng nhập (không lưu mật khẩu), chuyển sang trang chủ. |
+| Luồng phụ | 2a. Sai định dạng: server trả ERROR.<br>3a. Sai tên hoặc mật khẩu: LOGIN_RESULT thất bại “Sai tên đăng nhập hoặc mật khẩu.”; lỗi CSDL: thất bại, yêu cầu thử lại.<br>4a. Tài khoản đang đăng nhập ở máy khác: giữ phiên cũ, trả ERROR. |
+| Hậu điều kiện | Kết nối gắn với userId; người chơi xuất hiện trong danh sách online (IDLE). |
+### Biểu đồ lớp
+Phía client, lớp trung tâm là **SocketHandler**: giữ kết nối hiện tại (lớp nội Connection), luồng heartbeat và luồng kết nối; controller chỉ gọi login(), register(), logout(), phản hồi được receive() đưa về luồng giao diện bằng Platform.runLater. Lớp màu xanh lá thuộc Common, dùng chung với server.
+@IMG diagrams/class_client.png | 12 | Biểu đồ lớp phía Client cho chức năng tài khoản và kết nối
+Phía server, mỗi kết nối là một đối tượng **Client** (kế thừa Thread), chuyển bản tin tài khoản cho UserController; UserController dùng DBConnection, PasswordHasher rồi gọi LobbyService. ClientManager lưu ánh xạ userId → Client trong ConcurrentHashMap, phép putIfAbsent bảo đảm mỗi tài khoản một phiên. WebSocketBridge chuyển luồng byte (vẫn mã hóa TLS) từ Cloudflare Tunnel tới cổng TLS cục bộ.
+@IMG diagrams/class_server.png | 12 | Biểu đồ lớp phía Server cho chức năng tài khoản và kết nối
+### Biểu đồ tuần tự
+**Đăng nhập.** Khi màn hình đăng nhập mở, client tự kết nối và bắt tay TLS, kiểm tra chứng chỉ máy chủ trùng với chứng chỉ ghim; sai chứng chỉ thì dừng ngay, không có đường lui về kết nối không mã hóa. Sau đó bản tin LOGIN_REQUEST đi qua luồng Client tới UserController; mật khẩu được kiểm tra với giá trị băm trong CSDL và ClientManager chặn đăng nhập trùng trước khi trả kết quả.
+@IMG diagrams/seq_dangnhap.png | 12.5 | Biểu đồ tuần tự chức năng Đăng nhập
+Luồng **đăng ký** tương tự: server kiểm tra định dạng, băm mật khẩu bằng PasswordHasher.hash() với salt ngẫu nhiên rồi INSERT vào bảng users; trùng tên (vi phạm UNIQUE, kể cả khi hai người đăng ký cùng lúc) thì trả REGISTER_RESULT “Tên đăng nhập đã tồn tại.”.
+**Mất kết nối và tự kết nối lại.** Client gửi PING mỗi 5 giây; server đặt thời gian chờ đọc 45 giây, client 35 giây. Khi rớt mạng, phía server luồng Client gặp SocketTimeoutException, gọi LobbyService.logout(…, "DISCONNECT") để gỡ phiên, xử thua nếu đang trong trận và cập nhật danh sách online. Phía client, failed() xóa trạng thái phiên, đưa về màn hình đăng nhập và bộ hẹn giờ heartbeat liên tục gọi ensureConnected() cho tới khi kết nối lại được.
+@IMG diagrams/seq_matketnoi.png | 11.5 | Biểu đồ tuần tự phát hiện mất kết nối và tự kết nối lại
+### Sơ đồ thực thể quan hệ (ER)
+CSDL dart_socket_game gồm ba bảng, được DBConnection.initialize() tự tạo và nâng cấp khi server khởi động. Bảng **users** do em thiết kế: id (BIGINT tự tăng) là khóa chính; username là khóa duy nhất dùng để đăng nhập; password_hash lưu chuỗi “số vòng:salt:hash” dạng Base64, không bao giờ lưu mật khẩu gốc; created_at là thời điểm tạo tài khoản. Bảng matches và match_throws tham chiếu users.id: player1_id là khóa ngoại bắt buộc, còn player2_id và match_throws.player_id cho phép NULL (ON DELETE SET NULL) vì đối thủ hoặc người ném có thể là Bot.
+@IMG diagrams/er.png | 12.5 | Sơ đồ thực thể quan hệ của cơ sở dữ liệu
+
+# KẾT QUẢ THỰC HIỆN
+## Kiến trúc ứng dụng triển khai
+@ORIG 124
+@IMG img/image8.png | 14.5 | Kiến trúc triển khai của ứng dụng: Server, Client và người chơi
+@ORIG 127
+## Cài đặt và triển khai ứng dụng
+### Yêu cầu môi trường
+@ORIG 130-131
+### Cài đặt và khởi động máy chủ
+- **Bước 1 – Chuẩn bị:** kiểm tra JDK 17+ và Python 3, sao chép kho mã nguồn từ GitHub.
+- **Bước 2 – CSDL:** tạo CSDL dart_socket_game (utf8mb4) và tài khoản riêng cho game trong MySQL; các bảng users, matches, match_throws được server tự tạo ở lần chạy đầu.
+- **Bước 3 – Biên dịch:** chạy script scripts/desktop.py để tải thư viện còn thiếu và tạo darts-server.jar, darts-client.jar.
+- **Bước 4 – Cấu hình và khởi động:** thông tin CSDL, cổng và kho khóa TLS được truyền qua biến môi trường (DARTS_DB_URL, DARTS_DB_USER, DARTS_DB_PASSWORD, DARTS_PORT, DARTS_TLS_KEYSTORE, DARTS_TLS_PASSWORD), không ghi trong mã nguồn. Server kiểm tra bảng rồi báo sẵn sàng nhận kết nối TLS (Hình dưới).
+@IMG img/image12.png | 13 | Khởi động Game Server với kết nối TLS
+- **Bước 5 – Chạy nền và đưa ra Internet:** cài server thành dịch vụ launchd bằng python3 scripts/install-server-service.py để tự khởi động cùng hệ thống và tự chạy lại khi lỗi; thiết lập Cloudflare Tunnel cho tên miền bằng python3 scripts/connect-cloudflare.py (tunnel trỏ vào WebSocketBridge tại 127.0.0.1:8444); kiểm tra đầu-cuối bằng python3 scripts/desktop.py probe, kết quả mong đợi là TLS được ghim và nhận được PONG.
+### Đóng gói và cài đặt Client
+Client Windows x64 được workflow GitHub Actions đóng gói bằng jpackage kèm JRE thành DartsBattle-windows.zip và phát hành trên GitHub Releases. Người chơi chỉ cần giải nén và mở DartsBattle.exe: địa chỉ máy chủ, kiểu kết nối WSS và chứng chỉ ghim đã nằm sẵn trong gói, nên ứng dụng tự kết nối và hiển thị trạng thái “Đã kết nối” trên màn hình đăng nhập.
+## Các kết quả thực hiện được
+### Các chức năng đã hoàn thành
+@ORIG 186-187
+### Giao diện các chức năng cá nhân phụ trách
+**Đăng ký và đăng nhập.** Màn hình đăng ký (liên kết “Chưa có tài khoản? Đăng ký”) và đăng nhập dùng chung bố cục; nút chỉ bật khi đã kết nối; ứng dụng chỉ ghi nhớ tên đăng nhập, không lưu mật khẩu. Khi mất kết nối, nhãn trạng thái chuyển sang “Đã mất kết nối. Đang tự kết nối lại...” và tự phục hồi.
+@IMG img/image18.jpeg | 11 | Màn hình đăng nhập: tự kết nối, trạng thái “Đã kết nối”
+**Trang chủ.** Sau khi đăng nhập, người chơi vào sảnh chính với lối vào các chế độ chơi, bảng xếp hạng, lịch sử và nút đăng xuất; mọi màn hình được thay trong cùng một cửa sổ bằng Main.setRoot() nên kích thước và vị trí cửa sổ được giữ nguyên.
+@IMG img/image19.jpeg | 10 | Sảnh chính (trang chủ) sau khi đăng nhập
+### Kết quả kiểm thử
+Các bộ kiểm thử tự động khởi động server thật với CSDL H2 trong bộ nhớ (chế độ tương thích MySQL) và socket loopback thật. Kết quả lần chạy gần nhất (23/11/2026) với các nội dung liên quan đến phần cá nhân:
+@TABLE Kết quả kiểm thử phần tài khoản và kết nối | 2.4,5.6,1.6
+| Bộ kiểm thử | Nội dung kiểm tra | Kết quả |
+| TlsIntegrationTest | Bắt tay TLS 1.3/1.2; PING/PONG mã hóa tới Client thật; 10 PING qua TLS bọc trong WebSocket; từ chối chứng chỉ lạ và luồng không mã hóa; thiếu chứng chỉ thì dừng | 17/17 đạt |
+| MultiplayerIntegrationTest (TCP) | Đăng ký, đăng nhập; đăng nhập trùng bị từ chối và giữ phiên cũ; sai mật khẩu bị từ chối; payload sai không làm rớt phiên; ngắt kết nối thì gỡ phiên (cùng các kịch bản gameplay) | 359/359 đạt |
+| Gameplay qua WebSocket + TLS | Chạy lại toàn bộ kịch bản trên qua kênh WSS có TLS ghim chứng chỉ | 359/359 đạt |
+| WindowNavigationTest | Điều hướng các màn hình ở chế độ thường, phóng to, toàn màn hình mà cửa sổ giữ nguyên vị trí, kích thước | Đạt |
+| Thử nghiệm thủ công | Hai client Windows kết nối qua Internet (Cloudflare Tunnel): tự kết nối, đăng ký, đăng nhập, vào trang chủ, chơi và đăng xuất | Hoạt động đúng |
+## Đánh giá và hướng phát triển
+**Ưu điểm:** người chơi không phải cấu hình gì vẫn kết nối được qua Internet; đường truyền được mã hóa đầu-cuối và xác thực máy chủ bằng chứng chỉ ghim, Cloudflare chỉ chuyển tiếp dữ liệu đã mã hóa; mật khẩu được băm có salt; mỗi tài khoản chỉ có một phiên; mất kết nối được phát hiện và xử lý ở cả hai phía.
+**Hạn chế:** khi rớt mạng, trận đang chơi kết thúc và người chơi phải đăng nhập lại; chưa có chức năng đổi hoặc khôi phục mật khẩu; chưa giới hạn số lần đăng nhập sai liên tiếp.
+**Hướng phát triển:** cấp mã phiên (session token) để tự đăng nhập lại và quay về trận cũ sau khi rớt mạng; bổ sung đổi mật khẩu, khóa tạm thời khi đăng nhập sai nhiều lần; hỗ trợ xoay vòng chứng chỉ máy chủ mà không phải phát hành lại client.
+
+@H0 KẾT LUẬN
+Qua đề tài Darts Battle, em đã hoàn thành phần kết nối mạng, xác thực và khung ứng dụng: kênh TCP có TLS và ghim chứng chỉ, server thread-per-client với hàng đợi ghi riêng, giao thức bản tin dùng chung có lọc giải tuần tự hóa, đăng ký – đăng nhập – đăng xuất với mật khẩu PBKDF2 và chặn đăng nhập trùng, heartbeat và tự kết nối lại, đưa server ra Internet qua WebSocket và Cloudflare Tunnel. Các chức năng đã qua kiểm thử tự động và chạy thực tế giữa các máy qua Internet. Qua đó em hiểu sâu hơn về lập trình socket, đa luồng, bảo mật đường truyền và cách phối hợp nhóm qua một giao thức chung.
+
+@H0 TÀI LIỆU THAM KHẢO
+@REF Oracle, “Java Platform, Standard Edition 17 API Specification – java.net, javax.net.ssl, java.io”, https://docs.oracle.com/en/java/javase/17/docs/api/
+@REF Oracle, “Java Object Serialization Filtering (ObjectInputFilter), JDK 17”, https://docs.oracle.com/en/java/javase/17/core/serialization-filtering1.html
+@REF OpenJFX, “Getting Started with JavaFX”, https://openjfx.io/openjfx-docs/
+@REF E. Harold, Java Network Programming, 4th ed., O’Reilly Media, 2013.
+@REF J. F. Kurose, K. W. Ross, Computer Networking: A Top-Down Approach, 8th ed., Pearson, 2021.
+@REF E. Rescorla, “The Transport Layer Security (TLS) Protocol Version 1.3”, RFC 8446, IETF, 2018.
+@REF I. Fette, A. Melnikov, “The WebSocket Protocol”, RFC 6455, IETF, 2011.
+@REF K. Moriarty et al., “PKCS #5: Password-Based Cryptography Specification Version 2.1”, RFC 8018, IETF, 2017.
+@REF Cloudflare, “Cloudflare Tunnel documentation”, https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+@REF Oracle, “MySQL 8.4 Reference Manual”, https://dev.mysql.com/doc/refman/8.4/en/

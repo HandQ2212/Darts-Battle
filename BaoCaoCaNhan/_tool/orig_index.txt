@@ -1,0 +1,206 @@
+38	text	[Ghi chú: kiểm tra lại tỉ lệ đóng góp thực tế trước khi nộp; bôi đậm tên của cá nhân viết báo cáo.]
+39	H0	LỜI MỞ ĐẦU
+40	text	Lập trình mạng là học phần giúp sinh viên nắm vững cách các tiến trình trên những máy tính khác nhau trao đổi dữ liệu với nhau thông qua mạng máy tính: từ mô hình client – server, lập trình socket TCP/UDP, thiết kế giao thức tầng ứng dụng, xử lý đa luồng cho tới bảo mật đường truyền. Để vận dụng các kiến thức đó vào một sản phẩm cụ thể, nhóm 04 lựa chọn đề tài “Darts Battle – Game ném phi tiêu đối kháng online”.
+41	text	Trò chơi theo lượt là bài toán điển hình của lập trình mạng: nhiều người chơi ở các máy khác nhau phải thấy cùng một trạng thái trận đấu, mọi thao tác phải được đồng bộ gần như tức thời, máy chủ phải phục vụ đồng thời nhiều kết nối và phải xử lý được các tình huống như rớt mạng, gửi lệnh trùng hay gian lận. Darts Battle được xây dựng bằng Java, giao diện JavaFX, truyền thông qua socket TCP có mã hóa TLS và lưu trữ dữ liệu trên MySQL; hệ thống đã được triển khai để người chơi có thể kết nối qua Internet mà không cần nhập địa chỉ IP.
+42	text	Báo cáo gồm ba chương:
+43	bullet	Chương 1 – Giới thiệu và phân tích yêu cầu: giới thiệu ứng dụng, luật chơi, công nghệ sử dụng, các yêu cầu chức năng và phi chức năng, nội dung cá nhân đảm nhận.
+44	bullet	Chương 2 – Phân tích thiết kế hệ thống: kiến trúc tổng quan, giao thức truyền thông, sơ đồ khối chức năng của Client và Server, biểu đồ Use case tổng quan và thiết kế chi tiết phần cá nhân.
+45	bullet	Chương 3 – Kết quả thực hiện: kiến trúc triển khai, cách cài đặt, các chức năng đã hoàn thành và kết quả kiểm thử.
+46	text	Nhóm xin chân thành cảm ơn giảng viên bộ môn đã hướng dẫn trong suốt quá trình thực hiện. Do thời gian và kinh nghiệm còn hạn chế, báo cáo không tránh khỏi thiếu sót; nhóm rất mong nhận được góp ý để hoàn thiện sản phẩm.
+47	H1	GIỚI THIỆU VÀ PHÂN TÍCH YÊU CẦU
+48	H2	Giới thiệu ứng dụng
+49	H3	Bối cảnh và mục tiêu
+50	text	Darts Battle là trò chơi mô phỏng môn ném phi tiêu (darts) chạy trên máy tính, cho phép hai người chơi ở hai máy khác nhau thi đấu trực tiếp với nhau qua mạng (PvP) hoặc một người chơi đấu với Bot do máy chủ điều khiển (PvE). Ngoài trận đấu, ứng dụng cung cấp các chức năng cộng đồng như danh sách người đang online, mời đấu, trò chuyện, gọi thoại/video trong trận, bảng xếp hạng và lịch sử thi đấu chi tiết đến từng phi tiêu.
+51	text	Mục tiêu kỹ thuật của đề tài là xây dựng một hệ thống client – server hoàn chỉnh, trong đó máy chủ giữ toàn quyền quyết định (authoritative server): client chỉ gửi “ý định” của người chơi (ví dụ: ném vào tọa độ x, y), còn việc kiểm tra lượt, tính điểm, đổi lượt và xác định thắng thua đều do server thực hiện rồi gửi kết quả đã xác thực về cho mọi client liên quan. Cách tiếp cận này giúp chống gian lận và bảo đảm hai người chơi luôn nhìn thấy cùng một trạng thái trận đấu.
+52	H3	Luật chơi
+53	text	Trò chơi áp dụng thể thức 301 straight-out quen thuộc của môn phi tiêu, kết hợp cơ chế bàn xoay để tăng tính thử thách:
+54	bullet	Mỗi người chơi bắt đầu với 301 điểm; hai bên luân phiên lượt, mỗi lượt ném tối đa 3 phi tiêu.
+55	bullet	Đầu mỗi lượt, server chọn ngẫu nhiên một góc xoay nguyên trong khoảng 0–359°; bàn phi tiêu phóng to, xoay nhiều vòng trong khoảng 2,8 giây rồi dừng ở góc đó. Chỉ khi bàn dừng hẳn người chơi mới được ném.
+56	bullet	Người chơi ngắm bằng hai vạch chạy: nhấp chuột lần thứ nhất để chốt tọa độ X, lần thứ hai để chốt tọa độ Y; giao điểm của hai vạch là vị trí phi tiêu.
+57	bullet	Điểm của một phi tiêu: vùng Single bằng điểm gốc của ô (1–20), Double gấp đôi, Triple gấp ba, Outer bull 25 điểm, Bullseye 50 điểm, ngoài bàn 0 điểm.
+58	bullet	Điểm phi tiêu được trừ vào điểm còn lại. Nếu điểm lớn hơn điểm còn lại (BUST) thì phi tiêu đó không được tính nhưng vẫn mất một lượt ném. Người về đúng 0 điểm thắng ngay lập tức.
+59	bullet	Người rời trận, mất kết nối hoặc hết thời gian lượt (120 giây) bị xử thua.
+60	H3	Công nghệ sử dụng
+61	TABLE-CAPTION	Công nghệ và công cụ sử dụng trong dự án
+62	TABLE	Thành phầnCông nghệVai tròNgôn ngữJava 17Ngôn ngữ chính cho cả Client, Server và thư viện CommonGiao diệnJavaFX (FXML, CSS)Xây dựng giao diện desktop, hiệu ứng bàn xoay, phi tiêuTruyền thôngSocket TCP, Java Object SerializationKết nối lâu dài, trao đổi đối tượng Message giữa Client – ServerBảo mậtTLS 1.2/1.3, certificate pinning, PBKDF2Mã hóa đường truyền, xác thực máy chủ, băm mật khẩuInternetWebSocket (WSS), Cloudflare TunnelĐưa máy chủ sau NAT ra Internet qua tên miềnĐa phương tiệnWebRTC, Cloudflare TURN/STUNGọi thoại/video P2P giữa hai người chơiCơ sở dữ liệuMySQL 8, JDBCLưu người dùng, trận đấu, từng phi tiêuKiểm thử, đóng góiH2 (in-memory), jpackage, GitHub ActionsKiểm thử tích hợp, đóng gói ứng dụng Windows kèm JRE
+63	p	
+64	H2	Phân tích yêu cầu hệ thống
+65	H3	Tác nhân của hệ thống
+66	bullet	Khách: người đã cài ứng dụng nhưng chưa đăng nhập. Khách có thể đăng ký tài khoản, đăng nhập và cập nhật ứng dụng.
+67	bullet	Người chơi: người dùng đã đăng nhập thành công; có toàn bộ quyền của Khách cùng các chức năng sảnh chờ, thi đấu và thống kê.
+68	bullet	Bot: đối thủ ảo chạy ngay trên server, tự sinh tọa độ ném theo mức độ khó; Bot không phải tác nhân bên ngoài mà là một thành phần của hệ thống.
+69	H3	Yêu cầu chức năng
+70	TABLE-CAPTION	Danh sách yêu cầu chức năng
+71	TABLE	MãNhóm chức năngMô tảF01Tài khoảnĐăng ký (tên 3–32 ký tự, mật khẩu 6–128 ký tự), đăng nhập, đăng xuất; mỗi tài khoản chỉ có một phiên tại một thời điểm.F02Kết nốiClient tự kết nối tới máy chủ khi mở ứng dụng, tự kết nối lại khi mất mạng; người chơi không phải nhập IP/cổng.F03Sảnh chờHiển thị danh sách người chơi online kèm trạng thái (rảnh, đang được mời, đang trong trận), cập nhật theo thời gian thực.F04Mời đấu PvPGửi lời mời, nhận thông báo, chấp nhận hoặc từ chối; lời mời tự hết hạn sau 30 giây; không mời chính mình hoặc người đang bận.F05Chơi với BotTạo trận PvE với 4 mức độ khó: Dễ, Trung bình, Khó, Cực khó.F06Thi đấuBàn xoay đầu lượt, ngắm X/Y và ném; server tính điểm, đổi lượt, xác định thắng thua; hiển thị điểm, lượt, lịch sử ném.F07Tương tác trong trậnChat văn bản, gọi thoại/video giữa hai người chơi, rời trận, chơi lại nhiều ván trong một phiên.F08Xếp hạngBảng xếp hạng PvP sắp xếp theo số trận thắng; trang thông tin người chơi.F09Lịch sửXem lịch sử trận PvP và PvE của bản thân, xem chi tiết từng lượt và từng phi tiêu của một trận.F10Cập nhậtKiểm tra và tải bản cập nhật, xác minh chữ ký trước khi cài đặt.
+72	p	
+73	H3	Yêu cầu phi chức năng
+74	bullet	Tính nhất quán: server là nơi duy nhất thay đổi trạng thái trận; lệnh trùng (cùng requestId) không được xử lý hai lần; client bỏ qua sự kiện cũ dựa trên số phiên bản (version) của trạng thái.
+75	bullet	Đồng thời: phục vụ nhiều client và nhiều trận cùng lúc; các trận khác nhau chạy độc lập, không chặn lẫn nhau.
+76	bullet	Tin cậy: phát hiện mất kết nối bằng heartbeat (PING mỗi 5 giây, hết hạn sau 45 giây); trận đấu luôn kết thúc đúng một lần với lý do rõ ràng.
+77	bullet	Bảo mật: mã hóa TLS và ghim chứng chỉ máy chủ, mật khẩu băm PBKDF2 có salt, truy vấn bằng PreparedStatement, chỉ cho phép giải tuần tự hóa các lớp trong danh sách trắng.
+78	bullet	Hiệu năng và trải nghiệm: giao diện không bị treo khi chờ mạng; ghi lịch sử vào CSDL bất đồng bộ để không làm chậm trận đấu.
+79	bullet	Triển khai: client đóng gói kèm môi trường chạy Java, người chơi chỉ cần giải nén và mở ứng dụng.
+80	H2	Nội dung cá nhân đảm nhận
+81	text	[Phần cá nhân – mỗi thành viên tự viết: giới thiệu phần việc mình phụ trách trong tổng thể hệ thống, các chức năng, lớp và bản tin liên quan, vai trò của phần việc đó đối với toàn bộ ứng dụng.]
+82	H1	PHÂN TÍCH THIẾT KẾ HỆ THỐNG
+83	H2	Kiến trúc tổng quan
+84	text	Hệ thống được thiết kế theo mô hình client – server, gồm ba project Java tách biệt (Hình bên dưới):
+85	bullet	DartGame_Client: ứng dụng desktop JavaFX theo mô hình MVC. View là các tệp FXML/CSS; Controller xử lý thao tác người dùng; SocketHandler đảm nhiệm toàn bộ việc gửi/nhận bản tin. Client không tự tính điểm, chỉ hiển thị kết quả server gửi về.
+86	bullet	DartGame_Server: tiến trình máy chủ giữ toàn bộ trạng thái: người online, lời mời, phòng chơi, trạng thái trận; thực thi luật chơi, điều khiển Bot và ghi CSDL.
+87	bullet	DartGame_Common: thư viện dùng chung chứa định nghĩa bản tin (Message, MessageType, các DTO), bộ lọc giải tuần tự hóa WireFilter, lớp bảo mật đường truyền TransportSecurity và thông số hình học của bàn phi tiêu. Client và server phải được biên dịch cùng một phiên bản Common.
+88	IMAGE	
+89	FIG-CAPTION	Kiến trúc tổng quan của hệ thống Darts Battle
+90	text	Mỗi client duy trì một kết nối TCP lâu dài với server trong suốt phiên chơi. Nhờ kết nối luôn mở, server có thể chủ động đẩy dữ liệu xuống client bất cứ lúc nào (lời mời mới, đối thủ vừa ném, danh sách online thay đổi) thay vì chờ client hỏi như mô hình HTTP. Phía server áp dụng mô hình thread-per-client: mỗi kết nối được một luồng đọc riêng và một luồng ghi riêng lấy dữ liệu từ hàng đợi; nhờ đó nhiều luồng (đối thủ, Bot, bộ hẹn giờ) có thể cùng gửi cho một client mà không làm lẫn byte trên socket, và một client mạng chậm không làm chậm cả server. Mọi thay đổi trạng thái của một trận được thực hiện trong khối đồng bộ theo phòng (synchronized(room)), các phòng khác nhau vẫn chạy song song.
+91	text	Kênh truyền được phân thành nhiều tầng. Ứng dụng chỉ làm việc với đối tượng Message; Java Serialization chuyển đối tượng thành chuỗi byte; TLS mã hóa chuỗi byte đó; khi chơi qua Internet, luồng TLS được bọc thêm trong WebSocket để đi qua Cloudflare Tunnel. Vì lớp WebSocketSocket giả lập một Socket thông thường nên các tầng phía trên không phải thay đổi.
+92	IMAGE	
+93	FIG-CAPTION	Các tầng giao thức trên kênh truyền Client – Server
+94	H2	Giao thức truyền thông
+95	text	Đơn vị truyền là đối tượng Message { type, requestId, payload }, trong đó type thuộc kiểu liệt kê MessageType (khoảng 47 loại), payload là một DTO tương ứng. Bản tin chia thành hai nhóm: yêu cầu do client gửi lên và phản hồi/sự kiện do server gửi xuống. Bảng dưới liệt kê các bản tin chính.
+96	TABLE-CAPTION	Các bản tin chính của giao thức
+97	TABLE	Bản tinChiềuÝ nghĩaREGISTER_REQUEST / REGISTER_RESULTC → S / S → CĐăng ký tài khoản và kết quảLOGIN_REQUEST / LOGIN_RESULTC → S / S → CĐăng nhập; trả về userId, usernameLOGOUT_REQUEST / LOGOUT_RESULTC → S / S → CĐăng xuấtONLINE_LISTS → CDanh sách người online và trạng tháiINVITE_REQUEST, INVITE_ACCEPT, INVITE_REJECTC → SGửi, chấp nhận, từ chối lời mờiINVITE_RECEIVED / INVITE_RESULTS → CThông báo lời mời đến và kết quả lời mờiCREATE_BOT_MATCHC → STạo trận với Bot theo độ khóMATCH_STARTED, TURN_PREPARING, ROTATION_APPLIED, TURN_STARTEDS → CBắt đầu trận, góc xoay đầu lượt, cho phép némTHROW_COORDINATEC → STọa độ ném (matchId, turnId, dartIndex, requestId, x, y)THROW_RESOLVEDS → CKết quả phi tiêu đã xác thực, gửi cho cả hai bênMATCH_FINISHEDS → CKết thúc trận, người thắng và lý doCHAT_MESSAGEHai chiềuTin nhắn trong trậnLEAVE_MATCHC → SRời trận (bị xử thua)SESSION_READY / SESSION_LEAVE / SESSION_STATUSHai chiềuChơi lại nhiều ván trong một phiênGET_RANKING, GET_HISTORY, MATCH_DETAIL_REQUESTC → SYêu cầu xếp hạng, lịch sử, chi tiết trậnMEDIA_JOIN, MEDIA_DESCRIPTION, MEDIA_CANDIDATE…Hai chiềuBáo hiệu (signaling) cho cuộc gọi WebRTCPING / PONGC → S / S → CHeartbeat giữ kết nối, phát hiện rớt mạngERRORS → CBáo lỗi: sai lượt, dữ liệu không hợp lệ…
+98	p	
+99	text	Để bảo đảm tính nhất quán, mỗi lần ném mang một requestId duy nhất: nếu client gửi lặp, server trả lại kết quả cũ mà không trừ điểm lần hai. Mỗi ảnh chụp trạng thái trận (MatchSnapshot) có số version tăng dần; client bỏ qua các sự kiện có version cũ, trùng hoặc thuộc trận khác. Các trường turnId và dartIndex giúp server từ chối lệnh ném sai lượt hoặc đến muộn.
+100	H2	Sơ đồ khối chức năng của Client
+101	text	Client được tổ chức thành năm khối chức năng. Khối Kết nối & cập nhật chạy nền: tự kết nối tới máy chủ bằng TLS (qua WSS khi chơi Internet), gửi PING định kỳ và tự kết nối lại. Các khối còn lại tương ứng với các màn hình: tài khoản, sảnh chờ, trận đấu và thống kê. Mọi dữ liệu nhận từ mạng được chuyển về luồng giao diện JavaFX bằng Platform.runLater trước khi cập nhật màn hình.
+102	IMAGE	
+103	FIG-CAPTION	Sơ đồ khối chức năng của Client
+104	H2	Sơ đồ khối chức năng của Server
+105	text	Server gồm sáu khối chức năng. Khối Mạng & kết nối nhận kết nối và định tuyến bản tin tới các khối nghiệp vụ theo MessageType. Khối Xác thực & phiên quản lý tài khoản và danh sách online. Khối Sảnh & phòng quản lý lời mời và các phòng chơi trong bộ nhớ. Khối Xử lý trận đấu là trung tâm, thực thi luật chơi và điều khiển Bot. Khối Dữ liệu & thống kê ghi và truy vấn MySQL. Khối Đa phương tiện chỉ chuyển tiếp tín hiệu khởi tạo cuộc gọi; âm thanh/hình ảnh đi trực tiếp giữa hai client. Ngoài ra, một luồng bảo trì chạy mỗi giây để hủy lời mời quá hạn và xử thua người chơi hết thời gian lượt.
+106	IMAGE	
+107	FIG-CAPTION	Sơ đồ khối chức năng của Server
+108	H2	Biểu đồ Use case tổng quan
+109	text	Hệ thống có hai tác nhân. Khách chỉ có thể đăng ký, đăng nhập và cập nhật ứng dụng. Người chơi kế thừa toàn bộ chức năng của Khách và sử dụng các chức năng sảnh chờ, thi đấu, tương tác trong trận và thống kê. Các use case của Người chơi đều yêu cầu đã đăng nhập thành công.
+110	IMAGE	
+111	FIG-CAPTION	Biểu đồ Use case tổng quan của hệ thống
+112	H2	Phân tích thiết kế chi tiết chức năng cá nhân
+113	text	[Phần cá nhân – mỗi thành viên tự viết cho chức năng mình phụ trách.]
+114	H3	Use case chi tiết
+115	text	[Biểu đồ use case chi tiết và kịch bản (tác nhân, tiền điều kiện, luồng chính, luồng phụ, hậu điều kiện).]
+116	H3	Biểu đồ lớp
+117	text	[Biểu đồ lớp của các lớp phía Client và Server liên quan đến chức năng cá nhân.]
+118	H3	Biểu đồ tuần tự
+119	text	[Biểu đồ tuần tự trao đổi bản tin giữa Client – Server – CSDL cho các chức năng chính.]
+120	H3	Sơ đồ thực thể quan hệ (ER)
+121	text	[Sơ đồ ER các bảng liên quan (users, matches, match_throws) và giải thích các thuộc tính.]
+122	H1	KẾT QUẢ THỰC HIỆN
+123	H2	Kiến trúc ứng dụng triển khai
+124	text	Hệ thống được triển khai thực tế với một máy chủ macOS và các máy người chơi chạy Windows (Hình bên dưới). Máy chủ nằm sau NAT của mạng gia đình nên không có địa chỉ IP công khai; thay vì mở cổng router, nhóm sử dụng Cloudflare Tunnel: tiến trình cloudflared trên máy chủ chủ động tạo đường hầm đi ra Cloudflare, và tên miền game-backsite.handq2212.site được định tuyến vào đường hầm đó.
+125	IMAGE	
+126	FIG-CAPTION	Kiến trúc triển khai của ứng dụng: Server, Client và người chơi
+127	text	Luồng kết nối của một người chơi như sau: ứng dụng client mở kết nối wss://game-backsite.handq2212.site/play tới Cloudflare; Cloudflare chuyển dữ liệu qua đường hầm về WebSocketBridge (127.0.0.1:8444) trên máy chủ; bridge chuyển luồng byte sang Game Server TLS (127.0.0.1:8443). Bên trong WebSocket vẫn là một phiên TLS đầu-cuối giữa client và game server, client ghim chứng chỉ công khai của máy chủ nên Cloudflare chỉ chuyển tiếp dữ liệu đã mã hóa. Game server truy cập MySQL qua localhost; cổng CSDL không mở ra ngoài. Với cuộc gọi thoại/video, media đi P2P bằng WebRTC, khi hai mạng không kết nối trực tiếp được thì đi qua máy chủ TURN của Cloudflare. Bản cập nhật client được phát hành trên GitHub Releases kèm tệp kê khai có chữ ký số.
+128	H2	Cài đặt và triển khai ứng dụng
+129	H3	Yêu cầu môi trường
+130	TABLE-CAPTION	Yêu cầu môi trường cài đặt
+131	TABLE	Vai tròYêu cầuMáy phát triển / buildJDK 17 trở lên, Python 3, Git; JavaFX được script build tự tải theo hệ điều hànhMáy chủJDK 17+, MySQL 8.x, cloudflared (khi phục vụ qua Internet), chứng chỉ và khóa TLS riêngMáy người chơiWindows 10/11 x64; không cần cài Java, MySQL hay VPN vì gói ứng dụng đã kèm JRE
+132	p	
+133	H3	Cài đặt và khởi động máy chủ
+134	text	Bước 1 – Kiểm tra môi trường.
+135	text	Mở Terminal trên máy chủ và kiểm tra phiên bản Java (yêu cầu từ 17 trở lên) và Python 3.
+136	IMAGE	
+137	FIG-CAPTION	Kiểm tra phiên bản Java và Python trên máy chủ
+138	text	Bước 2 – Tải mã nguồn.
+139	text	Sao chép kho mã nguồn từ GitHub và chuyển sang nhánh phát triển. Thư mục dự án gồm ba project DartGame_Common, DartGame_Client, DartGame_Server cùng các script build trong thư mục scripts.
+140	IMAGE	
+141	FIG-CAPTION	Tải mã nguồn dự án từ GitHub
+142	text	Bước 3 – Chuẩn bị cơ sở dữ liệu.
+143	text	Đăng nhập MySQL bằng tài khoản quản trị, tạo CSDL và tài khoản riêng cho game. Các bảng users, matches, match_throws sẽ được server tự tạo ở lần chạy đầu tiên.
+144	p	CREATE DATABASE IF NOT EXISTS dart_socket_game CHARACTER SET utf8mb4;
+145	p	CREATE USER IF NOT EXISTS 'darts'@'localhost' IDENTIFIED BY '<mật_khẩu>';
+146	p	GRANT ALL PRIVILEGES ON dart_socket_game.* TO 'darts'@'localhost';
+147	text	Bước 4 – Biên dịch.
+148	text	Chạy script build: script tự tải các thư viện còn thiếu (Java-WebSocket, SLF4J, JavaFX, WebRTC) và tạo hai tệp darts-server.jar, darts-client.jar.
+149	IMAGE	
+150	FIG-CAPTION	Biên dịch Server và Client bằng script desktop.py
+151	text	Bước 5 – Cấu hình và khởi động server.
+152	text	Thông tin kết nối CSDL, cổng và kho khóa TLS được truyền qua biến môi trường (DARTS_DB_URL, DARTS_DB_USER, DARTS_DB_PASSWORD, DARTS_PORT, DARTS_TLS_KEYSTORE, DARTS_TLS_PASSWORD), không ghi trong mã nguồn. Khi khởi động, server kiểm tra/tạo bảng rồi báo sẵn sàng nhận kết nối TLS. Trên máy chủ thật có thể chạy bằng lệnh python3 scripts/desktop.py run server.
+153	IMAGE	
+154	FIG-CAPTION	Khởi động Game Server với kết nối TLS
+155	text	Bước 6 – Chạy kiểm thử tự động.
+156	text	Trước khi đưa vào sử dụng, chạy bộ kiểm thử tích hợp để xác nhận luật chơi, giao thức và CSDL hoạt động đúng.
+157	IMAGE	
+158	FIG-CAPTION	Kết quả chạy bộ kiểm thử tự động
+159	text	Bước 7 – Đưa máy chủ ra Internet.
+160	bullet	Cài server thành dịch vụ chạy nền (launchd) bằng python3 scripts/install-server-service.py để tự khởi động cùng hệ thống và tự chạy lại khi lỗi.
+161	bullet	Thiết lập Cloudflare Tunnel cho tên miền bằng python3 scripts/connect-cloudflare.py; kiểm tra đầu-cuối bằng python3 scripts/desktop.py probe (kết quả mong đợi: TLS được ghim và nhận được PONG).
+162	bullet	Tùy chọn: cấu hình khóa TURN của Cloudflare trong .local/turn.properties để hỗ trợ cuộc gọi qua các mạng khó kết nối.
+163	H3	Đóng gói và cài đặt Client
+164	text	Bước 1 – Đóng gói tự động trên GitHub Actions.
+165	text	Mỗi lần đẩy mã lên nhánh phát triển, workflow Desktop packages chạy kiểm thử và đóng gói client Windows x64 bằng jpackage (kèm JRE). Kết quả là tệp DartsBattle-windows.zip.
+166	IMAGE	
+167	FIG-CAPTION	Các lần chạy workflow đóng gói trên GitHub Actions
+168	text	Bước 2 – Tải bản phát hành.
+169	text	Bản phát hành được đăng trên GitHub Releases gồm gói DartsBattle-windows.zip và tệp kê khai darts-update.txt có chữ ký số (dùng cho chức năng tự cập nhật). Người chơi tải tệp ZIP về máy.
+170	IMAGE	
+171	FIG-CAPTION	Trang phát hành phiên bản 2.5.3 trên GitHub Releases
+172	text	Bước 3 – Giải nén và mở ứng dụng.
+173	text	Giải nén toàn bộ tệp ZIP (gồm DartsBattle.exe, thư mục app và runtime), sau đó mở DartsBattle.exe. Ứng dụng tự kết nối tới máy chủ đã cấu hình sẵn; khi kết nối thành công, màn hình đăng nhập hiển thị trạng thái “Đã kết nối”.
+174	IMAGE	
+175	FIG-CAPTION	Màn hình đầu tiên khi mở ứng dụng: tự kết nối tới máy chủ
+176	text	Bước 4 – Đăng ký tài khoản.
+177	text	Lần đầu sử dụng, người chơi chọn “Chưa có tài khoản? Đăng ký”, nhập tên đăng nhập (3–32 ký tự chữ, số hoặc dấu gạch dưới) và mật khẩu (6–128 ký tự).
+178	IMAGE	
+179	FIG-CAPTION	Màn hình đăng ký tài khoản
+180	text	Bước 5 – Đăng nhập.
+181	text	Sau khi đăng ký thành công, ứng dụng quay lại màn hình đăng nhập. Ứng dụng chỉ ghi nhớ tên đăng nhập, không lưu mật khẩu. Các phiên bản sau được cập nhật ngay trong ứng dụng (nút “Kiểm tra cập nhật”): client tải gói mới, kiểm tra chữ ký Ed25519 của tệp kê khai và mã băm SHA-256 trước khi cài.
+182	IMAGE	
+183	FIG-CAPTION	Màn hình đăng nhập
+184	H2	Các kết quả thực hiện được
+185	H3	Các chức năng đã hoàn thành
+186	TABLE-CAPTION	Kết quả thực hiện các chức năng
+187	TABLE	Chức năngKết quảĐăng ký, đăng nhập, đăng xuấtHoàn thành; mật khẩu băm PBKDF2, chặn đăng nhập đồng thờiTự kết nối, tự kết nối lại qua InternetHoàn thành; TLS + WSS qua Cloudflare TunnelDanh sách online, mời đấu, hết hạn lời mờiHoàn thành; cập nhật trạng thái theo thời gian thựcTrận PvP: bàn xoay, ngắm X/Y, luật 301Hoàn thành; server tính điểm, chống lệnh trùng và sai lượtTrận PvE với Bot 4 mức độ khóHoàn thànhChat, gọi thoại/video trong trậnHoàn thành; WebRTC P2P, TURN khi cầnChơi lại nhiều ván trong một phiênHoàn thànhRời trận, mất kết nối, hết thời gian lượtHoàn thành; xử thua và lưu lý do kết thúcBảng xếp hạng, lịch sử, chi tiết trậnHoàn thành; xếp hạng chỉ tính trận PvPĐóng gói Windows, tự cập nhậtHoàn thành; phiên bản client 2.5.3
+188	p	
+189	H3	Giao diện các chức năng chính
+190	text	Các hình dưới đây được chụp từ ứng dụng thật khi chạy với hai tài khoản thử nghiệm NamHai và MinhHieu.
+191	text	Sảnh chính. Sau khi đăng nhập, người chơi vào sảnh chính với hai chế độ: chơi với bạn bè (PvP) và chơi với Bot (PvE), cùng lối vào bảng xếp hạng và lịch sử đấu.
+192	IMAGE	
+193	FIG-CAPTION	Sảnh chính của ứng dụng
+194	text	Danh sách online và lời mời. Màn hình “Chơi cùng bạn bè” hiển thị người đang online kèm trạng thái. Khi có người mời, một hộp thông báo xuất hiện với đồng hồ đếm ngược 30 giây và hai lựa chọn “Vào trận” hoặc “Để lần sau”.
+195	IMAGE	
+196	FIG-CAPTION	Danh sách người chơi online và hộp thoại nhận lời mời
+197	text	Trận đấu PvP. Hai bên thấy cùng một trạng thái: điểm còn lại, người đang đến lượt, vị trí các phi tiêu đã ném. Cột phải là khung trò chuyện; khung camera và các nút micro/camera dùng cho cuộc gọi WebRTC. Người chơi nhấp chuột để chốt vạch X, rồi nhấp lần nữa để chốt Y và ném.
+198	IMAGE	
+199	FIG-CAPTION	Màn hình trận đấu PvP với khung trò chuyện
+200	text	Lịch sử các lượt. Trong trận, người chơi có thể mở bảng lịch sử để xem điểm từng phi tiêu, tổng điểm bị trừ và điểm còn lại sau mỗi lượt của cả hai bên.
+201	IMAGE	
+202	FIG-CAPTION	Bảng lịch sử các lượt trong trận
+203	text	Kết thúc trận. Khi một bên về đúng 0 điểm, bỏ cuộc hoặc mất kết nối, server gửi MATCH_FINISHED; client hiển thị kết quả, lý do kết thúc và điểm cuối của hai bên.
+204	IMAGE	
+205	FIG-CAPTION	Màn hình kết quả khi đối thủ bỏ cuộc
+206	text	Chơi với Bot. Người chơi chọn một trong bốn mức độ khó; Bot chạy trên server và ném theo đúng luật như người thật.
+207	IMAGE	
+208	FIG-CAPTION	Hộp thoại chọn độ khó của Bot
+209	IMAGE	
+210	FIG-CAPTION	Trận đấu với Bot mức Trung bình
+211	text	Bảng xếp hạng. Xếp hạng người chơi theo số trận thắng PvP; người chơi xem được thứ hạng của mình và mở lịch sử của từng người.
+212	IMAGE	
+213	FIG-CAPTION	Bảng xếp hạng PvP
+214	text	Lịch sử đấu và chi tiết trận. Lịch sử liệt kê các trận PvP và PvE đã hoàn thành, mới nhất trước; màn hình chi tiết hiển thị chế độ, người thắng, lý do kết thúc và điểm từng phi tiêu của mỗi lượt.
+215	IMAGE	
+216	FIG-CAPTION	Lịch sử đấu của người chơi
+217	IMAGE	
+218	FIG-CAPTION	Chi tiết một trận đấu
+219	H3	Kết quả kiểm thử
+220	text	Bộ kiểm thử tự động (Hình kết quả chạy bộ kiểm thử ở mục cài đặt) khởi động một server thật, dùng CSDL H2 trong bộ nhớ (chế độ tương thích MySQL) và các socket TCP loopback thật, nên kiểm tra được toàn bộ đường đi của bản tin mà không đụng tới dữ liệu thật. Kết quả lần chạy gần nhất (23/11/2026):
+221	TABLE-CAPTION	Tổng hợp kết quả kiểm thử
+222	TABLE	Nhóm kiểm thửNội dungKết quảNgắm bắn của BotPhân bố tọa độ ném theo 4 mức độ khóĐạtGameplay qua TCPĐăng ký/đăng nhập, nhiều phòng đồng thời, các tổ hợp ô điểm – vành – góc xoay, BUST, thắng, lệnh trùng/sai lượt/sai người, payload sai, chat, Bot, rời trận, mất kết nối, hết hạn lời mời/lượt359/359 đạtPhiên chơi và lịch sửChơi lại nhiều ván, lưu và truy vấn lịch sử, chi tiết trậnĐạtTransport / TLSBắt tay TLS, ghim chứng chỉ, từ chối chứng chỉ lạ, giới hạn frame WebSocket17/17 đạtGameplay qua WebSocket + TLSChạy lại toàn bộ kịch bản gameplay qua kênh WSS có TLS ghim chứng chỉ359/359 đạtThử nghiệm thủ côngHai client đăng nhập, mời – chấp nhận, chơi PvP có chat, bỏ cuộc, chơi với Bot, xem xếp hạng/lịch sử (các hình ở mục trên)Hoạt động đúng
+223	p	
+224	H2	
+225	H2	
+226	H2	Đánh giá và hướng phát triển
+227	text	Ưu điểm: hệ thống hoạt động ổn định theo mô hình server toàn quyền, chống được gian lận và lệnh trùng; kết nối được qua Internet mà người chơi không cần cấu hình; đường truyền được mã hóa đầu-cuối; có bộ kiểm thử tự động bao phủ các luồng nghiệp vụ chính.
+228	text	Hạn chế: chưa khôi phục được trận đang chơi khi server khởi động lại hoặc khi người chơi rớt mạng; mỗi phòng chỉ hỗ trợ hai người; client macOS tạm dừng phát hành; lịch sử đang chờ ghi có thể mất nếu server bị dừng đột ngột.
+229	text	Hướng phát triển: hỗ trợ kết nối lại vào trận cũ, chế độ nhiều người chơi trong một phòng, giải đấu; lưu hàng đợi lịch sử bền vững (outbox); phát hành thêm phiên bản macOS đã ký và các thể thức chơi khác như 501, Cricket.
+230	H0	KẾT LUẬN
+231	text	Qua quá trình thực hiện đề tài Darts Battle, nhóm đã xây dựng thành công một trò chơi đối kháng trực tuyến hoàn chỉnh theo mô hình client – server, vận dụng trực tiếp các kiến thức của học phần Lập trình mạng: lập trình socket TCP, thiết kế giao thức tầng ứng dụng, xử lý đa luồng và đồng bộ, phát hiện mất kết nối bằng heartbeat, bảo mật đường truyền bằng TLS và đưa dịch vụ ra Internet qua đường hầm. Sản phẩm đã được đóng gói, triển khai và kiểm thử tự động với kết quả đạt yêu cầu. Bên cạnh kiến thức chuyên môn, các thành viên cũng rèn luyện được kỹ năng làm việc nhóm, phân chia công việc theo module và quản lý mã nguồn bằng Git.
+232	H0	TÀI LIỆU THAM KHẢO
+233	REF	Oracle, “Java Platform, Standard Edition 17 API Specification – java.net, javax.net.ssl, java.io”, https://docs.oracle.com/en/java/javase/17/docs/api/
+234	REF	Oracle, “The jpackage Command (JDK 17)”, https://docs.oracle.com/en/java/javase/17/docs/specs/man/jpackage.html
+235	REF	OpenJFX, “Getting Started with JavaFX”, https://openjfx.io/openjfx-docs/
+236	REF	E. Harold, Java Network Programming, 4th ed., O’Reilly Media, 2013.
+237	REF	J. F. Kurose, K. W. Ross, Computer Networking: A Top-Down Approach, 8th ed., Pearson, 2021.
+238	REF	E. Rescorla, “The Transport Layer Security (TLS) Protocol Version 1.3”, RFC 8446, IETF, 2018.
+239	REF	I. Fette, A. Melnikov, “The WebSocket Protocol”, RFC 6455, IETF, 2011.
+240	REF	K. Moriarty et al., “PKCS #5: Password-Based Cryptography Specification Version 2.1”, RFC 8018, IETF, 2017.
+241	REF	Cloudflare, “Cloudflare Tunnel documentation”, https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+242	REF	W3C, “WebRTC: Real-Time Communication in Browsers”, https://www.w3.org/TR/webrtc/
+243	REF	Oracle, “MySQL 8.4 Reference Manual”, https://dev.mysql.com/doc/refman/8.4/en/

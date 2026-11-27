@@ -1,0 +1,151 @@
+// Báo cáo cá nhân – Nguyễn Nam Hải (B23DCCN277)
+// Phân hệ: Sảnh chờ, lời mời, phòng đấu và tương tác (F03, F04, F07)
+
+@H0 LỜI MỞ ĐẦU
+Lập trình mạng là học phần giúp sinh viên nắm vững cách các tiến trình trên những máy tính khác nhau trao đổi dữ liệu qua mạng: mô hình client – server, lập trình socket TCP, thiết kế giao thức tầng ứng dụng, xử lý đa luồng và bảo mật đường truyền. Để vận dụng các kiến thức đó, nhóm 04 thực hiện đề tài **“Darts Battle – Game ném phi tiêu đối kháng online”**, một trò chơi đối kháng theo lượt viết bằng Java, giao diện JavaFX, truyền thông qua socket TCP có mã hóa TLS và lưu dữ liệu trên MySQL.
+Trong nhóm, em (Nguyễn Nam Hải) phụ trách phân hệ **Sảnh chờ, lời mời, phòng đấu và tương tác** (nhóm chức năng F03, F04, F07): danh sách người chơi online và trạng thái thời gian thực, mời đấu có thời hạn 30 giây, tạo và quản lý phòng đấu, chơi lại nhiều ván trong một phiên, chat trong trận, gọi thoại/video WebRTC và xử lý khi người chơi rời trận hoặc mất kết nối.
+Báo cáo gồm ba chương: Chương 1 giới thiệu và phân tích yêu cầu; Chương 2 trình bày thiết kế tổng quan và thiết kế chi tiết phần cá nhân; Chương 3 trình bày kết quả cài đặt, triển khai và kiểm thử. Em xin chân thành cảm ơn giảng viên bộ môn đã hướng dẫn và rất mong nhận được góp ý để hoàn thiện sản phẩm.
+
+# GIỚI THIỆU VÀ PHÂN TÍCH YÊU CẦU
+## Giới thiệu ứng dụng
+### Bối cảnh và mục tiêu
+Darts Battle cho phép hai người chơi ở hai máy khác nhau thi đấu ném phi tiêu trực tiếp qua mạng (PvP) hoặc đấu với Bot do máy chủ điều khiển (PvE); ngoài trận đấu còn có danh sách người online, mời đấu, trò chuyện, gọi thoại/video, bảng xếp hạng và lịch sử thi đấu. Mục tiêu kỹ thuật là xây dựng hệ thống client – server trong đó **máy chủ giữ toàn quyền quyết định** (authoritative server): client chỉ gửi ý định của người chơi, còn kiểm tra lượt, tính điểm, ghép phòng và xác định thắng thua đều do server thực hiện rồi gửi kết quả cho mọi client liên quan, giúp chống gian lận và bảo đảm hai bên luôn thấy cùng một trạng thái.
+### Luật chơi
+Trò chơi áp dụng thể thức **301 straight-out**: mỗi người bắt đầu với 301 điểm, luân phiên lượt, mỗi lượt tối đa 3 phi tiêu. Đầu lượt, bàn xoay tới góc ngẫu nhiên do server chọn, người chơi ngắm bằng hai vạch X/Y. Điểm phi tiêu được trừ vào điểm còn lại, vượt quá thì không tính (BUST); người về đúng 0 điểm thắng. Người rời trận, mất kết nối hoặc hết thời gian lượt (120 giây) bị xử thua.
+### Công nghệ sử dụng
+Dự án dùng Java 17 cho cả Client, Server và thư viện Common; giao diện JavaFX (FXML, CSS); truyền thông bằng socket TCP và Java Object Serialization, bảo mật bằng TLS 1.2/1.3 có ghim chứng chỉ, mật khẩu băm PBKDF2; đưa máy chủ ra Internet bằng WebSocket (WSS) qua Cloudflare Tunnel; gọi thoại/video bằng WebRTC với máy chủ STUN/TURN của Cloudflare; CSDL MySQL 8 qua JDBC; đóng gói bằng jpackage và GitHub Actions.
+## Phân tích yêu cầu hệ thống
+### Tác nhân của hệ thống
+Hệ thống có hai tác nhân: **Khách** (chưa đăng nhập) chỉ đăng ký, đăng nhập và cập nhật ứng dụng; **Người chơi** (đã đăng nhập) có thêm các chức năng sảnh chờ, thi đấu, tương tác và thống kê. Bot chạy trên server, là thành phần của hệ thống.
+### Yêu cầu chức năng
+@ORIG 70-72
+### Yêu cầu phi chức năng
+- **Tính nhất quán:** server là nơi duy nhất thay đổi trạng thái; lệnh trùng (cùng requestId) không được xử lý hai lần; client bỏ qua sự kiện cũ dựa trên số phiên bản (version).
+- **Đồng thời và tin cậy:** phục vụ nhiều client, nhiều trận cùng lúc; phát hiện mất kết nối bằng heartbeat (PING mỗi 5 giây, hết hạn sau 45 giây); trận đấu luôn kết thúc đúng một lần với lý do rõ ràng.
+- **Bảo mật:** mã hóa TLS và ghim chứng chỉ máy chủ, mật khẩu băm PBKDF2, truy vấn bằng PreparedStatement, chỉ giải tuần tự hóa các lớp trong danh sách trắng.
+- **Trải nghiệm và triển khai:** giao diện không bị treo khi chờ mạng; client đóng gói kèm môi trường chạy Java, người chơi chỉ cần giải nén và mở ứng dụng.
+## Nội dung cá nhân đảm nhận
+Trong bốn phân hệ của dự án, em phụ trách phân hệ **Sảnh chờ, lời mời, phòng đấu và tương tác**, ứng với ba nhóm yêu cầu F03 Sảnh chờ, F04 Mời đấu và F07 Tương tác trong trận. Phân hệ này nằm giữa phân hệ kết nối – xác thực (cung cấp phiên đăng nhập) và phân hệ luồng trận đấu (thực thi luật chơi): nó nhận người chơi đã đăng nhập, ghép họ thành từng phòng đấu, duy trì kênh tương tác giữa hai người trong suốt phiên chơi và dọn dẹp khi phiên kết thúc. Các nội dung cụ thể gồm:
+- **Sảnh chờ (F03):** server lưu danh sách người online và trạng thái IDLE (rảnh), INVITED (đang được mời), IN_MATCH (đang trong trận) trong ClientManager; mỗi khi trạng thái thay đổi, server chủ động đẩy bản tin ONLINE_LIST tới mọi client nên màn hình “Chơi cùng bạn bè” luôn cập nhật mà không cần hỏi lại.
+- **Mời đấu (F04):** LobbyService xử lý INVITE_REQUEST, INVITE_ACCEPT, INVITE_REJECT; chặn mời chính mình hoặc người đang bận; lời mời tự hết hạn sau 30 giây nhờ luồng bảo trì chạy mỗi giây. Phía client, hộp thông báo lời mời có đồng hồ đếm ngược và hai nút “Vào trận”/“Để lần sau”.
+- **Phòng đấu và phiên nhiều ván:** RoomManager tạo phòng PvP/PvE (Room) trong RAM, ánh xạ người chơi – phòng để mỗi người chỉ ở một phòng; SessionService xử lý SESSION_READY, SESSION_LEAVE để hai người chơi lại ván mới trong cùng phiên mà không phải mời lại.
+- **Tương tác trong trận (F07):** chat văn bản (CHAT_MESSAGE, tối đa 500 ký tự, tên người gửi do server điền); gọi thoại/video WebRTC, trong đó server chỉ làm nhiệm vụ báo hiệu (MediaSignalingService) và cấp khóa TURN tạm thời (TurnCredentialService), còn âm thanh/hình ảnh đi trực tiếp giữa hai máy.
+- **Rời trận và mất kết nối:** khi người chơi bỏ cuộc, đăng xuất hoặc rớt mạng, server hủy lời mời đang chờ, xử thua người rời, báo MATCH_FINISHED cho đối thủ, kết thúc cuộc gọi và trả hai người về trạng thái rảnh.
+- **Giao diện:** hệ thống hộp thoại và thông báo trong ứng dụng (lớp Notifications), màn hình sảnh chờ, khung chat và khu vực cuộc gọi trên màn hình trận đấu; kiểm thử phiên nhiều ván, cuộc gọi và giao diện tổng thể.
+Vì trạng thái lời mời và phòng được chia sẻ giữa nhiều luồng (luồng của hai client, luồng bảo trì, luồng tạo ván mới), thiết kế phải bảo đảm đồng bộ để một người không bao giờ bị ghép vào hai trận cùng lúc.
+
+# PHÂN TÍCH THIẾT KẾ HỆ THỐNG
+## Kiến trúc tổng quan
+@ORIG 84-87
+@IMG img/image3.png | 12 | Kiến trúc tổng quan của hệ thống Darts Battle
+Mỗi client duy trì **một kết nối TCP lâu dài** với server, nhờ đó server chủ động đẩy dữ liệu xuống client bất cứ lúc nào (lời mời mới, danh sách online thay đổi, tin nhắn chat) thay vì chờ client hỏi. Server áp dụng mô hình **thread-per-client**: mỗi kết nối có một luồng đọc và một luồng ghi lấy dữ liệu từ hàng đợi, nên nhiều luồng (đối thủ, bộ hẹn giờ, luồng bảo trì) có thể cùng gửi cho một client mà không lẫn byte trên socket. Khi chơi qua Internet, luồng TLS được bọc trong WebSocket để đi qua Cloudflare Tunnel.
+## Giao thức truyền thông
+Đơn vị truyền là đối tượng **Message { type, requestId, payload }**, trong đó type thuộc kiểu liệt kê MessageType và payload là một DTO tương ứng (định nghĩa trong DartGame_Common). Bảng dưới liệt kê các bản tin do phân hệ của em sử dụng; các bản tin về tài khoản, ném phi tiêu và lịch sử thuộc các phân hệ khác.
+@TABLE Các bản tin của phân hệ sảnh chờ, lời mời, phòng đấu và tương tác | 4,1.6,5
+| Bản tin | Chiều | Ý nghĩa / payload |
+| ONLINE_LIST | Hai chiều | Yêu cầu và nhận List<OnlineUser>(id, username, status) |
+| INVITE_REQUEST; INVITE_ACCEPT / INVITE_REJECT | C → S | Mời đấu (username đối thủ); trả lời lời mời (invitationId) |
+| INVITE_RECEIVED; INVITE_RESULT | S → C | Có lời mời InviteResponse(id, senderId, senderName, expiresAt); kết quả: đã gửi, bị từ chối, hết hạn |
+| MATCH_STARTED / MATCH_FINISHED | S → C | Bắt đầu / kết thúc trận (MatchSnapshot, có winner và endReason) |
+| CHAT_MESSAGE | Hai chiều | ChatMessage(matchId, text, senderName do server điền) |
+| LEAVE_MATCH | C → S | Rời trận đang chơi, bị xử thua |
+| SESSION_READY / SESSION_LEAVE; SESSION_STATUS | C → S; S → C | Sẵn sàng ván tiếp / rời phiên; trạng thái phiên (phase, round, ai đã sẵn sàng) |
+| MEDIA_JOIN, MEDIA_LEAVE; MEDIA_ICE_SERVERS, MEDIA_STATUS | C → S; S → C | Vào/rời cuộc gọi; cấu hình STUN/TURN và trạng thái cuộc gọi (bên tạo OFFER) |
+| MEDIA_DESCRIPTION / MEDIA_CANDIDATE | Hai chiều | Chuyển tiếp SDP (OFFER/ANSWER) và ICE candidate |
+## Sơ đồ khối chức năng của Client
+@ORIG 101
+@IMG img/image5.png | 13 | Sơ đồ khối chức năng của Client
+## Sơ đồ khối chức năng của Server
+@ORIG 105
+@IMG img/image6.png | 13 | Sơ đồ khối chức năng của Server
+## Biểu đồ Use case tổng quan
+Biểu đồ dưới thể hiện các use case của hai tác nhân Khách và Người chơi; các use case xem danh sách online, mời và trả lời lời mời, chat, gọi thoại/video, rời trận và chơi lại thuộc phân hệ của em.
+@IMG img/image7.png | 11 | Biểu đồ Use case tổng quan của hệ thống
+## Phân tích thiết kế chi tiết chức năng cá nhân
+### Use case chi tiết
+“Người được mời” cũng là một Người chơi nhưng ở vai trò trả lời lời mời; Cloudflare TURN là tác nhân phụ. “Mời người chơi” luôn bao gồm bước kiểm tra hai bên đang rảnh và được mở rộng bởi việc hủy lời mời quá hạn; “Gọi thoại/video” bao gồm việc nhận khóa TURN tạm thời; “Rời trận” luôn kèm thông báo đối thủ và xử thua người rời.
+@IMG diagrams/uc_chitiet.png | 11 | Biểu đồ use case chi tiết phân hệ sảnh chờ, lời mời, phòng đấu và tương tác
+@TABLE Kịch bản use case “Mời người chơi thi đấu (PvP)” | 2.2,7.8
+| Thành phần | Nội dung |
+| Tác nhân | Người chơi A (người mời), Người chơi B (người được mời) |
+| Tiền điều kiện | A và B đã đăng nhập, ở trạng thái IDLE, không thuộc phòng nào |
+| Luồng chính | 1. A mở “Chơi cùng bạn bè”, thấy danh sách online kèm trạng thái.<br>2. A chọn B đang rảnh, nhấn “Gửi lời mời” (INVITE_REQUEST).<br>3. Server kiểm tra B online, khác A, cả hai rảnh; tạo lời mời hạn 30 giây, đặt A, B sang INVITED.<br>4. Server gửi INVITE_RECEIVED cho B, INVITE_RESULT cho A, phát ONLINE_LIST mới.<br>5. B nhấn “Vào trận” (INVITE_ACCEPT).<br>6. Server tạo Room PvP, ghi trận vào CSDL, đặt A, B sang IN_MATCH, gửi MATCH_STARTED. |
+| Luồng phụ | 3a. B offline, là chính A hoặc một bên đang bận: server trả ERROR, không tạo lời mời.<br>5a. B nhấn “Để lần sau”: cả hai nhận INVITE_RESULT “Lời mời đã bị từ chối”, trở về IDLE.<br>5b. Quá 30 giây: luồng bảo trì hủy lời mời, báo “Lời mời đã hết hạn”. |
+| Hậu điều kiện | Thành công: A, B cùng một phòng, IN_MATCH. Thất bại: không tạo phòng, A, B trở lại IDLE. |
+### Biểu đồ lớp
+Phía server (hình dưới), mỗi kết nối là một đối tượng **Client** (kế thừa Thread) đọc bản tin và định tuyến theo MessageType: bản tin sảnh chờ, lời mời, chat chuyển cho **LobbyService**; SESSION_READY/SESSION_LEAVE chuyển cho **SessionService**; các bản tin MEDIA_JOIN, MEDIA_LEAVE, MEDIA_DESCRIPTION, MEDIA_CANDIDATE chuyển cho **MediaSignalingService**. LobbyService là singleton, mọi phương thức được khai báo synchronized; nó giữ bảng lời mời đang chờ (bản ghi Pending gồm id, người gửi, người nhận, thời điểm hết hạn) và phối hợp với **ClientManager** (danh sách client online và PlayerStatus) cùng **RoomManager** (các phòng đang mở, bảng ánh xạ người chơi – phòng). **Room** lưu hai người chơi, chế độ, sessionId, số thứ tự ván, giai đoạn phiên (PLAYING, RESULTS, CLOSED) và cờ sẵn sàng của từng người. GameService (phân hệ luồng trận đấu) được gọi để bắt đầu trận, ván mới và đóng phiên.
+@IMG diagrams/class_server.png | 13.5 | Biểu đồ lớp phía Server của phân hệ
+Phía client (hình dưới), **SocketHandler** là điểm nhận/gửi bản tin duy nhất: phương thức receive() phân loại bản tin và gọi tới **ChooseOpponentController** (cập nhật bảng người online), **Notifications** (hộp lời mời đếm ngược, thông báo, hộp xác nhận) và **StartGameController** (khung chat, trạng thái phiên, nút chơi lại và cuộc gọi). StartGameController sở hữu một **MediaCallSession** bọc RTCPeerConnection của thư viện WebRTC; lớp này tạo OFFER/ANSWER, gom ICE candidate đến sớm và điều khiển micro, camera.
+@IMG diagrams/class_client.png | 13 | Biểu đồ lớp phía Client của phân hệ
+### Biểu đồ tuần tự
+**Mời đấu và tạo phòng.** Biểu đồ dưới mô tả luồng từ lúc A gửi lời mời tới khi trận bắt đầu, cùng hai nhánh thất bại (từ chối, hết hạn). Toàn bộ bước kiểm tra và đổi trạng thái diễn ra trong phương thức synchronized của LobbyService nên hai lời mời đồng thời không thể ghép cùng một người vào hai phòng. Server chỉ thông báo MATCH_STARTED sau khi ghi được bản ghi trận vào CSDL; nếu ghi lỗi, phòng bị hủy ngay.
+@IMG diagrams/seq_moidau.png | 13.5 | Biểu đồ tuần tự mời đấu, chấp nhận và tạo phòng
+**Báo hiệu cuộc gọi WebRTC.** Server không chuyển âm thanh/hình ảnh mà chỉ chuyển các bản tin thiết lập kết nối. Khi một người tham gia, MediaSignalingService kiểm tra người đó thuộc trận PvP đang diễn ra, lấy khóa TURN tạm thời (thời hạn 1 giờ) qua TurnCredentialService trên một luồng riêng để không chặn luồng đọc, rồi gửi cấu hình ICE. Khi cả hai đã vào, server chỉ định player1 là bên tạo OFFER; mọi bản tin SDP/ICE đều được kiểm tra callId, kích thước và tần suất trước khi chuyển cho đối phương. Khóa API dài hạn chỉ nằm trên server; client chỉ nhận khóa có thời hạn.
+@IMG diagrams/seq_goivideo.png | 13 | Biểu đồ tuần tự báo hiệu cuộc gọi thoại/video WebRTC
+**Rời trận và mất kết nối.** Khi người chơi chủ động bỏ cuộc, bản tin LEAVE_MATCH (qua GameController) hoặc SESSION_LEAVE (qua SessionService) được chuyển tới GameService với lý do FORFEIT. Khi kết nối bị đóng (lỗi đọc, quá 45 giây không nhận được dữ liệu), Client.close() kết thúc cuộc gọi qua MediaSignalingService.disconnected() rồi gọi LobbyService.logout() với lý do DISCONNECT (đăng xuất chủ động cũng đi qua logout() nhưng với lý do FORFEIT): hủy lời mời liên quan, gỡ client khỏi danh sách online rồi gọi GameService.leaveSession(). Trong mọi trường hợp, người rời bị xử thua, đối thủ nhận MATCH_FINISHED và SESSION_STATUS với giai đoạn CLOSED, phòng bị xóa khỏi RoomManager và cả hai được đưa về IDLE trong ONLINE_LIST.
+### Sơ đồ thực thể quan hệ (ER)
+Lời mời và phòng đấu là dữ liệu tạm thời, chỉ có ý nghĩa khi người chơi đang online, nên được giữ trong RAM (Pending trong LobbyService, Room trong RoomManager) mà không có bảng riêng; nhờ vậy thao tác mời/tạo phòng không phải chờ CSDL và dữ liệu rác tự mất khi server khởi động lại. Kết quả bền vững của phân hệ là các bản ghi trong bảng matches mà mỗi ván trong phòng sinh ra.
+@IMG diagrams/er_hai.png | 12.5 | Sơ đồ thực thể quan hệ liên quan đến phòng đấu
+- **users:** khóa chính id (BIGINT tự tăng), username duy nhất, password_hash. Pending.sender/receiver và Room.player1Id/player2Id đều là giá trị users.id.
+- **matches:** khóa chính id là matchId (UUID) của ván; player1_id là khóa ngoại tới users.id; player2_id là khóa ngoại cho phép NULL (trận với Bot); winner_id lưu id người thắng nhưng không khai báo khóa ngoại (NULL khi Bot thắng); end_reason lưu lý do kết thúc như FORFEIT, DISCONNECT, TURN_TIMEOUT. Hai cột session_id và round_index thể hiện phiên nhiều ván: mọi ván của một Room có cùng session_id (bằng matchId của ván đầu) và round_index tăng dần. Quan hệ users – matches là 1–N theo từng vai trò người chơi.
+- **match_throws:** lưu từng phi tiêu, khóa ngoại match_id tới matches và player_id tới users; do phân hệ luồng trận đấu và lịch sử ghi, được giữ trong sơ đồ để thể hiện đầy đủ quan hệ.
+
+# KẾT QUẢ THỰC HIỆN
+## Kiến trúc ứng dụng triển khai
+Hệ thống được triển khai với một máy chủ macOS và các máy người chơi chạy Windows (hình dưới). Máy chủ nằm sau NAT nên nhóm dùng **Cloudflare Tunnel**: client mở kết nối wss://game-backsite.handq2212.site/play tới Cloudflare, dữ liệu đi qua đường hầm về WebSocketBridge (127.0.0.1:8444) rồi tới Game Server TLS (127.0.0.1:8443). Bên trong WebSocket vẫn là phiên TLS đầu-cuối, client ghim chứng chỉ của máy chủ; MySQL chỉ truy cập qua localhost. Riêng cuộc gọi thoại/video thuộc phân hệ của em, media đi P2P bằng WebRTC giữa hai máy người chơi, khi hai mạng không kết nối trực tiếp được thì đi qua máy chủ TURN của Cloudflare.
+@IMG img/image8.png | 12.5 | Kiến trúc triển khai của ứng dụng: Server, Client và người chơi
+## Cài đặt và triển khai ứng dụng
+### Yêu cầu môi trường
+@ORIG 130-132
+### Cài đặt và khởi động máy chủ
+Trên máy chủ, sau khi cài JDK 17+, Python 3 và MySQL 8, người quản trị sao chép mã nguồn từ GitHub, tạo CSDL dart_socket_game cùng tài khoản riêng cho game (các bảng users, matches, match_throws được server tự tạo ở lần chạy đầu), rồi chạy script desktop.py để tải thư viện (Java-WebSocket, SLF4J, JavaFX, WebRTC) và tạo darts-server.jar, darts-client.jar. Thông tin CSDL, cổng và kho khóa TLS được truyền qua biến môi trường (DARTS_DB_URL, DARTS_DB_USER, DARTS_DB_PASSWORD, DARTS_PORT, DARTS_TLS_KEYSTORE, DARTS_TLS_PASSWORD); server được khởi động bằng python3 scripts/desktop.py run server, cài thành dịch vụ launchd và đưa ra Internet bằng Cloudflare Tunnel.
+Riêng chức năng gọi thoại/video cần cấu hình khóa TURN của Cloudflare trong .local/turn.properties (hoặc DARTS_TURN_KEY_ID, DARTS_TURN_API_TOKEN); nếu thiếu, server chỉ cấp STUN và cuộc gọi có thể không kết nối được qua NAT chặt.
+### Đóng gói và cài đặt Client
+Client Windows x64 được GitHub Actions kiểm thử và đóng gói bằng jpackage (kèm JRE) thành DartsBattle-windows.zip, phát hành trên GitHub Releases. Người chơi chỉ cần tải, giải nén, mở DartsBattle.exe; ứng dụng tự kết nối tới máy chủ, người chơi đăng ký rồi đăng nhập.
+## Các kết quả thực hiện được
+### Các chức năng đã hoàn thành
+@TABLE Kết quả thực hiện các chức năng | 4,6
+| Chức năng | Kết quả |
+| Danh sách online, trạng thái IDLE / INVITED / IN_MATCH | Hoàn thành; server đẩy ONLINE_LIST khi có thay đổi |
+| Mời đấu, chấp nhận/từ chối, hết hạn 30 giây | Hoàn thành; chặn mời chính mình và người đang bận |
+| Tạo phòng PvP/PvE, chơi lại nhiều ván trong một phiên | Hoàn thành; luân phiên người đi trước mỗi ván |
+| Chat, gọi thoại/video trong trận | Hoàn thành; WebRTC P2P, TURN khi cần |
+| Rời trận, mất kết nối | Hoàn thành; xử thua, thông báo đối thủ, lưu lý do kết thúc |
+| Các chức năng của phân hệ khác (tài khoản, kết nối, luật chơi, Bot, xếp hạng, lịch sử, đóng gói, tự cập nhật) | Hoàn thành; phiên bản client 2.5.3 |
+### Giao diện các chức năng cá nhân phụ trách
+Các hình dưới được chụp từ ứng dụng thật khi chạy với hai tài khoản thử nghiệm NamHai và MinhHieu.
+**Danh sách online và lời mời.** Màn hình “Chơi cùng bạn bè” hiển thị người online kèm trạng thái. Khi có lời mời, hộp thông báo hiện ở góc phải với đồng hồ đếm ngược 30 giây và hai nút “Vào trận”, “Để lần sau”; trong lúc chờ, cả hai hiển thị là đang bận.
+@IMG img/image20.jpeg | 10 | Danh sách người chơi online và hộp thoại nhận lời mời
+**Trận đấu PvP với chat và cuộc gọi.** Cột phải của màn hình trận đấu là khung trò chuyện; tin nhắn hiển thị kèm tên người gửi do server điền. Khu vực camera cùng các nút micro/camera dùng cho cuộc gọi WebRTC; người chơi chỉ tham gia cuộc gọi khi tự bấm bật micro hoặc camera, ứng dụng không tự mở thiết bị.
+@IMG img/image21.jpeg | 10 | Màn hình trận đấu PvP với khung trò chuyện
+**Rời trận và kết thúc phiên.** Khi một bên bỏ cuộc hoặc mất kết nối, bên còn lại nhận ngay MATCH_FINISHED và màn hình kết quả hiển thị lý do kết thúc (đối thủ bỏ cuộc/mất kết nối) cùng điểm hai bên. Nếu ván kết thúc bình thường, hai người có thể bấm “Chơi tiếp” để bắt đầu ván mới trong cùng phiên (người đi trước được luân phiên) hoặc “Thoát về sảnh” để đóng phiên.
+### Kết quả kiểm thử
+Các bộ kiểm thử tích hợp khởi động server thật với CSDL H2 trong bộ nhớ và socket TCP loopback thật; bảng dưới tóm tắt các kịch bản liên quan đến phân hệ của em.
+@TABLE Kết quả kiểm thử các chức năng của phân hệ | 2.5,6.1,1.4
+| Bộ kiểm thử | Kịch bản liên quan | Kết quả |
+| MultiplayerIntegrationTest (gameplay qua TCP) | Danh sách online; từ chối hoặc hết hạn lời mời trả cả hai về rảnh; xác thực người gửi chat; rời trận xử thua đúng một lần; mất kết nối xử thắng cho đối thủ; đăng xuất bị xử thua | Đạt (trong 359/359) |
+| Chạy lại qua WebSocket + TLS | Toàn bộ kịch bản trên qua kênh WSS có ghim chứng chỉ | 359/359 đạt |
+| SessionIntegrationTest (phiên nhiều ván) | Hai người vào cùng cuộc gọi; sẵn sàng/hủy sẵn sàng; tạo đúng một ván mới, luân phiên người đi trước; cuộc gọi và chat giữ qua các ván; từ chối lệnh của ván cũ; rời phiên khi chờ thì đóng phiên; mỗi ván lưu đúng một lần | Đạt |
+| MediaServerEndToEndTest | Hai client thật thiết lập cuộc gọi WebRTC qua game server mà không tự bật thiết bị; cuộc gọi giữ nguyên qua ván mới; thoát trận sạch | Đạt |
+| MediaCallSessionTest, NotificationsTest (client) | Hai phiên media kết nối, đồng bộ trạng thái camera, giải phóng tài nguyên khi kết thúc; hộp lời mời, thông báo, hộp xác nhận | Đạt |
+| Thử nghiệm thủ công | Hai client: mời – chấp nhận, chơi PvP có chat, bỏ cuộc | Hoạt động đúng |
+Các bộ kiểm thử tự động trên được chạy lại ngày 27/11/2026 trên mã nguồn hiện tại bằng script desktop.py (lệnh test, media-test) và đều đạt.
+## Đánh giá và hướng phát triển
+**Ưu điểm:** trạng thái sảnh chờ, lời mời và phòng được server quản lý tập trung, đồng bộ, không ghép trùng phòng; danh sách online cập nhật thời gian thực; lời mời tự dọn dẹp khi hết hạn; media cuộc gọi không đi qua server và khóa TURN chỉ cấp tạm thời; phiên nhiều ván giúp chơi tiếp mà không phải mời lại.
+**Hạn chế và hướng phát triển:** phòng và lời mời chỉ ở RAM nên không khôi phục được khi server khởi động lại hoặc người chơi rớt mạng giữa trận; mỗi phòng chỉ có hai người; lịch sử chat không được lưu. Hướng tiếp theo là cho phép kết nối lại vào phòng cũ trong thời gian chờ, phòng nhiều người và chế độ khán giả, danh sách bạn bè và lưu lịch sử chat.
+
+@H0 KẾT LUẬN
+Qua đề tài Darts Battle, nhóm đã xây dựng hoàn chỉnh một trò chơi đối kháng trực tuyến theo mô hình client – server; phần em phụ trách là phân hệ sảnh chờ, lời mời, phòng đấu và tương tác, đã hoàn thành và được kiểm thử tự động. Qua đó em vận dụng trực tiếp các kiến thức của học phần như mô hình server chủ động đẩy dữ liệu trên kết nối TCP lâu dài, thiết kế bản tin tầng ứng dụng, đồng bộ hóa dữ liệu dùng chung giữa nhiều luồng, xử lý hết hạn bằng luồng định kỳ và kỹ thuật vượt NAT bằng STUN/TURN.
+Bên cạnh kiến thức chuyên môn, em cũng rèn luyện được kỹ năng làm việc nhóm, thống nhất giao thức qua tài liệu chung và quản lý mã nguồn bằng Git.
+
+@H0 TÀI LIỆU THAM KHẢO
+@REF Oracle, “Java Platform, Standard Edition 17 API Specification – java.net, javax.net.ssl, java.util.concurrent”, https://docs.oracle.com/en/java/javase/17/docs/api/
+@REF OpenJFX, “Getting Started with JavaFX”, https://openjfx.io/openjfx-docs/
+@REF E. Harold, Java Network Programming, 4th ed., O’Reilly Media, 2013.
+@REF J. F. Kurose, K. W. Ross, Computer Networking: A Top-Down Approach, 8th ed., Pearson, 2021.
+@REF E. Rescorla, “The Transport Layer Security (TLS) Protocol Version 1.3”, RFC 8446, IETF, 2018.
+@REF Cloudflare, “Cloudflare Tunnel documentation”, https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+@REF W3C, “WebRTC: Real-Time Communication in Browsers”, https://www.w3.org/TR/webrtc/
+@REF J. Uberti, C. Jennings, E. Rescorla, “JavaScript Session Establishment Protocol (JSEP)”, RFC 8829, IETF, 2021.
+@REF A. Keranen, C. Holmberg, J. Rosenberg, “Interactive Connectivity Establishment (ICE)”, RFC 8445, IETF, 2018.
+@REF Cloudflare, “Cloudflare Realtime – TURN Service documentation”, https://developers.cloudflare.com/realtime/turn/
